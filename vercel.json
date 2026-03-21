@@ -1,5 +1,5 @@
 {
-  "installCommand": "npm ci && npm ci --prefix VivahGo",
-  "buildCommand": "npm --prefix VivahGo run build",
-  "outputDirectory": "VivahGo/dist"
+  "installCommand": "npm ci && npm ci --prefix vivahgo",
+  "buildCommand": "npm --prefix vivahgo run build",
+  "outputDirectory": "vivahgo/dist"
 }
