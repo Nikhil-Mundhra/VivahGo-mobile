@@ -1,4 +1,5 @@
 {
-  "buildCommand": "npm run build",
+  "installCommand": "npm ci --prefix vivahgo",
+  "buildCommand": "npm --prefix vivahgo run build",
   "outputDirectory": "vivahgo/dist"
 }
