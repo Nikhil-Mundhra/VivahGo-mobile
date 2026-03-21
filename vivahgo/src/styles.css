@@ -937,10 +937,29 @@ body { background: var(--color-deep-red); }
   display: flex;
   flex-direction: column;
   gap: 12px;
+  align-items: center;
+}
+
+.google-login-wrap {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  max-width: 400px;
+}
+
+.google-login-wrap > div {
+  margin: 0 auto;
+  width: 100%;
+}
+
+.google-button-inner-wrap {
+  width: 100%;
+  max-width: 400px;
 }
 
 .login-secondary-btn {
   width: 100%;
+  max-width: 400px;
   border-radius: 14px;
   border: 1px solid rgba(139, 26, 26, 0.16);
   background: rgba(139, 26, 26, 0.05);
@@ -1208,39 +1227,40 @@ body { background: var(--color-deep-red); }
   }
 
   .login-screen {
-    padding: 34px;
+    padding: 24px;
   }
 
   .login-container {
-    max-width: 920px;
-    width: min(920px, 100%);
-    padding: 40px;
-    display: grid;
-    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
-    gap: 34px;
+    max-width: 560px;
+    width: min(560px, 100%);
+    padding: 36px 30px;
+    display: block;
     border-radius: 24px;
   }
 
-  .login-header,
-  .login-footer {
-    grid-column: 1 / -1;
-  }
-
   .login-header {
-    margin-bottom: 6px;
+    margin-bottom: 20px;
   }
 
   .login-content {
-    display: contents;
+    display: block;
     margin-bottom: 0;
   }
 
   .login-benefits {
+    margin-bottom: 24px;
+    padding: 16px;
+    border-radius: 14px;
+    background: rgba(139, 26, 26, 0.04);
+    border: 1px solid rgba(212, 175, 55, 0.2);
+  }
+
+  .benefit-item {
+    margin-bottom: 10px;
+  }
+
+  .benefit-item:last-child {
     margin-bottom: 0;
-    padding: 18px;
-    border-radius: 16px;
-    background: linear-gradient(165deg, rgba(139, 26, 26, 0.05) 0%, rgba(212, 175, 55, 0.12) 100%);
-    border: 1px solid rgba(212, 175, 55, 0.25);
   }
 
   .login-actions {
@@ -1248,7 +1268,7 @@ body { background: var(--color-deep-red); }
   }
 
   .login-divider {
-    margin: 4px 0 16px;
+    margin: 0 0 16px;
   }
 
   .login-logo {
@@ -1354,142 +1374,4 @@ body { background: var(--color-deep-red); }
   border-radius: 14px;
   padding: 14px 12px;
   cursor: pointer;
-}
-
-/* LOGIN SCREEN */
-.login-screen {
-  min-height: 100vh;
-  background: linear-gradient(160deg, #6B0F0F 0%, #8B1A1A 40%, #A0200A 70%, #C41E3A 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-}
-
-.login-container {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border-radius: 24px;
-  padding: 32px 24px;
-  width: 100%;
-  max-width: 360px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(212, 175, 55, 0.2);
-}
-
-.login-header {
-  text-align: center;
-  margin-bottom: 32px;
-}
-
-.login-logo {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 16px;
-}
-
-.login-logo-image {
-  width: 100%;
-  display: block;
-  height: auto;
-  border-radius: 14px;
-  border: 1px solid rgba(212, 175, 55, 0.35);
-  box-shadow: none;
-}
-
-.login-title {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 28px;
-  font-weight: 700;
-  color: var(--color-crimson);
-  margin-bottom: 8px;
-  line-height: 1.2;
-}
-
-.login-subtitle {
-  font-size: 14px;
-  color: var(--color-mid-text);
-  font-style: italic;
-}
-
-.login-content {
-  margin-bottom: 24px;
-}
-
-.login-benefits {
-  margin-bottom: 32px;
-}
-
-.benefit-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
-  padding: 8px 0;
-}
-
-.benefit-icon {
-  font-size: 20px;
-  min-width: 24px;
-}
-
-.benefit-text {
-  font-size: 14px;
-  color: var(--color-dark-text);
-  font-weight: 500;
-}
-
-.login-divider {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin: 24px 0;
-}
-
-.divider-line {
-  flex: 1;
-  height: 1px;
-  background: rgba(139, 26, 26, 0.2);
-}
-
-.divider-text {
-  font-size: 12px;
-  color: var(--color-mid-text);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.login-footer {
-  text-align: center;
-}
-
-.login-footer-text {
-  font-size: 11px;
-  color: var(--color-light-text);
-  line-height: 1.4;
-}
-
-/* USER AVATAR */
-.top-bar-user {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-}
-
-.user-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  border: 2px solid var(--color-gold);
-  cursor: pointer;
-  transition: transform 0.15s;
-}
-
-.user-avatar:hover {
-  transform: scale(1.05);
-}
-
-.user-avatar:active {
-  transform: scale(0.95);
 }

@@ -34,14 +34,16 @@ function LoginScreen({ onGoogleLogin, onDemoLogin, onLoginError, isLoggingIn, er
 
           <div className="login-divider">
             <div className="divider-line"></div>
-            <span className="divider-text">Continue with</span>
+            <span className="divider-text">Login</span>
             <div className="divider-line"></div>
           </div>
 
           <div className="login-actions">
-            <GoogleLoginButton onLoginSuccess={onGoogleLogin} onLoginError={onLoginError} />
+            <div className="google-login-wrap">
+              <GoogleLoginButton onLoginSuccess={onGoogleLogin} onLoginError={onLoginError} />
+            </div>
             <button className="login-secondary-btn" type="button" onClick={onDemoLogin} disabled={isLoggingIn}>
-              Try Demo Planner With Sample Data
+              Login as Demo Planner With Sample Data
             </button>
           </div>
 
