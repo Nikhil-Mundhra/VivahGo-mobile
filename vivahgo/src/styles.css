@@ -859,7 +859,7 @@ body { background: var(--color-deep-red); }
 }
 .fab {
   position: fixed;
-  bottom: 90px; right: 20px;
+  bottom: calc(90px + 0.5cm); right: 20px;
   width: 52px; height: 52px;
   background: linear-gradient(135deg, var(--color-gold), var(--color-gold-dark));
   border: none; border-radius: 50%;
