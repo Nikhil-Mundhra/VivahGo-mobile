@@ -2,6 +2,7 @@ import { useState } from "react";
 import { EVENT_COLORS } from "../constants";
 import { DEFAULT_EVENTS } from "../data";
 import { fmt } from "../utils";
+import { useSwipeDown } from "../hooks/useSwipeDown";
 
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const YEARS  = Array.from({length: 8}, (_, i) => 2025 + i);
@@ -33,6 +34,8 @@ function EventsScreen({ events, setEvents, expenses, onOpenBudget, initialEditin
   const [showAdd, setShowAdd] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState("");
   const [form, setForm] = useState({ name: "", emoji: "✨", date: "", timeH: "", timeM: "", timeP: "AM", venue: "", status: "upcoming", note: "" });
+  const editingSwipe = useSwipeDown(() => setEditing(null));
+  const addSwipe = useSwipeDown(() => { setShowAdd(false); setSelectedPreset(""); });
 
   const usedNames = new Set(events.map(e => e.name));
   const availablePresets = DEFAULT_EVENTS.filter(e => !usedNames.has(e.name));
@@ -127,7 +130,7 @@ function EventsScreen({ events, setEvents, expenses, onOpenBudget, initialEditin
 
       {editing && (
         <div className="modal-overlay" onClick={()=>setEditing(null)}>
-          <div className="modal" onClick={e=>e.stopPropagation()}>
+          <div className="modal" {...editingSwipe.modalProps} onClick={e=>e.stopPropagation()}>
             <div className="modal-handle"/>
             <div className="modal-title">{editing.emoji} {editing.name}</div>
             <div style={{marginBottom:16,padding:"10px 12px",background:"rgba(139,26,26,0.05)",borderRadius:12,color:"var(--color-mid-text)",fontSize:13}}>
@@ -193,7 +196,7 @@ function EventsScreen({ events, setEvents, expenses, onOpenBudget, initialEditin
 
       {showAdd && (
         <div className="modal-overlay" onClick={() => { setShowAdd(false); setSelectedPreset(""); }}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
+          <div className="modal" {...addSwipe.modalProps} onClick={e => e.stopPropagation()}>
             <div className="modal-handle"/>
             <div className="modal-title">Add Ceremony ✨</div>
             <div className="input-group">

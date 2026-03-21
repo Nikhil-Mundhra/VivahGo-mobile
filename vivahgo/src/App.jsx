@@ -9,9 +9,11 @@ import BudgetScreen from "./components/BudgetScreen";
 import GuestsScreen from "./components/GuestsScreen";
 import VendorsScreen from "./components/VendorsScreen";
 import TasksScreen from "./components/TasksScreen";
+import AccountScreen from "./components/AccountScreen";
 import { NAV_ITEMS } from "./constants";
 import { fetchPlanner, loginWithGoogle, savePlanner } from "./api";
 import { createBlankPlanner, createDemoPlanner, hasWeddingProfile, normalizePlanner } from "./plannerDefaults";
+import { useSwipeDown } from "./hooks/useSwipeDown";
 
 const SESSION_STORAGE_KEY = "vivahgo.session";
 const DEMO_PLANNER_STORAGE_KEY = "vivahgo.demoPlanner";
@@ -35,6 +37,8 @@ export default function VivahGoApp() {
   const [showWeddingDetailsEditor, setShowWeddingDetailsEditor] = useState(false);
   const [weddingDetailsForm, setWeddingDetailsForm] = useState({ date: "", venue: "" });
   const [eventToEditId, setEventToEditId] = useState(null);
+  const [showAccountSettings, setShowAccountSettings] = useState(false);
+  const weddingSwipe = useSwipeDown(() => closeWeddingDetailsEditor());
 
   const saveTimerRef = useRef(null);
 
@@ -223,6 +227,14 @@ export default function VivahGoApp() {
     setShowWeddingDetailsEditor(false);
   }
 
+  function openAccountSettings() {
+    setShowAccountSettings(true);
+  }
+
+  function closeAccountSettings() {
+    setShowAccountSettings(false);
+  }
+
   function saveWeddingDetails() {
     setWedding(current => ({
       ...current,
@@ -289,11 +301,11 @@ export default function VivahGoApp() {
                   src={user.picture}
                   alt={user?.name}
                   className="user-avatar"
-                  onClick={handleLogout}
-                  title="Click to logout"
+                  onClick={openAccountSettings}
+                  title="Account settings"
                 />
               ) : (
-                <button className="user-avatar user-avatar-fallback" onClick={handleLogout} title="Click to logout">
+                <button className="user-avatar user-avatar-fallback" onClick={openAccountSettings} title="Account settings">
                   {(user?.name || "V").slice(0, 1).toUpperCase()}
                 </button>
               )}
@@ -321,9 +333,19 @@ export default function VivahGoApp() {
             ))}
           </div>
 
+          {showAccountSettings && (
+            <AccountScreen
+              user={user}
+              authMode={authMode}
+              wedding={wedding}
+              setWedding={setWedding}
+              onClose={closeAccountSettings}
+              onLogout={() => { closeAccountSettings(); handleLogout(); }}
+            />
+          )}
           {showWeddingDetailsEditor && (
             <div className="modal-overlay" onClick={closeWeddingDetailsEditor}>
-              <div className="modal" onClick={(event) => event.stopPropagation()}>
+              <div className="modal" {...weddingSwipe.modalProps} onClick={(event) => event.stopPropagation()}>
                 <div className="modal-handle"/>
                 <div className="modal-title">Edit Wedding Details</div>
                 <div className="input-group">

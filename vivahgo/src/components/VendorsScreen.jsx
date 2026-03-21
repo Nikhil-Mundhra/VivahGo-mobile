@@ -1,12 +1,14 @@
 import { useMemo, useState } from "react";
 import { VENDOR_TYPES } from "../constants";
 import { DEFAULT_VENDORS } from "../data";
+import VendorDetailScreen from "./VendorDetailScreen";
 
 function VendorsScreen({ vendors, setVendors }) {
   const [activeTab, setActiveTab] = useState("All");
   const [locationFilter, setLocationFilter] = useState("all");
   const [ratingFilter, setRatingFilter] = useState("all");
   const [priceSort, setPriceSort] = useState("none");
+  const [selectedVendor, setSelectedVendor] = useState(null);
 
   function parsePriceValue(priceText = "") {
     if (!priceText) {
@@ -32,18 +34,6 @@ function VendorsScreen({ vendors, setVendors }) {
     [universalVendors]
   );
 
-  function toggleBooked(id) {
-    setVendors(vs => {
-      const current = Array.isArray(vs) ? vs : [];
-      const currentMap = new Map(current.map(v => [v.id, Boolean(v.booked)]));
-      const nextBooked = !(currentMap.get(id) ?? false);
-      currentMap.set(id, nextBooked);
-
-      // Persist only booking state against known directory IDs.
-      return DEFAULT_VENDORS.map(v => ({ id: v.id, booked: currentMap.get(v.id) ?? Boolean(v.booked) }));
-    });
-  }
-
   const filtered = universalVendors
     .filter(v => activeTab === "All" ? true : v.type === activeTab)
     .filter(v => locationFilter === "all" ? true : v.city === locationFilter)
@@ -57,6 +47,14 @@ function VendorsScreen({ vendors, setVendors }) {
 
   return (
     <div>
+      {selectedVendor && (
+        <VendorDetailScreen
+          vendor={selectedVendor}
+          onBack={() => setSelectedVendor(null)}
+        />
+      )}
+      {!selectedVendor && (
+      <div>
       <div className="section-head">
         <div className="section-title">Vendor Directory</div>
         <div className="section-action" style={{cursor:"default"}}>Curated by VivahGo</div>
@@ -88,7 +86,7 @@ function VendorsScreen({ vendors, setVendors }) {
         </div>
       )}
       {filtered.map(v=>(
-        <div className="vendor-card" key={v.id}>
+        <div className="vendor-card vendor-card-clickable" key={v.id} onClick={()=>setSelectedVendor(v)}>
           <div className="vendor-top">
             <div className="vendor-icon">{v.emoji}</div>
             <div className="vendor-info">
@@ -100,12 +98,12 @@ function VendorsScreen({ vendors, setVendors }) {
           </div>
           <div className="vendor-bottom">
             <div className="vendor-price">{v.price}</div>
-            <button className={`vendor-btn${v.booked?" vendor-booked":""}`} onClick={()=>toggleBooked(v.id)}>
-              {v.booked?"Booked ✓":"Book Now"}
-            </button>
+            <div className="vendor-view-arrow">View Details →</div>
           </div>
         </div>
       ))}
+    </div>
+      )}
     </div>
   );
 }

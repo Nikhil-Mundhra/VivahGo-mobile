@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { EVENT_COLORS } from "../constants";
 import { BUDGET_CATEGORIES } from "../data";
 import { daysUntil, fmt } from "../utils";
@@ -59,6 +60,16 @@ function parseCalendarTime(rawTime) {
 }
 
 function Dashboard({ wedding, events, expenses, guests, onTabChange, onEditEvent }) {
+  const [, setTick] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTick((prev) => prev + 1);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
   const days = daysUntil(wedding.date);
   const totalSpent = expenses.reduce((s,e)=>s+Number(e.amount||0), 0);
   const totalBudget = Number((wedding.budget||"0").replace(/[^0-9]/g,""));
@@ -96,22 +107,17 @@ function Dashboard({ wedding, events, expenses, guests, onTabChange, onEditEvent
       return a.originalIndex - b.originalIndex;
     });
 
-  let d=0,h=0,m=0;
-  if(days>0){d=days; h=0; m=0;}
+  const daysLeft = Math.max(days ?? 0, 0);
 
   return (
     <div>
       {/* Countdown */}
       {days !== null && (
         <div className="dash-countdown">
-          <div className="countdown-unit"><div className="countdown-num">{d}</div><div className="countdown-label">Days</div></div>
-          <div className="countdown-sep">:</div>
-          <div className="countdown-unit"><div className="countdown-num">{h.toString().padStart(2,"0")}</div><div className="countdown-label">Hours</div></div>
-          <div className="countdown-sep">:</div>
-          <div className="countdown-unit"><div className="countdown-num">{m.toString().padStart(2,"0")}</div><div className="countdown-label">Mins</div></div>
-          <div style={{position:"absolute",top:16,right:20,textAlign:"right"}}>
-            <div style={{color:"rgba(255,255,255,0.5)",fontSize:10,textTransform:"uppercase",letterSpacing:1}}>Until</div>
-            <div style={{color:"var(--color-gold-light)",fontFamily:"'Cormorant Garamond',serif",fontSize:15,fontWeight:700}}>Your Big Day</div>
+          <div className="countdown-unit"><div className="countdown-num">{daysLeft}</div><div className="countdown-label">Days</div></div>
+          <div className="countdown-meta">
+            <div className="countdown-kicker">Until</div>
+            <div className="countdown-title">Your Big Day</div>
           </div>
         </div>
       )}

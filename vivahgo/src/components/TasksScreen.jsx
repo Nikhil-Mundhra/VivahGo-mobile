@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useSwipeDown } from "../hooks/useSwipeDown";
 
 function createTaskForm() {
   return {name:"",due:"",group:"Final",priority:"medium",eventId:""};
@@ -7,6 +8,7 @@ function createTaskForm() {
 function TasksScreen({ tasks, setTasks, events }) {
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState(createTaskForm());
+  const taskSwipe = useSwipeDown(() => setShowAdd(false));
 
   const groups = [...new Set(tasks.map(t=>t.group))];
   const done = tasks.filter(t=>t.done).length;
@@ -80,7 +82,7 @@ function TasksScreen({ tasks, setTasks, events }) {
 
       {showAdd && (
         <div className="modal-overlay" onClick={()=>setShowAdd(false)}>
-          <div className="modal" onClick={e=>e.stopPropagation()}>
+          <div className="modal" {...taskSwipe.modalProps} onClick={e=>e.stopPropagation()}>
             <div className="modal-handle"/>
             <div className="modal-title">Add Task ✅</div>
             <div className="input-group">

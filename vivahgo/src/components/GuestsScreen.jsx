@@ -1,5 +1,8 @@
 import { useState } from "react";
 import { initials } from "../utils";
+import { useSwipeDown } from "../hooks/useSwipeDown";
+
+const GUEST_TITLES = new Set(["mr", "mrs", "ms", "miss", "dr", "prof", "shri", "smt", "km", "kum"]);
 
 function createGuestForm() {
   return {
@@ -14,12 +17,46 @@ function createGuestForm() {
   };
 }
 
+function getGuestNameParts(guest) {
+  const nameTokens = String(guest?.name || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  let fallbackTitle = "";
+
+  if (nameTokens.length) {
+    const normalizedToken = nameTokens[0].replace(/\./g, "").toLowerCase();
+    if (GUEST_TITLES.has(normalizedToken)) {
+      fallbackTitle = nameTokens.shift();
+    }
+  }
+
+  if (nameTokens.length === 0) {
+    return { title: fallbackTitle, firstName: "", middleName: "", lastName: "" };
+  }
+
+  if (nameTokens.length === 1) {
+    return { title: fallbackTitle, firstName: nameTokens[0], middleName: "", lastName: "" };
+  }
+
+  return {
+    title: fallbackTitle,
+    firstName: nameTokens[0],
+    middleName: nameTokens.slice(1, -1).join(" "),
+    lastName: nameTokens[nameTokens.length - 1],
+  };
+}
+
 function GuestsScreen({ guests, setGuests }) {
   const [showEditor, setShowEditor] = useState(false);
   const [editingGuestId, setEditingGuestId] = useState(null);
+  const guestSwipe = useSwipeDown(() => closeEditor());
   const [form, setForm] = useState(createGuestForm());
   const [search, setSearch] = useState("");
   const [sideFilter, setSideFilter] = useState("all");
+  const [rsvpFilter, setRsvpFilter] = useState(null);
+  const [formError, setFormError] = useState("");
 
   const getGuestCount = (guest) => {
     const parsed = Number(guest?.guestCount);
@@ -53,21 +90,25 @@ function GuestsScreen({ guests, setGuests }) {
   function openAddGuest() {
     setEditingGuestId(null);
     setForm(createGuestForm());
+    setFormError("");
     setShowEditor(true);
   }
 
   function openEditGuest(guest) {
+    const parsedName = getGuestNameParts(guest);
+
     setEditingGuestId(guest.id);
     setForm({
-      title: guest.title || "",
-      firstName: guest.firstName || "",
-      middleName: guest.middleName || "",
-      lastName: guest.lastName || "",
+      title: guest.title || parsedName.title,
+      firstName: guest.firstName || parsedName.firstName,
+      middleName: guest.middleName || parsedName.middleName,
+      lastName: guest.lastName || parsedName.lastName,
       side: guest.side || "bride",
       phone: guest.phone || "",
       rsvp: guest.rsvp || "pending",
       guestCount: getGuestCount(guest),
     });
+    setFormError("");
     setShowEditor(true);
   }
 
@@ -75,16 +116,31 @@ function GuestsScreen({ guests, setGuests }) {
     setShowEditor(false);
     setEditingGuestId(null);
     setForm(createGuestForm());
+    setFormError("");
   }
 
   function saveGuest() {
-    if(!form.firstName || !form.lastName) return;
+    const title = form.title.trim();
+    const firstName = form.firstName.trim();
+    const middleName = form.middleName.trim();
+    const lastName = form.lastName.trim();
+
+    if (!firstName && !lastName) {
+      setFormError("Please enter at least a first or last name.");
+      return;
+    }
+
+    setFormError("");
     const guestCount = Math.max(1, parseInt(form.guestCount, 10) || 1);
     const nextGuest = {
       ...form,
+      title,
+      firstName,
+      middleName,
+      lastName,
       id: editingGuestId ?? Date.now(),
       guestCount,
-      name: [form.title, form.firstName, form.middleName, form.lastName].filter(Boolean).join(" "),
+      name: [title, firstName, middleName, lastName].filter(Boolean).join(" "),
     };
 
     if (editingGuestId !== null) {
@@ -117,6 +173,7 @@ function GuestsScreen({ guests, setGuests }) {
   const filtered = guests
     .filter(g=>getDisplayName(g).toLowerCase().includes(search.toLowerCase()))
     .filter(g=>sideFilter === "all" ? true : g.side === sideFilter)
+    .filter(g=>rsvpFilter === null ? true : rsvpFilter === "invited" ? true : g.rsvp === rsvpFilter)
     .sort((a, b) => {
       const aLast = getSortableLastName(a);
       const bLast = getSortableLastName(b);
@@ -131,19 +188,35 @@ function GuestsScreen({ guests, setGuests }) {
     <div>
       {/* Stats */}
       <div className="guest-stats">
-        <div className="guest-stat">
+        <div
+          className="guest-stat"
+          onClick={() => setRsvpFilter(f => f === "invited" ? null : "invited")}
+          style={{cursor:"pointer", outline: rsvpFilter==="invited" ? "2px solid var(--color-crimson)" : "none", borderRadius:12}}
+        >
           <div className="guest-stat-num" style={{color:"var(--color-crimson)"}}>{totalInvited}</div>
           <div className="guest-stat-label">Invited</div>
         </div>
-        <div className="guest-stat">
+        <div
+          className="guest-stat"
+          onClick={() => setRsvpFilter(f => f === "yes" ? null : "yes")}
+          style={{cursor:"pointer", outline: rsvpFilter==="yes" ? "2px solid #2E7D32" : "none", borderRadius:12}}
+        >
           <div className="guest-stat-num" style={{color:"#2E7D32"}}>{yes}</div>
           <div className="guest-stat-label">Confirmed</div>
         </div>
-        <div className="guest-stat">
+        <div
+          className="guest-stat"
+          onClick={() => setRsvpFilter(f => f === "no" ? null : "no")}
+          style={{cursor:"pointer", outline: rsvpFilter==="no" ? "2px solid #C62828" : "none", borderRadius:12}}
+        >
           <div className="guest-stat-num" style={{color:"#C62828"}}>{no}</div>
           <div className="guest-stat-label">Declined</div>
         </div>
-        <div className="guest-stat">
+        <div
+          className="guest-stat"
+          onClick={() => setRsvpFilter(f => f === "pending" ? null : "pending")}
+          style={{cursor:"pointer", outline: rsvpFilter==="pending" ? "2px solid #F57F17" : "none", borderRadius:12}}
+        >
           <div className="guest-stat-num" style={{color:"#F57F17"}}>{pending}</div>
           <div className="guest-stat-label">Pending</div>
         </div>
@@ -224,17 +297,22 @@ function GuestsScreen({ guests, setGuests }) {
 
       {showEditor && (
         <div className="modal-overlay" onClick={closeEditor}>
-          <div className="modal" onClick={e=>e.stopPropagation()}>
+          <div className="modal" {...guestSwipe.modalProps} onClick={e=>e.stopPropagation()}>
             <div className="modal-handle"/>
             <div className="modal-title">{editingGuestId !== null ? "Edit Guest 👤" : "Add Guest 👥"}</div>
             <div className="input-group">
               <div className="input-label">Name Details</div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1.4fr 1.2fr 1.4fr",gap:8}}>
                 <input className="input-field" value={form.title} onChange={e=>setForm({...form,title:e.target.value})} placeholder="Title"/>
-                <input className="input-field" value={form.firstName} onChange={e=>setForm({...form,firstName:e.target.value})} placeholder="First"/>
+                <input className="input-field" value={form.firstName} onChange={e=>{setForm({...form,firstName:e.target.value});setFormError("");}} placeholder="First"/>
                 <input className="input-field" value={form.middleName} onChange={e=>setForm({...form,middleName:e.target.value})} placeholder="Middle"/>
-                <input className="input-field" value={form.lastName} onChange={e=>setForm({...form,lastName:e.target.value})} placeholder="Last"/>
+                <input className="input-field" value={form.lastName} onChange={e=>{setForm({...form,lastName:e.target.value});setFormError("");}} placeholder="Last"/>
               </div>
+              {formError && (
+                <div style={{marginTop:6,padding:"8px 12px",background:"rgba(196,30,58,0.07)",border:"1px solid rgba(196,30,58,0.2)",borderRadius:10,color:"var(--color-bright-red)",fontSize:12.5}}>
+                  {formError}
+                </div>
+              )}
             </div>
             <div className="input-group">
               <div className="input-label">Side</div>

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { BUDGET_CATEGORIES, EXPENSE_AREAS } from "../data";
 import { fmt } from "../utils";
+import { useSwipeDown } from "../hooks/useSwipeDown";
 
 function createExpenseForm(events) {
   return {
@@ -28,6 +29,7 @@ function BudgetScreen({ expenses, setExpenses, wedding, events }) {
   const [expandedCategoryId, setExpandedCategoryId] = useState(null);
   const [expandedCeremonyId, setExpandedCeremonyId] = useState(null);
   const [form, setForm] = useState(() => createExpenseForm(events));
+  const budgetSwipe = useSwipeDown(() => closeEditor());
   const totalBudget = Number((wedding.budget||"0").replace(/[^0-9]/g,""));
   const totalSpent = expenses.reduce((s,e)=>s+Number(e.amount||0),0);
   const remaining = totalBudget - totalSpent;
@@ -290,7 +292,7 @@ function BudgetScreen({ expenses, setExpenses, wedding, events }) {
 
       {showEditor && (
         <div className="modal-overlay" onClick={closeEditor}>
-          <div className="modal" onClick={e=>e.stopPropagation()}>
+          <div className="modal" {...budgetSwipe.modalProps} onClick={e=>e.stopPropagation()}>
             <div className="modal-handle"/>
             <div className="modal-title">{editingExpenseId !== null ? "Edit Expense 💰" : "Add Expense 💰"}</div>
             <div className="input-group">

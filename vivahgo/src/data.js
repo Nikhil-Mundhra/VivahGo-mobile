@@ -45,12 +45,36 @@ export const EXPENSE_AREAS = [
 ];
 
 export const DEFAULT_VENDORS = [
-  { id:1, name:"Regal Frames Studio", type:"Photography", emoji:"📸", rating:5, price:"₹1,20,000", city:"Delhi", booked:false },
-  { id:2, name:"Spice Garden Caterers", type:"Catering", emoji:"🍽️", rating:4, price:"₹800/plate", city:"Gurgaon", booked:false },
-  { id:3, name:"Petal & Gold Decor", type:"Decoration", emoji:"🌺", rating:5, price:"₹2,50,000", city:"Delhi", booked:false },
-  { id:4, name:"DJ Rhythm Beats", type:"Music", emoji:"🎵", rating:4, price:"₹45,000", city:"Noida", booked:false },
-  { id:5, name:"Pandit Sharma Ji", type:"Pandit", emoji:"🪔", rating:5, price:"₹21,000", city:"Delhi", booked:true },
-  { id:6, name:"Grand Mahal Venue", type:"Venue", emoji:"🏛️", rating:5, price:"₹8,00,000", city:"Faridabad", booked:true },
+  {
+    id:1, name:"Regal Frames Studio", type:"Photography", emoji:"📸", rating:5, price:"₹1,20,000", city:"Delhi", booked:false,
+    services:["Wedding Photography","Pre-Wedding Shoot","Candid Photography","Cinematic Videography","Drone Aerial Shots"],
+    locations:["Delhi","Gurgaon","Noida","Faridabad"],
+  },
+  {
+    id:2, name:"Spice Garden Caterers", type:"Catering", emoji:"🍽️", rating:4, price:"₹800/plate", city:"Gurgaon", booked:false,
+    services:["Full Wedding Catering","Cocktail Party Setup","Live Food Counters","Dessert Buffet","Customised Menu Planning"],
+    locations:["Gurgaon","Delhi","Faridabad","Manesar"],
+  },
+  {
+    id:3, name:"Petal & Gold Decor", type:"Decoration", emoji:"🌺", rating:5, price:"₹2,50,000", city:"Delhi", booked:false,
+    services:["Mandap Decoration","Stage & Backdrop Design","Floral Arrangements","Themed Venue Styling","Entrance Décor"],
+    locations:["Delhi","Gurgaon","Noida","Agra"],
+  },
+  {
+    id:4, name:"DJ Rhythm Beats", type:"Music", emoji:"🎵", rating:4, price:"₹45,000", city:"Noida", booked:false,
+    services:["Wedding DJ","Sangeet Night Sound","LED Dance Floor","Live Band Coordination","Sound System Rental"],
+    locations:["Noida","Delhi","Ghaziabad","Greater Noida"],
+  },
+  {
+    id:5, name:"Pandit Sharma Ji", type:"Pandit", emoji:"🪔", rating:5, price:"₹21,000", city:"Delhi", booked:true,
+    services:["Wedding Pheras & Saptapadi","Hawan & Kanya Daan","Engagement Ceremony","Griha Pravesh Puja","Satyanarayan Katha"],
+    locations:["Delhi","Gurgaon","Noida","Faridabad","Greater Noida"],
+  },
+  {
+    id:6, name:"Grand Mahal Venue", type:"Venue", emoji:"🏛️", rating:5, price:"₹8,00,000", city:"Faridabad", booked:true,
+    services:["Banquet Hall (500+ Guests)","Outdoor Lawn Venue","Rooftop Ceremony Space","In-house Catering Option","Bridal Suite"],
+    locations:["Faridabad","South Delhi","Ballabhgarh"],
+  },
 ];
 
 export const DEFAULT_TASKS = [

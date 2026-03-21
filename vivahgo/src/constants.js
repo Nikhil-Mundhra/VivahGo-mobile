@@ -34,6 +34,9 @@ export const EVENT_COLORS = [
 
 export const VENDOR_TYPES = ["All","Venue","Photography","Catering","Decoration","Music","Pandit"];
 
+// WhatsApp customer support number (country code + number, no + or spaces)
+export const WHATSAPP_SUPPORT_NUMBER = "919999999999";
+
 export const NAV_ITEMS = [
   {id:"home",icon:"🏠",label:"Home"},
   {id:"events",icon:"🌸",label:"Events"},
