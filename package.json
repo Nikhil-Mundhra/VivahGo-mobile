@@ -6,6 +6,9 @@
   },
   "dependencies": {
     "@capacitor/core": "^8.2.0",
-    "@capacitor/ios": "^8.2.0"
+    "@capacitor/ios": "^8.2.0",
+    "google-auth-library": "^10.6.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.19.3"
   }
 }
