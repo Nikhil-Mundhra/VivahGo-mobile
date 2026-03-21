@@ -32,6 +32,9 @@ export default function VivahGoApp() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [loginError, setLoginError] = useState("");
   const [saveState, setSaveState] = useState("idle");
+  const [showWeddingDetailsEditor, setShowWeddingDetailsEditor] = useState(false);
+  const [weddingDetailsForm, setWeddingDetailsForm] = useState({ date: "", venue: "" });
+  const [eventToEditId, setEventToEditId] = useState(null);
 
   const saveTimerRef = useRef(null);
 
@@ -208,6 +211,35 @@ export default function VivahGoApp() {
     setScreen("app");
   }
 
+  function openWeddingDetailsEditor() {
+    setWeddingDetailsForm({
+      date: wedding.date || "",
+      venue: wedding.venue || "",
+    });
+    setShowWeddingDetailsEditor(true);
+  }
+
+  function closeWeddingDetailsEditor() {
+    setShowWeddingDetailsEditor(false);
+  }
+
+  function saveWeddingDetails() {
+    setWedding(current => ({
+      ...current,
+      date: weddingDetailsForm.date,
+      venue: weddingDetailsForm.venue,
+    }));
+    closeWeddingDetailsEditor();
+  }
+
+  function openEventEditorFromCalendar(eventId) {
+    setEventToEditId(eventId);
+    setTab("events");
+    setTimeout(() => {
+      setEventToEditId(null);
+    }, 0);
+  }
+
   if (isBootstrapping) {
     return (
       <div className="app-shell">
@@ -247,8 +279,8 @@ export default function VivahGoApp() {
               {wedding.bride || "Bride"} & {wedding.groom || "Groom"}
             </div>
             <div className="top-bar-meta">
-              {wedding.date && <div className="top-bar-chip">📅 {wedding.date}</div>}
-              {wedding.venue && <div className="top-bar-chip">📍 {wedding.venue}</div>}
+              {wedding.date && <button type="button" className="top-bar-chip top-bar-chip-button" onClick={openWeddingDetailsEditor}>📅 {wedding.date}</button>}
+              {wedding.venue && <button type="button" className="top-bar-chip top-bar-chip-button" onClick={openWeddingDetailsEditor}>📍 {wedding.venue}</button>}
               {authMode === "google" && saveLabel && <div className="top-bar-chip">☁️ {saveLabel}</div>}
             </div>
             <div className="top-bar-user">
@@ -270,12 +302,12 @@ export default function VivahGoApp() {
 
           {/* Content */}
           <div className="content-area">
-            {tab==="home" && <Dashboard wedding={wedding} events={events} expenses={expenses} guests={guests} budget={wedding.budget}/>}
-            {tab==="events" && <EventsScreen events={events} setEvents={setEvents}/>}
-            {tab==="budget" && <BudgetScreen expenses={expenses} setExpenses={setExpenses} wedding={wedding}/>}
+            {tab==="home" && <Dashboard wedding={wedding} events={events} expenses={expenses} guests={guests} budget={wedding.budget} onTabChange={setTab} onEditEvent={openEventEditorFromCalendar}/>}
+            {tab==="events" && <EventsScreen events={events} setEvents={setEvents} expenses={expenses} onOpenBudget={() => setTab("budget")} initialEditingEventId={eventToEditId}/>}
+            {tab==="budget" && <BudgetScreen expenses={expenses} setExpenses={setExpenses} wedding={wedding} events={events}/>} 
             {tab==="guests" && <GuestsScreen guests={guests} setGuests={setGuests}/>}
             {tab==="vendors" && <VendorsScreen vendors={vendors} setVendors={setVendors}/>}
-            {tab==="tasks" && <TasksScreen tasks={tasks} setTasks={setTasks}/>}
+            {tab==="tasks" && <TasksScreen tasks={tasks} setTasks={setTasks} events={events}/>}
           </div>
 
           {/* Bottom Nav */}
@@ -288,6 +320,34 @@ export default function VivahGoApp() {
               </div>
             ))}
           </div>
+
+          {showWeddingDetailsEditor && (
+            <div className="modal-overlay" onClick={closeWeddingDetailsEditor}>
+              <div className="modal" onClick={(event) => event.stopPropagation()}>
+                <div className="modal-handle"/>
+                <div className="modal-title">Edit Wedding Details</div>
+                <div className="input-group">
+                  <div className="input-label">Main Wedding Day</div>
+                  <input
+                    className="input-field"
+                    value={weddingDetailsForm.date}
+                    onChange={(event) => setWeddingDetailsForm({ ...weddingDetailsForm, date: event.target.value })}
+                    placeholder="e.g. 25 November 2027 (for countdown)"
+                  />
+                </div>
+                <div className="input-group">
+                  <div className="input-label">Venue / Location</div>
+                  <input
+                    className="input-field"
+                    value={weddingDetailsForm.venue}
+                    onChange={(event) => setWeddingDetailsForm({ ...weddingDetailsForm, venue: event.target.value })}
+                    placeholder="e.g. Jaipur Palace Grounds"
+                  />
+                </div>
+                <button className="btn-primary" onClick={saveWeddingDetails}>Save Details</button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

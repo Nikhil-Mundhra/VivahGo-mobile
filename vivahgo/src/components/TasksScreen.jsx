@@ -1,19 +1,28 @@
 import { useState } from "react";
 
-function TasksScreen({ tasks, setTasks }) {
+function createTaskForm() {
+  return {name:"",due:"",group:"Final",priority:"medium",eventId:""};
+}
+
+function TasksScreen({ tasks, setTasks, events }) {
   const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({name:"",due:"",group:"Final",priority:"medium"});
+  const [form, setForm] = useState(createTaskForm());
 
   const groups = [...new Set(tasks.map(t=>t.group))];
   const done = tasks.filter(t=>t.done).length;
   const pct = tasks.length ? Math.round(done/tasks.length*100) : 0;
 
+  function getTaskEvent(task) {
+    return events.find(event => String(event.id) === String(task.eventId));
+  }
+
   function toggle(id) { setTasks(ts=>ts.map(t=>t.id===id?{...t,done:!t.done}:t)); }
 
   function add() {
     if(!form.name) return;
-    setTasks(ts=>[...ts,{...form,id:Date.now(),done:false}]);
-    setForm({name:"",due:"",group:"Final",priority:"medium"});
+    const linkedEvent = events.find(event => String(event.id) === String(form.eventId));
+    setTasks(ts=>[...ts,{...form,id:Date.now(),done:false,ceremony:linkedEvent?.name || "General"}]);
+    setForm(createTaskForm());
     setShowAdd(false);
   }
 
@@ -22,7 +31,7 @@ function TasksScreen({ tasks, setTasks }) {
   return (
     <div>
       {/* Progress */}
-      <div style={{padding:"16px 16px 0"}}>
+      <div style={{padding:"0 16px"}}>
         <div style={{background:"var(--color-white)",borderRadius:20,padding:"18px 20px",border:"1px solid rgba(212,175,55,0.15)",boxShadow:"0 2px 10px rgba(0,0,0,0.04)"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
             <div>
@@ -39,7 +48,7 @@ function TasksScreen({ tasks, setTasks }) {
         </div>
       </div>
 
-      <div className="section-head">
+      <div className="section-head" style={{marginTop:20}}>
         <div className="section-title">Checklist</div>
         <button className="section-action" onClick={()=>setShowAdd(true)}>+ Add</button>
       </div>
@@ -56,6 +65,9 @@ function TasksScreen({ tasks, setTasks }) {
                 <div className="task-info">
                   <div className={`task-name${t.done?" done":""}`}>{t.name}</div>
                   <div className="task-due">📅 {t.due}</div>
+                  <div className="task-due" style={{marginTop:2}}>
+                    {getTaskEvent(t) ? `${getTaskEvent(t).emoji} ${getTaskEvent(t).name}` : `✨ ${t.ceremony || "General"}`}
+                  </div>
                 </div>
                 <div className="task-priority" style={{background:PRIORITY_COLORS[t.priority]||"#9E9E9E"}}/>
               </div>
@@ -82,7 +94,16 @@ function TasksScreen({ tasks, setTasks }) {
             <div className="input-group">
               <div className="input-label">Group</div>
               <select className="select-field" value={form.group} onChange={e=>setForm({...form,group:e.target.value})}>
-                {["6 months","5 months","4 months","3 months","1 month","Final"].map(g=><option key={g} value={g}>{g}</option>)}
+                {["6 months","5 months","4 months","3 months","2 months","1 month","Final","Post Wedding"].map(g=><option key={g} value={g}>{g}</option>)}
+              </select>
+            </div>
+            <div className="input-group">
+              <div className="input-label">Linked Ceremony/Event</div>
+              <select className="select-field" value={form.eventId} onChange={e=>setForm({...form,eventId:e.target.value})}>
+                <option value="">✨ General</option>
+                {events.map(event => (
+                  <option key={event.id} value={event.id}>{event.emoji} {event.name}</option>
+                ))}
               </select>
             </div>
             <div className="input-group">

@@ -2,11 +2,99 @@ import { EVENT_COLORS } from "../constants";
 import { BUDGET_CATEGORIES } from "../data";
 import { daysUntil, fmt } from "../utils";
 
-function Dashboard({ wedding, events, expenses, guests }) {
+const MONTH_INDEX = {
+  jan: 0,
+  feb: 1,
+  mar: 2,
+  apr: 3,
+  may: 4,
+  jun: 5,
+  jul: 6,
+  aug: 7,
+  sep: 8,
+  oct: 9,
+  nov: 10,
+  dec: 11,
+};
+
+function parseCalendarDate(rawDate) {
+  if (!rawDate) return null;
+  const trimmed = String(rawDate).trim();
+  if (!trimmed) return null;
+
+  const native = new Date(trimmed);
+  if (!Number.isNaN(native.getTime())) {
+    return native;
+  }
+
+  const match = trimmed.match(/^(\d{1,2})\s+([A-Za-z]{3,})\s+(\d{4})$/);
+  if (!match) return null;
+
+  const day = Number(match[1]);
+  const monthKey = match[2].slice(0, 3).toLowerCase();
+  const month = MONTH_INDEX[monthKey];
+  const year = Number(match[3]);
+
+  if (!Number.isInteger(day) || !Number.isInteger(month) || !Number.isInteger(year)) {
+    return null;
+  }
+
+  const parsed = new Date(year, month, day);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function parseCalendarTime(rawTime) {
+  if (!rawTime) return null;
+  const match = String(rawTime).trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return null;
+
+  let hour = Number(match[1]);
+  const minute = Number(match[2]);
+  const period = match[3].toUpperCase();
+
+  if (period === "PM" && hour < 12) hour += 12;
+  if (period === "AM" && hour === 12) hour = 0;
+
+  return Number.isNaN(hour) || Number.isNaN(minute) ? null : hour * 60 + minute;
+}
+
+function Dashboard({ wedding, events, expenses, guests, onTabChange, onEditEvent }) {
   const days = daysUntil(wedding.date);
   const totalSpent = expenses.reduce((s,e)=>s+Number(e.amount||0), 0);
   const totalBudget = Number((wedding.budget||"0").replace(/[^0-9]/g,""));
-  const yesCount = guests.filter(g=>g.rsvp==="yes").length;
+  const getGuestCount = (guest) => {
+    const parsed = Number(guest?.guestCount);
+    if (!Number.isFinite(parsed) || parsed < 1) {
+      return 1;
+    }
+    return Math.round(parsed);
+  };
+  const totalInvited = guests.reduce((sum, guest) => sum + getGuestCount(guest), 0);
+  const yesCount = guests.filter(g=>g.rsvp==="yes").reduce((sum, guest) => sum + getGuestCount(guest), 0);
+
+  const weddingCalendar = events
+    .map((event, index) => ({
+      ...event,
+      calendarDate: parseCalendarDate(event.date),
+      calendarTime: parseCalendarTime(event.time),
+      originalIndex: index,
+    }))
+    .sort((a, b) => {
+      if (a.calendarDate && b.calendarDate) {
+        const dayDiff = a.calendarDate.getTime() - b.calendarDate.getTime();
+        if (dayDiff !== 0) return dayDiff;
+
+        if (a.calendarTime !== null && b.calendarTime !== null) {
+          return a.calendarTime - b.calendarTime;
+        }
+        if (a.calendarTime !== null) return -1;
+        if (b.calendarTime !== null) return 1;
+      }
+
+      if (a.calendarDate && !b.calendarDate) return -1;
+      if (!a.calendarDate && b.calendarDate) return 1;
+      return a.originalIndex - b.originalIndex;
+    });
 
   let d=0,h=0,m=0;
   if(days>0){d=days; h=0; m=0;}
@@ -29,41 +117,58 @@ function Dashboard({ wedding, events, expenses, guests }) {
       )}
 
       {/* Quick Stats */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,padding:"16px 16px 0"}}>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,padding:"0 16px"}}>
         {[
-          {label:"Budget Used",value:`${totalBudget?Math.round(totalSpent/totalBudget*100):0}%`,sub:fmt(totalSpent)+" spent",emoji:"💰"},
-          {label:"Guests Confirmed",value:yesCount,sub:`of ${guests.length} invited`,emoji:"👥"},
+          {label:"Budget Used",value:`${totalBudget?Math.round(totalSpent/totalBudget*100):0}%`,sub:fmt(totalSpent)+" spent",emoji:"💰",tab:"budget"},
+          {label:"Guests Confirmed",value:yesCount,sub:`of ${totalInvited} invited`,emoji:"👥",tab:"guests"},
         ].map((s,i)=>(
-          <div key={i} style={{background:"var(--color-white)",borderRadius:16,padding:"14px 12px",border:"1px solid rgba(212,175,55,0.15)",boxShadow:"0 2px 8px rgba(0,0,0,0.04)"}}>
+          <button
+            key={i}
+            type="button"
+            onClick={() => onTabChange?.(s.tab)}
+            style={{background:"var(--color-white)",borderRadius:16,padding:"14px 12px",border:"1px solid rgba(212,175,55,0.15)",boxShadow:"0 2px 8px rgba(0,0,0,0.04)",textAlign:"left",cursor:"pointer"}}
+          >
             <div style={{fontSize:24,marginBottom:4}}>{s.emoji}</div>
             <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:28,fontWeight:700,color:"var(--color-crimson)",lineHeight:1}}>{s.value}</div>
             <div style={{fontSize:11,color:"var(--color-light-text)",marginTop:2}}>{s.label}</div>
             <div style={{fontSize:10.5,color:"var(--color-gold)",fontWeight:600,marginTop:1}}>{s.sub}</div>
-          </div>
+          </button>
         ))}
       </div>
 
-      {/* Upcoming Events */}
-      <div className="section-head" style={{marginTop:8}}>
-        <div className="section-title">Ceremonies</div>
+      {/* Wedding Calendar */}
+      <div className="section-head" style={{marginTop:20}}>
+        <div className="section-title">Wedding Calendar</div>
       </div>
-      {events.length === 0 ? (
-        <div style={{textAlign:"center",padding:"8px 16px 0",color:"var(--color-light-text)",fontSize:13}}>No ceremonies added yet.</div>
+      {weddingCalendar.length === 0 ? (
+        <div style={{textAlign:"center",padding:"8px 16px 0",color:"var(--color-light-text)",fontSize:13}}>No ceremonies scheduled yet.</div>
       ) : (
-        <div className="scroll-h">
-          {events.map((ev,i)=>(
-            <div key={ev.id} className="mini-event-card" style={{background:`linear-gradient(135deg, ${EVENT_COLORS[(ev.colorIdx ?? i) % EVENT_COLORS.length][0]}, ${EVENT_COLORS[(ev.colorIdx ?? i) % EVENT_COLORS.length][1]})`}}>
-              <div style={{fontSize:28}}>{ev.emoji}</div>
-              <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:15,fontWeight:700,color:"white",marginTop:6}}>{ev.name}</div>
-              <div style={{fontSize:11,color:"rgba(255,255,255,0.7)",marginTop:2}}>{ev.date||"Date TBD"}</div>
-              <div style={{display:"inline-block",background:"rgba(255,255,255,0.2)",borderRadius:8,padding:"2px 8px",fontSize:10,color:"white",marginTop:6,fontWeight:600}}>{ev.venue||"Venue TBD"}</div>
-            </div>
+        <div className="card" style={{padding:"6px 0"}}>
+          {weddingCalendar.map((event, i) => (
+            <button
+              key={event.id}
+              type="button"
+              onClick={() => onEditEvent?.(event.id)}
+              style={{display:"flex",gap:12,padding:"12px 16px",borderBottom:i===weddingCalendar.length-1?"none":"1px solid rgba(212,175,55,0.12)",width:"100%",background:"transparent",borderLeft:"none",borderRight:"none",borderTop:"none",textAlign:"left",cursor:"pointer"}}
+            >
+              <div style={{width:34,height:34,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,background:"rgba(212,175,55,0.14)",flexShrink:0}}>{event.emoji}</div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"baseline"}}>
+                  <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:19,fontWeight:700,color:"var(--color-crimson)",lineHeight:1.1}}>{event.name}</div>
+                  <div style={{fontSize:11,color:"var(--color-light-text)",whiteSpace:"nowrap"}}>{event.status}</div>
+                </div>
+                <div style={{fontSize:12,color:"var(--color-mid-text)",marginTop:3}}>
+                  {event.date || "Date TBD"}{event.time ? ` · ${event.time}` : ""}
+                </div>
+                <div style={{fontSize:11,color:"var(--color-light-text)",marginTop:2}}>{event.venue || "Venue TBD"}</div>
+              </div>
+            </button>
           ))}
         </div>
       )}
 
       {/* Recent Expenses */}
-      <div className="section-head" style={{marginTop:4}}>
+      <div className="section-head" style={{marginTop:20}}>
         <div className="section-title">Recent Expenses</div>
       </div>
       {expenses.length === 0 ? (

@@ -1,35 +1,92 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { VENDOR_TYPES } from "../constants";
+import { DEFAULT_VENDORS } from "../data";
 
 function VendorsScreen({ vendors, setVendors }) {
   const [activeTab, setActiveTab] = useState("All");
-  const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({name:"",type:"Photography",emoji:"📸",rating:5,price:"",city:"",booked:false});
+  const [locationFilter, setLocationFilter] = useState("all");
+  const [ratingFilter, setRatingFilter] = useState("all");
+  const [priceSort, setPriceSort] = useState("none");
 
-  function toggleBooked(id) { setVendors(vs=>vs.map(v=>v.id===id?{...v,booked:!v.booked}:v)); }
-
-  const filtered = activeTab==="All" ? vendors : vendors.filter(v=>v.type===activeTab);
-
-  const EMOJI_MAP = {"Photography":"📸","Catering":"🍽️","Decoration":"🌺","Music":"🎵","Pandit":"🪔","Venue":"🏛️"};
-
-  function add() {
-    if(!form.name||!form.price) return;
-    setVendors(vs=>[...vs,{...form,id:Date.now(),emoji:EMOJI_MAP[form.type]||"✨",rating:Number(form.rating)}]);
-    setForm({name:"",type:"Photography",rating:5,price:"",city:"",booked:false});
-    setShowAdd(false);
+  function parsePriceValue(priceText = "") {
+    if (!priceText) {
+      return Number.POSITIVE_INFINITY;
+    }
+    const cleaned = String(priceText).replace(/[^0-9.]/g, "");
+    const parsed = Number(cleaned);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : Number.POSITIVE_INFINITY;
   }
+
+  const bookedById = useMemo(
+    () => new Map((Array.isArray(vendors) ? vendors : []).map(v => [v.id, Boolean(v.booked)])),
+    [vendors]
+  );
+
+  const universalVendors = useMemo(
+    () => DEFAULT_VENDORS.map(v => ({ ...v, booked: bookedById.get(v.id) ?? Boolean(v.booked) })),
+    [bookedById]
+  );
+
+  const availableCities = useMemo(
+    () => Array.from(new Set(universalVendors.map(v => v.city).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+    [universalVendors]
+  );
+
+  function toggleBooked(id) {
+    setVendors(vs => {
+      const current = Array.isArray(vs) ? vs : [];
+      const currentMap = new Map(current.map(v => [v.id, Boolean(v.booked)]));
+      const nextBooked = !(currentMap.get(id) ?? false);
+      currentMap.set(id, nextBooked);
+
+      // Persist only booking state against known directory IDs.
+      return DEFAULT_VENDORS.map(v => ({ id: v.id, booked: currentMap.get(v.id) ?? Boolean(v.booked) }));
+    });
+  }
+
+  const filtered = universalVendors
+    .filter(v => activeTab === "All" ? true : v.type === activeTab)
+    .filter(v => locationFilter === "all" ? true : v.city === locationFilter)
+    .filter(v => ratingFilter === "all" ? true : Number(v.rating) >= Number(ratingFilter))
+    .sort((a, b) => {
+      if (priceSort !== "low-high") {
+        return 0;
+      }
+      return parsePriceValue(a.price) - parsePriceValue(b.price);
+    });
 
   return (
     <div>
       <div className="section-head">
         <div className="section-title">Vendor Directory</div>
-        <button className="section-action" onClick={()=>setShowAdd(true)}>+ Add</button>
+        <div className="section-action" style={{cursor:"default"}}>Curated by VivahGo</div>
       </div>
       <div className="vendor-tabs">
         {VENDOR_TYPES.map(t=>(
           <div key={t} className={`vendor-tab${activeTab===t?" active":""}`} onClick={()=>setActiveTab(t)}>{t}</div>
         ))}
       </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,padding:"0 16px 12px"}}>
+        <select className="select-field" value={locationFilter} onChange={e=>setLocationFilter(e.target.value)}>
+          <option value="all">All Locations</option>
+          {availableCities.map(city => <option key={city} value={city}>{city}</option>)}
+        </select>
+        <select className="select-field" value={ratingFilter} onChange={e=>setRatingFilter(e.target.value)}>
+          <option value="all">Any Rating</option>
+          <option value="5">5★ & up</option>
+          <option value="4">4★ & up</option>
+          <option value="3">3★ & up</option>
+        </select>
+        <select className="select-field" value={priceSort} onChange={e=>setPriceSort(e.target.value)}>
+          <option value="none">Default Order</option>
+          <option value="low-high">Price: Low to High</option>
+        </select>
+      </div>
+      {filtered.length === 0 && (
+        <div style={{textAlign:"center",padding:"8px 16px 14px",color:"var(--color-light-text)",fontSize:13}}>
+          No vendors found for selected filters.
+        </div>
+      )}
       {filtered.map(v=>(
         <div className="vendor-card" key={v.id}>
           <div className="vendor-top">
@@ -49,40 +106,6 @@ function VendorsScreen({ vendors, setVendors }) {
           </div>
         </div>
       ))}
-
-      {showAdd && (
-        <div className="modal-overlay" onClick={()=>setShowAdd(false)}>
-          <div className="modal" onClick={e=>e.stopPropagation()}>
-            <div className="modal-handle"/>
-            <div className="modal-title">Add Vendor 🛍️</div>
-            <div className="input-group">
-              <div className="input-label">Vendor Name</div>
-              <input className="input-field" value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="e.g. Studio Memories"/>
-            </div>
-            <div className="input-group">
-              <div className="input-label">Category</div>
-              <select className="select-field" value={form.type} onChange={e=>setForm({...form,type:e.target.value})}>
-                {VENDOR_TYPES.slice(1).map(t=><option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
-            <div className="input-group">
-              <div className="input-label">Price / Quote</div>
-              <input className="input-field" value={form.price} onChange={e=>setForm({...form,price:e.target.value})} placeholder="e.g. ₹75,000"/>
-            </div>
-            <div className="input-group">
-              <div className="input-label">City</div>
-              <input className="input-field" value={form.city} onChange={e=>setForm({...form,city:e.target.value})} placeholder="e.g. Delhi"/>
-            </div>
-            <div className="input-group">
-              <div className="input-label">Rating (1-5)</div>
-              <select className="select-field" value={form.rating} onChange={e=>setForm({...form,rating:e.target.value})}>
-                {[5,4,3,2,1].map(r=><option key={r} value={r}>{"★".repeat(r)} {r}/5</option>)}
-              </select>
-            </div>
-            <button className="btn-primary" onClick={add}>Add Vendor</button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

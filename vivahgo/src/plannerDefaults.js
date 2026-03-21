@@ -10,18 +10,61 @@ export const EMPTY_WEDDING = {
 };
 
 const SAMPLE_GUESTS = [
-  { id: 1, name: 'Rajesh Sharma', side: 'bride', phone: '+91 98765 43210', rsvp: 'yes' },
-  { id: 2, name: 'Priya Mehta', side: 'bride', phone: '+91 98765 12345', rsvp: 'yes' },
-  { id: 3, name: 'Vikram Singh', side: 'groom', phone: '+91 99887 56123', rsvp: 'pending' },
-  { id: 4, name: 'Sunita Verma', side: 'groom', phone: '+91 91234 56789', rsvp: 'no' },
-  { id: 5, name: 'Arjun Kapoor', side: 'bride', phone: '+91 87654 32109', rsvp: 'pending' },
+  { id: 1, name: 'Rajesh Sharma', side: 'bride', phone: '+91 98765 43210', rsvp: 'yes', guestCount: 4 },
+  { id: 2, name: 'Priya Mehta', side: 'bride', phone: '+91 98765 12345', rsvp: 'yes', guestCount: 2 },
+  { id: 3, name: 'Vikram Singh', side: 'groom', phone: '+91 99887 56123', rsvp: 'pending', guestCount: 3 },
+  { id: 4, name: 'Sunita Verma', side: 'groom', phone: '+91 91234 56789', rsvp: 'no', guestCount: 1 },
+  { id: 5, name: 'Arjun Kapoor', side: 'bride', phone: '+91 87654 32109', rsvp: 'pending', guestCount: 5 },
 ];
 
 const SAMPLE_EXPENSES = [
-  { id: 1, name: 'Venue advance', amount: 200000, category: 'venue', note: '50% advance' },
-  { id: 2, name: 'Bridal lehenga', amount: 150000, category: 'attire', note: 'Sabyasachi' },
-  { id: 3, name: 'Caterer booking', amount: 85000, category: 'catering', note: 'South + North menu tasting' },
+  { id: 1, name: 'Haldi venue advance', amount: 200000, expenseDate: '2027-02-10', category: 'venue', area: 'ceremony', eventId: 4, note: '50% advance' },
+  { id: 2, name: 'Bridal lehenga', amount: 150000, expenseDate: '2026-11-20', category: 'attire', area: 'bride', eventId: '', note: 'Sabyasachi' },
+  { id: 3, name: 'Guest hotel block', amount: 85000, expenseDate: '2027-01-15', category: 'stay', area: 'guests', eventId: '', note: '40 deluxe rooms reserved' },
 ];
+
+function normalizeExpense(expense) {
+  if (!expense || typeof expense !== 'object') {
+    return { id: Date.now(), name: '', amount: 0, expenseDate: '', category: 'misc', area: 'general', eventId: '', note: '' };
+  }
+
+  return {
+    id: expense.id ?? Date.now(),
+    name: expense.name || '',
+    amount: Number(expense.amount || 0),
+    expenseDate: expense.expenseDate || '',
+    category: expense.category || 'misc',
+    area: expense.area || (expense.eventId ? 'ceremony' : 'general'),
+    eventId: expense.eventId ?? '',
+    note: expense.note || '',
+  };
+}
+
+function normalizeTask(task) {
+  if (!task || typeof task !== 'object') {
+    return {
+      id: Date.now(),
+      name: '',
+      done: false,
+      due: '',
+      priority: 'medium',
+      group: 'Final',
+      eventId: '',
+      ceremony: 'General',
+    };
+  }
+
+  return {
+    id: task.id ?? Date.now(),
+    name: task.name || '',
+    done: Boolean(task.done),
+    due: task.due || '',
+    priority: task.priority || 'medium',
+    group: task.group || 'Final',
+    eventId: task.eventId ?? '',
+    ceremony: task.ceremony || 'General',
+  };
+}
 
 function cloneCollection(items) {
   return items.map(item => ({ ...item }));
@@ -77,10 +120,10 @@ export function normalizePlanner(planner) {
   return {
     wedding: { ...EMPTY_WEDDING, ...(planner.wedding || {}) },
     events: Array.isArray(planner.events) ? planner.events : blankPlanner.events,
-    expenses: Array.isArray(planner.expenses) ? planner.expenses : blankPlanner.expenses,
+    expenses: Array.isArray(planner.expenses) ? planner.expenses.map(normalizeExpense) : blankPlanner.expenses,
     guests: Array.isArray(planner.guests) ? planner.guests : blankPlanner.guests,
     vendors: Array.isArray(planner.vendors) ? planner.vendors : blankPlanner.vendors,
-    tasks: Array.isArray(planner.tasks) ? planner.tasks : blankPlanner.tasks,
+    tasks: Array.isArray(planner.tasks) ? planner.tasks.map(normalizeTask) : blankPlanner.tasks,
   };
 }
 
