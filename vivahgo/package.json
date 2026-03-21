@@ -13,6 +13,8 @@
     "start:server": "node server/index.js"
   },
   "dependencies": {
+    "@capacitor/core": "^8.2.0",
+    "@capacitor/ios": "^8.2.0",
     "@react-oauth/google": "^0.13.4",
     "concurrently": "^9.2.1",
     "cors": "^2.8.5",
@@ -26,6 +28,7 @@
     "react-dom": "^19.2.4"
   },
   "devDependencies": {
+    "@capacitor/cli": "^7.6.0",
     "@eslint/js": "^9.39.4",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
