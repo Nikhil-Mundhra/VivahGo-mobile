@@ -1,7 +1,8 @@
 const assert = require('node:assert/strict');
+const { appPath, toFileUrl } = require('./helpers/testUtils.cjs');
 
 async function load() {
-  return import('../VivahGo/src/utils.js');
+  return import(toFileUrl(appPath('src/utils.js')));
 }
 
 describe('VivahGo/src/utils.js', function () {

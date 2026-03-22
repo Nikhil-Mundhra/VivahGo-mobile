@@ -1,10 +1,10 @@
 const assert = require('node:assert/strict');
 
-const { readText } = require('./helpers/testUtils.cjs');
+const { appPath, readText } = require('./helpers/testUtils.cjs');
 
 describe('VivahGo/src/api.js', function () {
   it('exports auth and planner request wrappers', function () {
-    const text = readText('VivahGo/src/api.js');
+    const text = readText(appPath('src/api.js'));
 
     assert.match(text, /export\s+function\s+loginWithGoogle\s*\(/);
     assert.match(text, /export\s+function\s+fetchPlanner\s*\(/);
@@ -12,7 +12,7 @@ describe('VivahGo/src/api.js', function () {
   });
 
   it('contains base-url resolution branches for local, configured, and fallback API', function () {
-    const text = readText('VivahGo/src/api.js');
+    const text = readText(appPath('src/api.js'));
 
     assert.match(text, /function\s+resolveApiBaseUrl\s*\(/);
     assert.match(text, /VITE_API_BASE_URL/);

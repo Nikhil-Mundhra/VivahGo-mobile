@@ -1,10 +1,10 @@
 const assert = require('node:assert/strict');
 
-const { toFileUrl } = require('./helpers/testUtils.cjs');
+const { appPath, toFileUrl } = require('./helpers/testUtils.cjs');
 
 describe('VivahGo/server/models/User.js', function () {
   it('exports a mongoose model with expected paths', async function () {
-    const mod = await import(toFileUrl('VivahGo/server/models/User.js'));
+    const mod = await import(toFileUrl(appPath('server/models/User.js')));
     const User = mod.default;
 
     assert.equal(typeof User, 'function');
@@ -15,7 +15,7 @@ describe('VivahGo/server/models/User.js', function () {
   });
 
   it('lowercases and trims email when creating documents', async function () {
-    const mod = await import(toFileUrl('VivahGo/server/models/User.js'));
+    const mod = await import(toFileUrl(appPath('server/models/User.js')));
     const User = mod.default;
 
     const doc = new User({

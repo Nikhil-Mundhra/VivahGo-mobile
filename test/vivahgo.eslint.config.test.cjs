@@ -1,10 +1,10 @@
 const assert = require('node:assert/strict');
 
-const { toFileUrl } = require('./helpers/testUtils.cjs');
+const { appPath, toFileUrl } = require('./helpers/testUtils.cjs');
 
 describe('VivahGo/eslint.config.js', function () {
   it('exports a flat config array with JS/JSX matcher', async function () {
-    const mod = await import(toFileUrl('VivahGo/eslint.config.js'));
+    const mod = await import(toFileUrl(appPath('eslint.config.js')));
 
     assert.ok(Array.isArray(mod.default));
 

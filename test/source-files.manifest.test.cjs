@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 
-const { toAbs } = require('./helpers/testUtils.cjs');
+const { appPath, toAbs } = require('./helpers/testUtils.cjs');
 
 const SOURCE_JS_FILES = [
   'api/_lib/core.js',
@@ -9,18 +9,18 @@ const SOURCE_JS_FILES = [
   'api/feedback.js',
   'api/health.js',
   'api/planner/me.js',
-  'VivahGo/eslint.config.js',
-  'VivahGo/server/index.js',
-  'VivahGo/server/models/Planner.js',
-  'VivahGo/server/models/User.js',
-  'VivahGo/src/api.js',
-  'VivahGo/src/constants.js',
-  'VivahGo/src/data.js',
-  'VivahGo/src/hooks/useBackButtonClose.js',
-  'VivahGo/src/hooks/useSwipeDown.js',
-  'VivahGo/src/plannerDefaults.js',
-  'VivahGo/src/utils.js',
-  'VivahGo/vite.config.js',
+  appPath('eslint.config.js'),
+  appPath('server/index.js'),
+  appPath('server/models/Planner.js'),
+  appPath('server/models/User.js'),
+  appPath('src/api.js'),
+  appPath('src/constants.js'),
+  appPath('src/data.js'),
+  appPath('src/hooks/useBackButtonClose.js'),
+  appPath('src/hooks/useSwipeDown.js'),
+  appPath('src/plannerDefaults.js'),
+  appPath('src/utils.js'),
+  appPath('vite.config.js'),
 ];
 
 describe('source JS manifest', function () {

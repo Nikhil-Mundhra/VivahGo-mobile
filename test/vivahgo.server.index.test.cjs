@@ -1,10 +1,10 @@
 const assert = require('node:assert/strict');
 
-const { readText } = require('./helpers/testUtils.cjs');
+const { appPath, readText } = require('./helpers/testUtils.cjs');
 
 describe('VivahGo/server/index.js', function () {
   it('declares expected API routes and middleware', function () {
-    const text = readText('VivahGo/server/index.js');
+    const text = readText(appPath('server/index.js'));
 
     assert.match(text, /app\.use\(\s*cors\(/);
     assert.match(text, /app\.use\(express\.json\(/);
@@ -15,7 +15,7 @@ describe('VivahGo/server/index.js', function () {
   });
 
   it('contains auth middleware and startup safeguards', function () {
-    const text = readText('VivahGo/server/index.js');
+    const text = readText(appPath('server/index.js'));
 
     assert.match(text, /function\s+authMiddleware\s*\(/);
     assert.match(text, /Authentication required\./);

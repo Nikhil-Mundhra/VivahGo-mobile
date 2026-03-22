@@ -3,11 +3,16 @@ const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 
 const ROOT = path.resolve(__dirname, '..', '..');
-const APP_DIR = fs.existsSync(path.join(ROOT, 'VivahGo')) ? 'VivahGo' : 'vivahgo';
+const APP_PATH_ALIAS = 'VivahGo';
+const APP_DIR = fs.existsSync(path.join(ROOT, APP_PATH_ALIAS)) ? APP_PATH_ALIAS : 'vivahgo';
+
+function appPath(relativePath) {
+  return `${APP_PATH_ALIAS}/${String(relativePath).replace(/^\/+/, '')}`;
+}
 
 function normalizeRelativePath(relativePath) {
-  if (relativePath.startsWith('VivahGo/')) {
-    return `${APP_DIR}/${relativePath.slice('VivahGo/'.length)}`;
+  if (relativePath.startsWith(`${APP_PATH_ALIAS}/`)) {
+    return `${APP_DIR}/${relativePath.slice(`${APP_PATH_ALIAS}/`.length)}`;
   }
   if (relativePath.startsWith('vivahgo/')) {
     return `${APP_DIR}/${relativePath.slice('vivahgo/'.length)}`;
@@ -52,7 +57,10 @@ function createRes() {
 }
 
 module.exports = {
+  APP_DIR,
+  APP_PATH_ALIAS,
   ROOT,
+  appPath,
   createRes,
   readText,
   toAbs,

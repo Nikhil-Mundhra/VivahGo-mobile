@@ -1,10 +1,10 @@
 const assert = require('node:assert/strict');
 
-const { toFileUrl } = require('./helpers/testUtils.cjs');
+const { appPath, toFileUrl } = require('./helpers/testUtils.cjs');
 
 describe('VivahGo/server/models/Planner.js', function () {
   it('exports a mongoose model with expected paths', async function () {
-    const mod = await import(toFileUrl('VivahGo/server/models/Planner.js'));
+    const mod = await import(toFileUrl(appPath('server/models/Planner.js')));
     const Planner = mod.default;
 
     assert.equal(typeof Planner, 'function');
@@ -16,7 +16,7 @@ describe('VivahGo/server/models/Planner.js', function () {
   });
 
   it('applies array/object defaults for planner sections', async function () {
-    const mod = await import(toFileUrl('VivahGo/server/models/Planner.js'));
+    const mod = await import(toFileUrl(appPath('server/models/Planner.js')));
     const Planner = mod.default;
 
     const doc = new Planner({ googleId: 'test-google-id' });
