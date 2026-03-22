@@ -38,10 +38,10 @@ export const VENDOR_TYPES = ["All","Venue","Photography","Catering","Decoration"
 export const WHATSAPP_SUPPORT_NUMBER = "917060410033";
 
 export const NAV_ITEMS = [
-  {id:"home",icon:"🏠",label:"Home"},
-  {id:"events",icon:"🌸",label:"Events"},
-  {id:"budget",icon:"💰",label:"Budget"},
-  {id:"guests",icon:"👥",label:"Guests"},
-  {id:"vendors",icon:"🛍️",label:"Vendors"},
-  {id:"tasks",icon:"✅",label:"Tasks"},
+  {id:"home",icon:"home",label:"Home"},
+  {id:"events",icon:"events",label:"Events"},
+  {id:"budget",icon:"budget",label:"Budget"},
+  {id:"guests",icon:"guests",label:"Guests"},
+  {id:"vendors",icon:"vendors",label:"Vendors"},
+  {id:"tasks",icon:"tasks",label:"Tasks"},
 ];

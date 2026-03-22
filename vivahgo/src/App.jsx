@@ -10,6 +10,7 @@ import GuestsScreen from "./components/GuestsScreen";
 import VendorsScreen from "./components/VendorsScreen";
 import TasksScreen from "./components/TasksScreen";
 import AccountScreen from "./components/AccountScreen";
+import NavIcon from "./components/NavIcon";
 import { NAV_ITEMS } from "./constants";
 import { fetchPlanner, loginWithGoogle, savePlanner } from "./api";
 import { createBlankPlanner, createDemoPlanner, hasWeddingProfile, normalizePlanner } from "./plannerDefaults";
@@ -328,7 +329,7 @@ export default function VivahGoApp() {
           <div className="bottom-nav">
             {NAV_ITEMS.map(n=>(
               <div key={n.id} className={`nav-item${tab===n.id?" active":""}`} onClick={()=>setTab(n.id)}>
-                <div className="nav-icon">{n.icon}</div>
+                <div className="nav-icon"><NavIcon name={n.icon} /></div>
                 <div className="nav-label">{n.label}</div>
                 {tab===n.id && <div className="nav-active-dot"/>}
               </div>

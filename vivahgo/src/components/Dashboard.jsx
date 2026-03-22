@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import NavIcon from "./NavIcon";
 import { EVENT_COLORS } from "../constants";
 import { BUDGET_CATEGORIES } from "../data";
 import { daysUntil, fmt } from "../utils";
@@ -125,20 +126,41 @@ function Dashboard({ wedding, events, expenses, guests, onTabChange, onEditEvent
       {/* Quick Stats */}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,padding:"0 16px"}}>
         {[
-          {label:"Budget Used",value:`${totalBudget?Math.round(totalSpent/totalBudget*100):0}%`,sub:fmt(totalSpent)+" spent",emoji:"💰",tab:"budget"},
-          {label:"Guests Confirmed",value:yesCount,sub:`of ${totalInvited} invited`,emoji:"👥",tab:"guests"},
+          {label:"Budget Used",value:`${totalBudget?Math.round(totalSpent/totalBudget*100):0}%`,sub:fmt(totalSpent)+" spent",icon:"budget",tab:"budget"},
+          {label:"Guests Confirmed",value:yesCount,sub:`of ${totalInvited} invited`,icon:"guests",tab:"guests"},
         ].map((s,i)=>(
+          (() => {
+            const isPercentValue = typeof s.value === "string" && s.value.endsWith("%");
+            const valueText = isPercentValue ? s.value.slice(0, -1) : s.value;
+            const valueLift = s.tab === "budget" ? "translateY(-0.28em)" : "none";
+
+            return (
           <button
             key={i}
             type="button"
             onClick={() => onTabChange?.(s.tab)}
             style={{background:"var(--color-white)",borderRadius:16,padding:"14px 12px",border:"1px solid rgba(212,175,55,0.15)",boxShadow:"0 2px 8px rgba(0,0,0,0.04)",textAlign:"left",cursor:"pointer"}}
           >
-            <div style={{fontSize:24,marginBottom:4}}>{s.emoji}</div>
-            <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:28,fontWeight:700,color:"var(--color-crimson)",lineHeight:1}}>{s.value}</div>
+            <div style={{display:"flex",alignItems:"center",gap:6}}>
+              <div style={{width:22,height:22,color:"var(--color-crimson)",flexShrink:0}}>
+                <NavIcon name={s.icon} size={22} />
+              </div>
+              <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:28,fontWeight:700,color:"var(--color-crimson)",lineHeight:1,transform:valueLift}}>
+                {isPercentValue ? (
+                  <span style={{display:"inline-flex",alignItems:"baseline",lineHeight:1}}>
+                    <span>{valueText}</span>
+                    <span style={{lineHeight:1,display:"inline-block",transform:"translateY(0.12em)"}}>%</span>
+                  </span>
+                ) : (
+                  s.value
+                )}
+              </div>
+            </div>
             <div style={{fontSize:11,color:"var(--color-light-text)",marginTop:2}}>{s.label}</div>
             <div style={{fontSize:10.5,color:"var(--color-gold)",fontWeight:600,marginTop:1}}>{s.sub}</div>
           </button>
+            );
+          })()
         ))}
       </div>
 
