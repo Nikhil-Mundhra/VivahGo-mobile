@@ -52,7 +52,6 @@ function getGuestNameParts(guest) {
 function GuestsScreen({ guests, setGuests }) {
   const [showEditor, setShowEditor] = useState(false);
   const [editingGuestId, setEditingGuestId] = useState(null);
-  const guestSwipe = useSwipeDown(() => closeEditor());
   const [form, setForm] = useState(createGuestForm());
   const [search, setSearch] = useState("");
   const [sideFilter, setSideFilter] = useState("all");
@@ -119,6 +118,8 @@ function GuestsScreen({ guests, setGuests }) {
     setForm(createGuestForm());
     setFormError("");
   }
+
+  const guestSwipe = useSwipeDown(() => closeEditor());
 
   useBackButtonClose(showEditor, closeEditor);
 

@@ -17,6 +17,14 @@ concurrency:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    env:
+      VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
+      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+      MONGODB_URI: ${{ secrets.MONGODB_URI }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      CLIENT_ORIGIN: ${{ vars.CLIENT_ORIGIN }}
+      FEEDBACK_WEBHOOK_URL: ${{ secrets.FEEDBACK_WEBHOOK_URL }}
+      FEEDBACK_SECRET_KEY: ${{ secrets.FEEDBACK_SECRET_KEY }}
 
     strategy:
       fail-fast: false

@@ -36,7 +36,6 @@ function EventsScreen({ events, setEvents, expenses, onOpenBudget, initialEditin
   const [selectedPreset, setSelectedPreset] = useState("");
   const [form, setForm] = useState({ name: "", emoji: "✨", date: "", timeH: "", timeM: "", timeP: "AM", venue: "", status: "upcoming", note: "" });
   const editingSwipe = useSwipeDown(() => setEditing(null));
-  const addSwipe = useSwipeDown(() => closeAddModal());
 
   function resetAddForm() {
     setForm({ name: "", emoji: "✨", date: "", timeH: "", timeM: "", timeP: "AM", venue: "", status: "upcoming", note: "" });
@@ -47,6 +46,8 @@ function EventsScreen({ events, setEvents, expenses, onOpenBudget, initialEditin
     setSelectedPreset("");
     resetAddForm();
   }
+
+  const addSwipe = useSwipeDown(() => closeAddModal());
 
   useBackButtonClose(Boolean(editing), () => setEditing(null));
   useBackButtonClose(showAdd, closeAddModal);
