@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useBackButtonClose } from "../hooks/useBackButtonClose";
 
 function AccountScreen({ user, authMode, wedding, setWedding, onClose, onLogout }) {
   const [form, setForm] = useState({
@@ -10,6 +11,8 @@ function AccountScreen({ user, authMode, wedding, setWedding, onClose, onLogout 
     guests: wedding.guests || "",
   });
   const [saved, setSaved] = useState(false);
+
+  useBackButtonClose(true, onClose);
 
   function handleSave() {
     setWedding(current => ({ ...current, ...form }));
@@ -167,6 +170,9 @@ function AccountScreen({ user, authMode, wedding, setWedding, onClose, onLogout 
           style={saved ? { background: "linear-gradient(135deg, #2E7D32, #1B5E20)" } : undefined}
         >
           {saved ? "✓ Saved!" : "Save Changes"}
+        </button>
+        <button className="btn-secondary" onClick={onClose}>
+          Cancel
         </button>
         <button className="btn-secondary-danger" onClick={onLogout}>
           Log Out

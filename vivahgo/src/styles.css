@@ -786,6 +786,7 @@ body { background: var(--color-deep-red); }
   z-index: 200;
   display: flex; align-items: flex-end;
   backdrop-filter: blur(4px);
+  overscroll-behavior-y: none;
 }
 .modal {
   background: var(--color-cream);
@@ -796,6 +797,9 @@ body { background: var(--color-deep-red); }
   animation: slideUp 0.3s cubic-bezier(0.4,0,0.2,1);
   max-height: 90vh;
   overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
   will-change: transform;
 }
 @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
@@ -864,6 +868,19 @@ body { background: var(--color-deep-red); }
   border-radius: 14px;
   padding: 13px;
   color: var(--color-bright-red);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Jost', sans-serif;
+  margin-top: 8px;
+}
+.btn-secondary {
+  width: 100%;
+  background: rgba(139,26,26,0.05);
+  border: 1px solid rgba(139,26,26,0.14);
+  border-radius: 14px;
+  padding: 13px;
+  color: var(--color-mid-text);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;

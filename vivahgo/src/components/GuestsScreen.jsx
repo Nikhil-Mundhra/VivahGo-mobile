@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { initials } from "../utils";
 import { useSwipeDown } from "../hooks/useSwipeDown";
+import { useBackButtonClose } from "../hooks/useBackButtonClose";
 
 const GUEST_TITLES = new Set(["mr", "mrs", "ms", "miss", "dr", "prof", "shri", "smt", "km", "kum"]);
 
@@ -118,6 +119,8 @@ function GuestsScreen({ guests, setGuests }) {
     setForm(createGuestForm());
     setFormError("");
   }
+
+  useBackButtonClose(showEditor, closeEditor);
 
   function saveGuest() {
     const title = form.title.trim();
@@ -357,6 +360,7 @@ function GuestsScreen({ guests, setGuests }) {
                 Delete Guest
               </button>
             )}
+            <button className="btn-secondary" onClick={closeEditor}>Cancel</button>
             <button className="btn-primary" onClick={saveGuest}>{editingGuestId !== null ? "Save Guest" : "Add Guest"}</button>
           </div>
         </div>

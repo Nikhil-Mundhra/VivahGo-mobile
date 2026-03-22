@@ -3,6 +3,7 @@ import { EVENT_COLORS } from "../constants";
 import { DEFAULT_EVENTS } from "../data";
 import { fmt } from "../utils";
 import { useSwipeDown } from "../hooks/useSwipeDown";
+import { useBackButtonClose } from "../hooks/useBackButtonClose";
 
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const YEARS  = Array.from({length: 8}, (_, i) => 2025 + i);
@@ -35,7 +36,20 @@ function EventsScreen({ events, setEvents, expenses, onOpenBudget, initialEditin
   const [selectedPreset, setSelectedPreset] = useState("");
   const [form, setForm] = useState({ name: "", emoji: "✨", date: "", timeH: "", timeM: "", timeP: "AM", venue: "", status: "upcoming", note: "" });
   const editingSwipe = useSwipeDown(() => setEditing(null));
-  const addSwipe = useSwipeDown(() => { setShowAdd(false); setSelectedPreset(""); });
+  const addSwipe = useSwipeDown(() => closeAddModal());
+
+  function resetAddForm() {
+    setForm({ name: "", emoji: "✨", date: "", timeH: "", timeM: "", timeP: "AM", venue: "", status: "upcoming", note: "" });
+  }
+
+  function closeAddModal() {
+    setShowAdd(false);
+    setSelectedPreset("");
+    resetAddForm();
+  }
+
+  useBackButtonClose(Boolean(editing), () => setEditing(null));
+  useBackButtonClose(showAdd, closeAddModal);
 
   const usedNames = new Set(events.map(e => e.name));
   const availablePresets = DEFAULT_EVENTS.filter(e => !usedNames.has(e.name));
@@ -74,7 +88,7 @@ function EventsScreen({ events, setEvents, expenses, onOpenBudget, initialEditin
         colorIdx: preset ? preset.colorIdx : evs.length % EVENT_COLORS.length,
       },
     ]);
-    setForm({ name: "", emoji: "✨", date: "", timeH: "", timeM: "", timeP: "AM", venue: "", status: "upcoming", note: "" });
+    resetAddForm();
     setSelectedPreset("");
     setShowAdd(false);
   }
@@ -189,13 +203,14 @@ function EventsScreen({ events, setEvents, expenses, onOpenBudget, initialEditin
               <input className="input-field" value={editing.note} onChange={e=>setEditing({...editing,note:e.target.value})} placeholder="Any special notes..."/>
             </div>
             <button className="btn-primary btn-gold" onClick={onOpenBudget}>View Linked Budget</button>
+            <button className="btn-secondary" onClick={() => setEditing(null)}>Cancel</button>
             <button className="btn-primary" onClick={save}>Save Ceremony Details</button>
           </div>
         </div>
       )}
 
       {showAdd && (
-        <div className="modal-overlay" onClick={() => { setShowAdd(false); setSelectedPreset(""); }}>
+        <div className="modal-overlay" onClick={closeAddModal}>
           <div className="modal" {...addSwipe.modalProps} onClick={e => e.stopPropagation()}>
             <div className="modal-handle"/>
             <div className="modal-title">Add Ceremony ✨</div>
@@ -275,6 +290,7 @@ function EventsScreen({ events, setEvents, expenses, onOpenBudget, initialEditin
                   <div className="input-label">Notes</div>
                   <input className="input-field" value={form.note} onChange={e => setForm({ ...form, note: e.target.value })} placeholder="Special notes" />
                 </div>
+                <button className="btn-secondary" onClick={closeAddModal}>Cancel</button>
                 <button className="btn-primary" onClick={addEvent}>Add Ceremony</button>
               </>
             )}

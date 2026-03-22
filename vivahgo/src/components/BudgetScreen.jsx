@@ -2,6 +2,7 @@ import { useState } from "react";
 import { BUDGET_CATEGORIES, EXPENSE_AREAS } from "../data";
 import { fmt } from "../utils";
 import { useSwipeDown } from "../hooks/useSwipeDown";
+import { useBackButtonClose } from "../hooks/useBackButtonClose";
 
 function createExpenseForm(events) {
   return {
@@ -29,7 +30,6 @@ function BudgetScreen({ expenses, setExpenses, wedding, events }) {
   const [expandedCategoryId, setExpandedCategoryId] = useState(null);
   const [expandedCeremonyId, setExpandedCeremonyId] = useState(null);
   const [form, setForm] = useState(() => createExpenseForm(events));
-  const budgetSwipe = useSwipeDown(() => closeEditor());
   const totalBudget = Number((wedding.budget||"0").replace(/[^0-9]/g,""));
   const totalSpent = expenses.reduce((s,e)=>s+Number(e.amount||0),0);
   const remaining = totalBudget - totalSpent;
@@ -61,6 +61,10 @@ function BudgetScreen({ expenses, setExpenses, wedding, events }) {
     setEditingExpenseId(null);
     setForm(createExpenseForm(events));
   }
+
+  useBackButtonClose(showEditor, closeEditor);
+
+  const budgetSwipe = useSwipeDown(() => closeEditor(), 110);
 
   function saveExpense() {
     if (!canSaveExpense) return;
@@ -337,6 +341,9 @@ function BudgetScreen({ expenses, setExpenses, wedding, events }) {
                 Delete Expense
               </button>
             )}
+            <button className="btn-secondary" onClick={closeEditor}>
+              Cancel
+            </button>
             <button className="btn-primary" onClick={saveExpense} style={!canSaveExpense ? {opacity:0.55} : undefined}>
               {editingExpenseId !== null ? "Save Changes" : "Add Expense"}
             </button>

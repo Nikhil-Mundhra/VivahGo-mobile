@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useSwipeDown } from "../hooks/useSwipeDown";
+import { useBackButtonClose } from "../hooks/useBackButtonClose";
 
 function createTaskForm() {
   return {name:"",due:"",group:"Final",priority:"medium",eventId:""};
@@ -27,6 +28,13 @@ function TasksScreen({ tasks, setTasks, events }) {
     setForm(createTaskForm());
     setShowAdd(false);
   }
+
+  function cancelAdd() {
+    setForm(createTaskForm());
+    setShowAdd(false);
+  }
+
+  useBackButtonClose(showAdd, cancelAdd);
 
   const PRIORITY_COLORS = {high:"#EF5350",medium:"#FFA726",low:"#66BB6A"};
 
@@ -81,7 +89,7 @@ function TasksScreen({ tasks, setTasks, events }) {
       <button className="fab" onClick={()=>setShowAdd(true)}>+</button>
 
       {showAdd && (
-        <div className="modal-overlay" onClick={()=>setShowAdd(false)}>
+        <div className="modal-overlay" onClick={cancelAdd}>
           <div className="modal" {...taskSwipe.modalProps} onClick={e=>e.stopPropagation()}>
             <div className="modal-handle"/>
             <div className="modal-title">Add Task ✅</div>
@@ -116,6 +124,7 @@ function TasksScreen({ tasks, setTasks, events }) {
                 <option value="low">🟢 Low</option>
               </select>
             </div>
+            <button className="btn-secondary" onClick={cancelAdd}>Cancel</button>
             <button className="btn-primary" onClick={add}>Add Task</button>
           </div>
         </div>
