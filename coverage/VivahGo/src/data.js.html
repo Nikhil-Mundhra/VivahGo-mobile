@@ -1,0 +1,478 @@
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Code coverage report for VivahGo/src/data.js</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../../prettify.css" />
+    <link rel="stylesheet" href="../../base.css" />
+    <link rel="shortcut icon" type="image/x-icon" href="../../favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style type='text/css'>
+        .coverage-summary .sorter {
+            background-image: url(../../sort-arrow-sprite.png);
+        }
+    </style>
+</head>
+    
+<body>
+<div class='wrapper'>
+    <div class='pad1'>
+        <h1><a href="../../index.html">All files</a> / <a href="index.html">VivahGo/src</a> data.js</h1>
+        <div class='clearfix'>
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">0% </span>
+                <span class="quiet">Statements</span>
+                <span class='fraction'>0/7</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Branches</span>
+                <span class='fraction'>0/0</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Functions</span>
+                <span class='fraction'>0/0</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">0% </span>
+                <span class="quiet">Lines</span>
+                <span class='fraction'>0/7</span>
+            </div>
+        
+            
+        </div>
+        <p class="quiet">
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+        </p>
+        <template id="filterTemplate">
+            <div class="quiet">
+                Filter:
+                <input type="search" id="fileSearch">
+            </div>
+        </template>
+    </div>
+    <div class='status-line low'></div>
+    <pre><table class="coverage">
+<tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
+<a name='L2'></a><a href='#L2'>2</a>
+<a name='L3'></a><a href='#L3'>3</a>
+<a name='L4'></a><a href='#L4'>4</a>
+<a name='L5'></a><a href='#L5'>5</a>
+<a name='L6'></a><a href='#L6'>6</a>
+<a name='L7'></a><a href='#L7'>7</a>
+<a name='L8'></a><a href='#L8'>8</a>
+<a name='L9'></a><a href='#L9'>9</a>
+<a name='L10'></a><a href='#L10'>10</a>
+<a name='L11'></a><a href='#L11'>11</a>
+<a name='L12'></a><a href='#L12'>12</a>
+<a name='L13'></a><a href='#L13'>13</a>
+<a name='L14'></a><a href='#L14'>14</a>
+<a name='L15'></a><a href='#L15'>15</a>
+<a name='L16'></a><a href='#L16'>16</a>
+<a name='L17'></a><a href='#L17'>17</a>
+<a name='L18'></a><a href='#L18'>18</a>
+<a name='L19'></a><a href='#L19'>19</a>
+<a name='L20'></a><a href='#L20'>20</a>
+<a name='L21'></a><a href='#L21'>21</a>
+<a name='L22'></a><a href='#L22'>22</a>
+<a name='L23'></a><a href='#L23'>23</a>
+<a name='L24'></a><a href='#L24'>24</a>
+<a name='L25'></a><a href='#L25'>25</a>
+<a name='L26'></a><a href='#L26'>26</a>
+<a name='L27'></a><a href='#L27'>27</a>
+<a name='L28'></a><a href='#L28'>28</a>
+<a name='L29'></a><a href='#L29'>29</a>
+<a name='L30'></a><a href='#L30'>30</a>
+<a name='L31'></a><a href='#L31'>31</a>
+<a name='L32'></a><a href='#L32'>32</a>
+<a name='L33'></a><a href='#L33'>33</a>
+<a name='L34'></a><a href='#L34'>34</a>
+<a name='L35'></a><a href='#L35'>35</a>
+<a name='L36'></a><a href='#L36'>36</a>
+<a name='L37'></a><a href='#L37'>37</a>
+<a name='L38'></a><a href='#L38'>38</a>
+<a name='L39'></a><a href='#L39'>39</a>
+<a name='L40'></a><a href='#L40'>40</a>
+<a name='L41'></a><a href='#L41'>41</a>
+<a name='L42'></a><a href='#L42'>42</a>
+<a name='L43'></a><a href='#L43'>43</a>
+<a name='L44'></a><a href='#L44'>44</a>
+<a name='L45'></a><a href='#L45'>45</a>
+<a name='L46'></a><a href='#L46'>46</a>
+<a name='L47'></a><a href='#L47'>47</a>
+<a name='L48'></a><a href='#L48'>48</a>
+<a name='L49'></a><a href='#L49'>49</a>
+<a name='L50'></a><a href='#L50'>50</a>
+<a name='L51'></a><a href='#L51'>51</a>
+<a name='L52'></a><a href='#L52'>52</a>
+<a name='L53'></a><a href='#L53'>53</a>
+<a name='L54'></a><a href='#L54'>54</a>
+<a name='L55'></a><a href='#L55'>55</a>
+<a name='L56'></a><a href='#L56'>56</a>
+<a name='L57'></a><a href='#L57'>57</a>
+<a name='L58'></a><a href='#L58'>58</a>
+<a name='L59'></a><a href='#L59'>59</a>
+<a name='L60'></a><a href='#L60'>60</a>
+<a name='L61'></a><a href='#L61'>61</a>
+<a name='L62'></a><a href='#L62'>62</a>
+<a name='L63'></a><a href='#L63'>63</a>
+<a name='L64'></a><a href='#L64'>64</a>
+<a name='L65'></a><a href='#L65'>65</a>
+<a name='L66'></a><a href='#L66'>66</a>
+<a name='L67'></a><a href='#L67'>67</a>
+<a name='L68'></a><a href='#L68'>68</a>
+<a name='L69'></a><a href='#L69'>69</a>
+<a name='L70'></a><a href='#L70'>70</a>
+<a name='L71'></a><a href='#L71'>71</a>
+<a name='L72'></a><a href='#L72'>72</a>
+<a name='L73'></a><a href='#L73'>73</a>
+<a name='L74'></a><a href='#L74'>74</a>
+<a name='L75'></a><a href='#L75'>75</a>
+<a name='L76'></a><a href='#L76'>76</a>
+<a name='L77'></a><a href='#L77'>77</a>
+<a name='L78'></a><a href='#L78'>78</a>
+<a name='L79'></a><a href='#L79'>79</a>
+<a name='L80'></a><a href='#L80'>80</a>
+<a name='L81'></a><a href='#L81'>81</a>
+<a name='L82'></a><a href='#L82'>82</a>
+<a name='L83'></a><a href='#L83'>83</a>
+<a name='L84'></a><a href='#L84'>84</a>
+<a name='L85'></a><a href='#L85'>85</a>
+<a name='L86'></a><a href='#L86'>86</a>
+<a name='L87'></a><a href='#L87'>87</a>
+<a name='L88'></a><a href='#L88'>88</a>
+<a name='L89'></a><a href='#L89'>89</a>
+<a name='L90'></a><a href='#L90'>90</a>
+<a name='L91'></a><a href='#L91'>91</a>
+<a name='L92'></a><a href='#L92'>92</a>
+<a name='L93'></a><a href='#L93'>93</a>
+<a name='L94'></a><a href='#L94'>94</a>
+<a name='L95'></a><a href='#L95'>95</a>
+<a name='L96'></a><a href='#L96'>96</a>
+<a name='L97'></a><a href='#L97'>97</a>
+<a name='L98'></a><a href='#L98'>98</a>
+<a name='L99'></a><a href='#L99'>99</a>
+<a name='L100'></a><a href='#L100'>100</a>
+<a name='L101'></a><a href='#L101'>101</a>
+<a name='L102'></a><a href='#L102'>102</a>
+<a name='L103'></a><a href='#L103'>103</a>
+<a name='L104'></a><a href='#L104'>104</a>
+<a name='L105'></a><a href='#L105'>105</a>
+<a name='L106'></a><a href='#L106'>106</a>
+<a name='L107'></a><a href='#L107'>107</a>
+<a name='L108'></a><a href='#L108'>108</a>
+<a name='L109'></a><a href='#L109'>109</a>
+<a name='L110'></a><a href='#L110'>110</a>
+<a name='L111'></a><a href='#L111'>111</a>
+<a name='L112'></a><a href='#L112'>112</a>
+<a name='L113'></a><a href='#L113'>113</a>
+<a name='L114'></a><a href='#L114'>114</a>
+<a name='L115'></a><a href='#L115'>115</a>
+<a name='L116'></a><a href='#L116'>116</a>
+<a name='L117'></a><a href='#L117'>117</a>
+<a name='L118'></a><a href='#L118'>118</a>
+<a name='L119'></a><a href='#L119'>119</a>
+<a name='L120'></a><a href='#L120'>120</a>
+<a name='L121'></a><a href='#L121'>121</a>
+<a name='L122'></a><a href='#L122'>122</a>
+<a name='L123'></a><a href='#L123'>123</a>
+<a name='L124'></a><a href='#L124'>124</a>
+<a name='L125'></a><a href='#L125'>125</a>
+<a name='L126'></a><a href='#L126'>126</a>
+<a name='L127'></a><a href='#L127'>127</a>
+<a name='L128'></a><a href='#L128'>128</a>
+<a name='L129'></a><a href='#L129'>129</a>
+<a name='L130'></a><a href='#L130'>130</a>
+<a name='L131'></a><a href='#L131'>131</a>
+<a name='L132'></a><a href='#L132'>132</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">export const DEFAULT_EVENTS = <span class="cstat-no" title="statement not covered" >[</span>
+  // Pre-wedding
+  { id:1,  name:"Roka",          emoji:"🪔", date:"", time:"", venue:"", status:"upcoming", note:"", colorIdx:0  },
+  { id:2,  name:"Sagai",         emoji:"💍", date:"", time:"", venue:"", status:"upcoming", note:"", colorIdx:1  },
+  { id:3,  name:"Ganesh Puja",   emoji:"🐘", date:"", time:"", venue:"", status:"upcoming", note:"", colorIdx:2  },
+  { id:4,  name:"Haldi",         emoji:"🌿", date:"", time:"", venue:"", status:"upcoming", note:"", colorIdx:3  },
+  { id:5,  name:"Mehndi",        emoji:"🌸", date:"", time:"", venue:"", status:"upcoming", note:"", colorIdx:4  },
+  { id:6,  name:"Sangeet",       emoji:"🎶", date:"", time:"", venue:"", status:"upcoming", note:"", colorIdx:5  },
+  // Wedding day
+  { id:7,  name:"Baraat",        emoji:"🐴", date:"", time:"", venue:"", status:"upcoming", note:"", colorIdx:6  },
+  { id:8,  name:"Jaimala",       emoji:"🌹", date:"", time:"", venue:"", status:"upcoming", note:"", colorIdx:7  },
+  { id:9,  name:"Pheras",        emoji:"🔥", date:"", time:"", venue:"", status:"upcoming", note:"", colorIdx:8  },
+  { id:10, name:"Kanyadaan",     emoji:"🙏", date:"", time:"", venue:"", status:"upcoming", note:"", colorIdx:9  },
+  { id:11, name:"Saptapadi",     emoji:"🪷", date:"", time:"", venue:"", status:"upcoming", note:"", colorIdx:10 },
+  { id:12, name:"Sindoor Daan",  emoji:"❤️", date:"", time:"", venue:"", status:"upcoming", note:"", colorIdx:11 },
+  // Post-wedding
+  { id:13, name:"Reception",     emoji:"👑", date:"", time:"", venue:"", status:"upcoming", note:"", colorIdx:12 },
+  { id:14, name:"Vidaai",        emoji:"💐", date:"", time:"", venue:"", status:"upcoming", note:"", colorIdx:13 },
+  { id:15, name:"Griha Pravesh", emoji:"🏠", date:"", time:"", venue:"", status:"upcoming", note:"", colorIdx:14 },
+];
+&nbsp;
+export const BUDGET_CATEGORIES = <span class="cstat-no" title="statement not covered" >[</span>
+  { id:"venue", label:"Venue", emoji:"🏛️", color:"#E53935" },
+  { id:"catering", label:"Catering", emoji:"🍽️", color:"#F57C00" },
+  { id:"decor", label:"Decor &amp; Flowers", emoji:"🌺", color:"#7B1FA2" },
+  { id:"photography", label:"Photography &amp; Video", emoji:"📸", color:"#1565C0" },
+  { id:"attire", label:"Attire &amp; Jewelry", emoji:"💍", color:"#C62828" },
+  { id:"beauty", label:"Beauty &amp; Grooming", emoji:"💄", color:"#8E24AA" },
+  { id:"music", label:"Music &amp; DJ", emoji:"🎵", color:"#00796B" },
+  { id:"invites", label:"Invitations", emoji:"💌", color:"#AD1457" },
+  { id:"transport", label:"Transport", emoji:"🚌", color:"#4527A0" },
+  { id:"stay", label:"Stay &amp; Travel", emoji:"🏨", color:"#00838F" },
+  { id:"pandit", label:"Pandit &amp; Rituals", emoji:"🪔", color:"#E65100" },
+  { id:"vendors", label:"Vendor Payments", emoji:"🤝", color:"#6D4C41" },
+  { id:"misc", label:"Miscellaneous", emoji:"✨", color:"#37474F" },
+];
+&nbsp;
+export const EXPENSE_AREAS = <span class="cstat-no" title="statement not covered" >[</span>
+  { id:"ceremony", label:"Ceremony", emoji:"🪔" },
+  { id:"guests", label:"Guests", emoji:"👥" },
+  { id:"bride", label:"Bride", emoji:"👰" },
+  { id:"groom", label:"Groom", emoji:"🤵" },
+  { id:"vendors", label:"Vendors", emoji:"🤝" },
+  { id:"general", label:"General", emoji:"✨" },
+];
+&nbsp;
+export const DEFAULT_VENDORS = <span class="cstat-no" title="statement not covered" >[</span>
+  {
+    id:1, name:"Regal Frames Studio", type:"Photography", emoji:"📸", rating:5, priceLevel:3, city:"Delhi", booked:false,
+    typicalTiming:"8-12 hrs coverage",
+    services:["Wedding Photography","Pre-Wedding Shoot","Candid Photography","Cinematic Videography","Drone Aerial Shots"],
+    locations:["Delhi","Gurgaon","Noida","Faridabad"],
+  },
+  {
+    id:2, name:"Spice Garden Caterers", type:"Catering", emoji:"🍽️", rating:4, priceLevel:2, city:"Gurgaon", booked:false,
+    guestRange:{ min:150, max:800 },
+    typicalTiming:"4-6 hrs service",
+    services:["Full Wedding Catering","Cocktail Party Setup","Live Food Counters","Dessert Buffet","Customised Menu Planning"],
+    locations:["Gurgaon","Delhi","Faridabad","Manesar"],
+  },
+  {
+    id:3, name:"Petal &amp; Gold Decor", type:"Decoration", emoji:"🌺", rating:5, priceLevel:4, city:"Delhi", booked:false,
+    typicalTiming:"6-10 hrs setup",
+    services:["Mandap Decoration","Stage &amp; Backdrop Design","Floral Arrangements","Themed Venue Styling","Entrance Décor"],
+    locations:["Delhi","Gurgaon","Noida","Agra"],
+  },
+  {
+    id:4, name:"DJ Rhythm Beats", type:"Music", emoji:"🎵", rating:4, priceLevel:2, city:"Noida", booked:false,
+    typicalTiming:"3-5 hrs performance",
+    services:["Wedding DJ","Sangeet Night Sound","LED Dance Floor","Live Band Coordination","Sound System Rental"],
+    locations:["Noida","Delhi","Ghaziabad","Greater Noida"],
+  },
+  {
+    id:5, name:"Pandit Sharma Ji", type:"Pandit", emoji:"🪔", rating:5, priceLevel:1, city:"Delhi", booked:true,
+    typicalTiming:"2-3 hrs rituals",
+    services:["Wedding Pheras &amp; Saptapadi","Hawan &amp; Kanya Daan","Engagement Ceremony","Griha Pravesh Puja","Satyanarayan Katha"],
+    locations:["Delhi","Gurgaon","Noida","Faridabad","Greater Noida"],
+  },
+  {
+    id:6, name:"Grand Mahal Venue", type:"Venue", emoji:"🏛️", rating:5, priceLevel:4, city:"Faridabad", booked:true,
+    guestRange:{ min:300, max:1200 },
+    typicalTiming:"6-8 hrs booking slot",
+    services:["Banquet Hall (500+ Guests)","Outdoor Lawn Venue","Rooftop Ceremony Space","In-house Catering Option","Bridal Suite"],
+    locations:["Faridabad","South Delhi","Ballabhgarh"],
+  },
+];
+&nbsp;
+export const DEFAULT_TASKS = <span class="cstat-no" title="statement not covered" >[</span>
+  { id:1, name:"Finalize overall wedding calendar", done:true, due:"6 months before", priority:"high", group:"6 months", eventId:"", ceremony:"General" },
+  { id:2, name:"Book main wedding venue", done:true, due:"6 months before", priority:"high", group:"6 months", eventId:9, ceremony:"Pheras" },
+  { id:3, name:"Block guest room inventory", done:false, due:"5 months before", priority:"high", group:"5 months", eventId:"", ceremony:"General" },
+  { id:4, name:"Freeze photography and video team", done:false, due:"5 months before", priority:"high", group:"5 months", eventId:"", ceremony:"General" },
+  { id:5, name:"Finalize Roka guest flow", done:false, due:"4 months before", priority:"medium", group:"4 months", eventId:1, ceremony:"Roka" },
+  { id:6, name:"Arrange Sagai ring and stage design", done:false, due:"4 months before", priority:"medium", group:"4 months", eventId:2, ceremony:"Sagai" },
+  { id:7, name:"Book haldi floral decor", done:false, due:"3 months before", priority:"high", group:"3 months", eventId:4, ceremony:"Haldi" },
+  { id:8, name:"Finalize mehndi artists", done:false, due:"3 months before", priority:"high", group:"3 months", eventId:5, ceremony:"Mehndi" },
+  { id:9, name:"Freeze Sangeet choreography slots", done:false, due:"3 months before", priority:"medium", group:"3 months", eventId:6, ceremony:"Sangeet" },
+  { id:10, name:"Send invitation cards and e-invites", done:false, due:"2 months before", priority:"high", group:"2 months", eventId:"", ceremony:"General" },
+  { id:11, name:"Assign family welcome teams", done:false, due:"2 months before", priority:"medium", group:"2 months", eventId:"", ceremony:"General" },
+  { id:12, name:"Finalize baraat transport logistics", done:false, due:"1 month before", priority:"high", group:"1 month", eventId:7, ceremony:"Baraat" },
+  { id:13, name:"Confirm jaimala setup and sequence", done:false, due:"1 month before", priority:"medium", group:"1 month", eventId:8, ceremony:"Jaimala" },
+  { id:14, name:"Confirm pandit and phera muhurat", done:false, due:"1 month before", priority:"high", group:"1 month", eventId:9, ceremony:"Pheras" },
+  { id:15, name:"Prepare kanyadaan rituals checklist", done:false, due:"3 weeks before", priority:"medium", group:"Final", eventId:10, ceremony:"Kanyadaan" },
+  { id:16, name:"Finalize saptapadi vow prompts", done:false, due:"3 weeks before", priority:"medium", group:"Final", eventId:11, ceremony:"Saptapadi" },
+  { id:17, name:"Arrange sindoor daan items", done:false, due:"2 weeks before", priority:"high", group:"Final", eventId:12, ceremony:"Sindoor Daan" },
+  { id:18, name:"Confirm reception stage and MC plan", done:false, due:"2 weeks before", priority:"high", group:"Final", eventId:13, ceremony:"Reception" },
+  { id:19, name:"Finalize vidaai vehicle and timing", done:false, due:"1 week before", priority:"high", group:"Final", eventId:14, ceremony:"Vidaai" },
+  { id:20, name:"Prepare griha pravesh welcome setup", done:false, due:"1 week before", priority:"medium", group:"Final", eventId:15, ceremony:"Griha Pravesh" },
+  { id:21, name:"Print emergency vendor contact sheet", done:false, due:"5 days before", priority:"high", group:"Final", eventId:"", ceremony:"General" },
+  { id:22, name:"Pack jewelry and attire day-wise", done:false, due:"4 days before", priority:"high", group:"Final", eventId:"", ceremony:"General" },
+  { id:23, name:"Share final timeline with core family", done:false, due:"3 days before", priority:"high", group:"Final", eventId:"", ceremony:"General" },
+  { id:24, name:"Settle pending vendor balances", done:false, due:"2 days before", priority:"high", group:"Final", eventId:"", ceremony:"General" },
+  { id:25, name:"Create post-event photo backup plan", done:false, due:"After wedding", priority:"low", group:"Post Wedding", eventId:"", ceremony:"General" },
+];
+&nbsp;
+export const QUESTIONS = <span class="cstat-no" title="statement not covered" >[</span>
+  { key:"bride", q:"What is the bride's name? 🌸", placeholder:"Enter bride's name...", type:"text" },
+  { key:"groom", q:"And the groom's name? 🤵", placeholder:"Enter groom's name...", type:"text" },
+  { key:"date", q:"What's your dream wedding date? 📅", placeholder:"e.g. 25 November 2025", type:"text" },
+  { key:"venue", q:"Which city or venue are you considering? 🏛️", placeholder:"e.g. Delhi, Jaipur, Udaipur...", type:"text" },
+  { key:"guests", q:"How many guests are you expecting? 👨‍👩‍👧‍👦", placeholder:"e.g. 300", type:"text" },
+  { key:"budget", q:"What's your total wedding budget (₹)? 💰", placeholder:"e.g. 50,00,000", type:"text" },
+];
+&nbsp;
+export const AI_RESPONSES = <span class="cstat-no" title="statement not covered" >[</span>
+  "Wonderful! ",
+  "Lovely name! ",
+  "Exciting! ",
+  "Great choice! ",
+  "Perfect! ",
+  "Excellent! ",
+];</pre></td></tr></table></pre>
+
+                <div class='push'></div><!-- for sticky footer -->
+            </div><!-- /wrapper -->
+            <div class='footer quiet pad2 space-top1 center small'>
+                Code coverage generated by
+                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+                at 2026-03-22T19:24:55.675Z
+            </div>
+        <script src="../../prettify.js"></script>
+        <script>
+            window.onload = function () {
+                prettyPrint();
+            };
+        </script>
+        <script src="../../sorter.js"></script>
+        <script src="../../block-navigation.js"></script>
+    </body>
+</html>
+    
