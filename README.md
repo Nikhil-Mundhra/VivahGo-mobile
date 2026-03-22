@@ -83,8 +83,12 @@ Set these variables in `VivahGo/.env`:
 - `MONGODB_URI`
 - `JWT_SECRET`
 - `CLIENT_ORIGIN`
+- `FEEDBACK_WEBHOOK_URL`
+- `FEEDBACK_SECRET_KEY`
 
 Use the same Google Web Client ID for `VITE_GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_ID`.
+
+`FEEDBACK_SECRET_KEY` is server-only and must not use a `VITE_` prefix.
 
 ### Google OAuth Setup Notes
 

@@ -21,7 +21,7 @@ describe('VivahGo/src/constants.js', function () {
     assert.ok(mod.VENDOR_TYPES.includes('Venue'));
 
     assert.match(mod.WHATSAPP_SUPPORT_NUMBER, /^\d+$/);
-    assert.match(mod.FEEDBACK_WEBHOOK_URL, /^https:\/\//);
+    assert.equal(mod.FEEDBACK_APP_VERSION, '1.0.0');
     assert.ok(Array.isArray(mod.NAV_ITEMS));
     assert.ok(mod.NAV_ITEMS.some(item => item.id === 'home'));
   });

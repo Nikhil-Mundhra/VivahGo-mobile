@@ -6,6 +6,7 @@ const { toAbs } = require('./helpers/testUtils.cjs');
 const SOURCE_JS_FILES = [
   'api/_lib/core.js',
   'api/auth/google.js',
+  'api/feedback.js',
   'api/health.js',
   'api/planner/me.js',
   'VivahGo/eslint.config.js',

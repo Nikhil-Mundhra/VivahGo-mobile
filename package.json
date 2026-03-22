@@ -1,8 +1,8 @@
 {
   "scripts": {
-    "build": "cd vivahgo && npm run build",
-    "dev": "cd vivahgo && npm run dev",
-    "lint": "cd vivahgo && npm run lint",
+    "build": "cd VivahGo && npm run build",
+    "dev": "cd VivahGo && npm run dev",
+    "lint": "cd VivahGo && npm run lint",
     "test": "mocha \"test/**/*.test.cjs\""
   },
   "dependencies": {
