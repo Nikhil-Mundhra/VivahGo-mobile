@@ -2,7 +2,10 @@ const assert = require('node:assert/strict');
 const jwt = require('jsonwebtoken');
 
 const {
+  buildEmptyPlanner,
   createSessionToken,
+  getPlannerModel,
+  getUserModel,
   handlePreflight,
   sanitizePlanner,
   setCorsHeaders,
@@ -190,6 +193,72 @@ describe('core helpers', function () {
 
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       assert.equal(decoded.sub, user.googleId);
+    });
+  });
+
+  describe('buildEmptyPlanner', function () {
+    it('returns a planner with empty wedding fields and empty arrays', function () {
+      const result = buildEmptyPlanner();
+
+      assert.deepEqual(result.wedding, {
+        bride: '',
+        groom: '',
+        date: '',
+        venue: '',
+        guests: '',
+        budget: '',
+      });
+      assert.deepEqual(result.events, []);
+      assert.deepEqual(result.expenses, []);
+      assert.deepEqual(result.guests, []);
+      assert.deepEqual(result.vendors, []);
+      assert.deepEqual(result.tasks, []);
+    });
+
+    it('returns a fresh copy each call (no shared references)', function () {
+      const a = buildEmptyPlanner();
+      const b = buildEmptyPlanner();
+      a.events.push({ id: 1 });
+
+      assert.equal(b.events.length, 0);
+    });
+  });
+
+  describe('getUserModel', function () {
+    it('returns a mongoose model with expected schema paths', function () {
+      const User = getUserModel();
+
+      assert.equal(typeof User, 'function');
+      assert.ok(User.schema.path('googleId'), 'googleId path missing');
+      assert.ok(User.schema.path('email'), 'email path missing');
+      assert.ok(User.schema.path('name'), 'name path missing');
+      assert.ok(User.schema.path('picture'), 'picture path missing');
+    });
+
+    it('returns the same model on repeated calls (cached)', function () {
+      const first = getUserModel();
+      const second = getUserModel();
+
+      assert.equal(first, second);
+    });
+  });
+
+  describe('getPlannerModel', function () {
+    it('returns a mongoose model with expected schema paths', function () {
+      const Planner = getPlannerModel();
+
+      assert.equal(typeof Planner, 'function');
+      assert.ok(Planner.schema.path('googleId'), 'googleId path missing');
+      assert.ok(Planner.schema.path('wedding'), 'wedding path missing');
+      assert.ok(Planner.schema.path('events'), 'events path missing');
+      assert.ok(Planner.schema.path('tasks'), 'tasks path missing');
+    });
+
+    it('returns the same model on repeated calls (cached)', function () {
+      const first = getPlannerModel();
+      const second = getPlannerModel();
+
+      assert.equal(first, second);
     });
   });
 });

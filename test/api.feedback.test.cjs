@@ -82,4 +82,67 @@ describe('api/feedback.js', function () {
     assert.equal(parsedBody.message, 'Great app');
     assert.equal(parsedBody.userAgent, 'test-agent');
   });
+
+  it('returns 400 when message is empty or whitespace', async function () {
+    const req = { method: 'POST', headers: {}, body: { message: '   ' } };
+    const res = createRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 400);
+    assert.deepEqual(res.body, { error: 'Feedback message is required.' });
+  });
+
+  it('returns 502 when webhook responds with a non-ok status', async function () {
+    global.fetch = async () => ({ ok: false, status: 500 });
+
+    const req = {
+      method: 'POST',
+      headers: {},
+      body: { message: 'Test message' },
+    };
+    const res = createRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 502);
+    assert.deepEqual(res.body, { error: 'Could not submit feedback right now. Please try again.' });
+  });
+
+  it('returns 502 when fetch throws a network error', async function () {
+    global.fetch = async () => { throw new Error('Network failure'); };
+
+    const req = {
+      method: 'POST',
+      headers: {},
+      body: { message: 'Test message' },
+    };
+    const res = createRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 502);
+    assert.deepEqual(res.body, { error: 'Could not submit feedback right now. Please try again.' });
+  });
+
+  it('falls back to req headers user-agent when body omits userAgent', async function () {
+    let parsedBody = null;
+    global.fetch = async (url, options) => {
+      parsedBody = JSON.parse(options.body);
+      return { ok: true };
+    };
+
+    const req = {
+      method: 'POST',
+      headers: { 'user-agent': 'header-agent' },
+      body: { message: 'Hello', name: 42 },
+    };
+    const res = createRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(parsedBody.userAgent, 'header-agent');
+    assert.equal(parsedBody.name, 'Anonymous');
+  });
 });
