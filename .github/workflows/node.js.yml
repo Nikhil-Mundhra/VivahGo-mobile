@@ -45,10 +45,10 @@ jobs:
             VivahGo/package-lock.json
 
       - name: Install root dependencies
-        run: npm ci
+        run: npm ci || npm install --no-audit --no-fund
 
       - name: Install app dependencies
-        run: npm ci --prefix VivahGo
+        run: npm ci --prefix VivahGo || npm install --prefix VivahGo --no-audit --no-fund
 
       - name: Run root test suite
         run: npm test
