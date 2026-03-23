@@ -1,7 +1,7 @@
 {
-  "installCommand": "npm install && npm install --prefix VivahGo",
-  "buildCommand": "npm --prefix VivahGo run build",
-  "outputDirectory": "VivahGo/dist",
+  "installCommand": "npm install && npm install --prefix vivahgo",
+  "buildCommand": "npm --prefix vivahgo run build",
+  "outputDirectory": "vivahgo/dist",
   "rewrites": [
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
