@@ -1,23 +1,142 @@
 const assert = require('node:assert/strict');
 
-const { appPath, readText } = require('./helpers/testUtils.cjs');
+const { appPath, toFileUrl } = require('./helpers/testUtils.cjs');
+
+async function loadApiModule() {
+  return import(`${toFileUrl(appPath('src/api.js'))}?t=${Date.now()}`);
+}
 
 describe('VivahGo/src/api.js', function () {
-  it('exports auth and planner request wrappers', function () {
-    const text = readText(appPath('src/api.js'));
+  it('resolves base URL across local, configured, and fallback cases', async function () {
+    const mod = await loadApiModule();
 
-    assert.match(text, /export\s+function\s+loginWithGoogle\s*\(/);
-    assert.match(text, /export\s+function\s+fetchPlanner\s*\(/);
-    assert.match(text, /export\s+function\s+savePlanner\s*\(/);
+    const localWindow = { location: { hostname: 'localhost' } };
+    assert.equal(mod.resolveApiBaseUrl({}, localWindow), 'http://localhost:4000/api');
+
+    assert.equal(
+      mod.resolveApiBaseUrl({ VITE_API_BASE_URL: 'https://example.com/api/' }, localWindow),
+      'http://localhost:4000/api'
+    );
+
+    assert.equal(
+      mod.resolveApiBaseUrl({ VITE_API_BASE_URL: 'https://example.com/api/', VITE_USE_REMOTE_API: 'true' }, localWindow),
+      'https://example.com/api'
+    );
+
+    const remoteWindow = { location: { hostname: 'app.example.com' } };
+    assert.equal(mod.resolveApiBaseUrl({}, remoteWindow), '/api');
+    assert.equal(mod.resolveApiBaseUrl({}, undefined), 'http://localhost:4000/api');
   });
 
-  it('contains base-url resolution branches for local, configured, and fallback API', function () {
-    const text = readText(appPath('src/api.js'));
+  it('executes request success path with token and body serialization', async function () {
+    const mod = await loadApiModule();
+    const calls = [];
 
-    assert.match(text, /function\s+resolveApiBaseUrl\s*\(/);
-    assert.match(text, /VITE_API_BASE_URL/);
-    assert.match(text, /VITE_USE_REMOTE_API/);
-    assert.match(text, /http:\/\/localhost:4000\/api/);
-    assert.match(text, /return '\/api'/);
+    const fetchImpl = async (url, options) => {
+      calls.push({ url, options });
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return { ok: true };
+        },
+      };
+    };
+
+    const result = await mod.request('/planner/me', {
+      method: 'PUT',
+      token: 'jwt-token',
+      body: { planner: { wedding: {} } },
+    }, {
+      fetchImpl,
+      baseUrl: 'https://api.example.com',
+    });
+
+    assert.deepEqual(result, { ok: true });
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].url, 'https://api.example.com/planner/me');
+    assert.equal(calls[0].options.headers.Authorization, 'Bearer jwt-token');
+    assert.equal(calls[0].options.body, JSON.stringify({ planner: { wedding: {} } }));
+  });
+
+  it('covers network error and non-ok response branches', async function () {
+    const mod = await loadApiModule();
+
+    await assert.rejects(
+      () => mod.request('/x', {}, { fetchImpl: async () => { throw new Error('network down'); }, baseUrl: 'http://x' }),
+      /Failed to fetch/
+    );
+
+    await assert.rejects(
+      () => mod.request('/x', {}, {
+        fetchImpl: async () => ({
+          ok: false,
+          status: 418,
+          async json() {
+            return { error: 'teapot' };
+          },
+        }),
+        baseUrl: 'http://x',
+      }),
+      /teapot/
+    );
+
+    await assert.rejects(
+      () => mod.request('/x', {}, {
+        fetchImpl: async () => ({
+          ok: false,
+          status: 503,
+          async json() {
+            return {};
+          },
+        }),
+        baseUrl: 'http://x',
+      }),
+      /Request failed \(503\)/
+    );
+  });
+
+  it('handles JSON parse fallback and wrapper function forwarding', async function () {
+    const mod = await loadApiModule();
+
+    const parseFailResponse = await mod.request('/x', {}, {
+      fetchImpl: async () => ({
+        ok: true,
+        status: 200,
+        json() {
+          return Promise.reject(new Error('bad json'));
+        },
+      }),
+      baseUrl: 'http://x',
+    });
+
+    assert.deepEqual(parseFailResponse, {});
+
+    const calls = [];
+    global.fetch = async (url, options) => {
+      calls.push({ url, options });
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return { ok: true };
+        },
+      };
+    };
+
+    try {
+      await mod.loginWithGoogle('cred-1');
+      await mod.fetchPlanner('jwt-2');
+      await mod.savePlanner('jwt-3', { wedding: { bride: 'A' } });
+      await mod.submitFeedback({ message: 'Great app' });
+    } finally {
+      delete global.fetch;
+    }
+
+    assert.equal(calls.length, 4);
+    assert.match(calls[0].url, /\/auth\/google$/);
+    assert.equal(calls[1].options.headers.Authorization, 'Bearer jwt-2');
+    assert.match(calls[2].url, /\/planner\/me$/);
+    assert.match(calls[3].url, /\/feedback$/);
   });
 });

@@ -1,4 +1,4 @@
-import { DEFAULT_EVENTS, DEFAULT_TASKS, DEFAULT_VENDORS } from './data';
+import { DEFAULT_EVENTS, DEFAULT_TASKS, DEFAULT_VENDORS } from './data.js';
 
 export const EMPTY_WEDDING = {
   bride: '',

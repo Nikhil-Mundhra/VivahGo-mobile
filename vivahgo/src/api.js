@@ -1,12 +1,19 @@
-function resolveApiBaseUrl() {
-  const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL;
+function getRuntimeEnv() {
+  if (typeof import.meta !== 'undefined' && import.meta && import.meta.env) {
+    return import.meta.env;
+  }
+  return {};
+}
+
+export function resolveApiBaseUrl(env = getRuntimeEnv(), win = typeof window !== 'undefined' ? window : undefined) {
+  const configuredBaseUrl = env.VITE_API_BASE_URL;
 
   // Local development should default to the local API unless explicitly overridden.
-  if (typeof window !== 'undefined') {
-    const host = window.location.hostname;
+  if (win) {
+    const host = win.location.hostname;
     const isLocalHost = host === 'localhost' || host === '127.0.0.1';
 
-    if (isLocalHost && import.meta.env.VITE_USE_REMOTE_API !== 'true') {
+    if (isLocalHost && env.VITE_USE_REMOTE_API !== 'true') {
       return 'http://localhost:4000/api';
     }
   }
@@ -15,8 +22,8 @@ function resolveApiBaseUrl() {
     return configuredBaseUrl.replace(/\/$/, '');
   }
 
-  if (typeof window !== 'undefined') {
-    const host = window.location.hostname;
+  if (win) {
+    const host = win.location.hostname;
     if (host === 'localhost' || host === '127.0.0.1') {
       return 'http://localhost:4000/api';
     }
@@ -29,11 +36,12 @@ function resolveApiBaseUrl() {
 
 const API_BASE_URL = resolveApiBaseUrl();
 
-async function request(path, { method = 'GET', body, token } = {}) {
+export async function request(path, { method = 'GET', body, token } = {}, options = {}) {
+  const { fetchImpl = fetch, baseUrl = API_BASE_URL } = options;
   let response;
 
   try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
+    response = await fetchImpl(`${baseUrl}${path}`, {
       method,
       headers: {
         'Content-Type': 'application/json',
