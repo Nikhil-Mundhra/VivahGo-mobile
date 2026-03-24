@@ -137,3 +137,22 @@ export function submitFeedback(payload) {
     body: payload,
   });
 }
+
+export function getSubscriptionStatus(token) {
+  return request('/subscription/status', { token });
+}
+
+export function createCheckoutSession(token, plan, billingCycle) {
+  return request('/subscription/checkout', {
+    method: 'POST',
+    token,
+    body: { plan, billingCycle },
+  });
+}
+
+export function createPortalSession(token) {
+  return request('/subscription/portal', {
+    method: 'POST',
+    token,
+  });
+}

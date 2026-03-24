@@ -72,6 +72,11 @@ function getUserModel() {
       email: { type: String, required: true, trim: true, lowercase: true },
       name: { type: String, required: true, trim: true },
       picture: { type: String, default: '' },
+      stripeCustomerId: { type: String, default: '' },
+      subscriptionId: { type: String, default: '' },
+      subscriptionTier: { type: String, enum: ['starter', 'premium', 'studio'], default: 'starter' },
+      subscriptionStatus: { type: String, enum: ['active', 'inactive', 'canceled', 'past_due'], default: 'active' },
+      subscriptionCurrentPeriodEnd: { type: Date, default: null },
     },
     { timestamps: true }
   );
@@ -364,6 +369,24 @@ function readBearerToken(req) {
   return authHeader.slice(7);
 }
 
+async function getSubscriptionTier(googleId) {
+  try {
+    const User = getUserModel();
+    const user = await User.findOne({ googleId }).lean();
+    if (!user) {
+      return 'starter';
+    }
+    const tier = user.subscriptionTier || 'starter';
+    const status = user.subscriptionStatus || 'active';
+    if (status !== 'active' && tier !== 'starter') {
+      return 'starter';
+    }
+    return tier;
+  } catch {
+    return 'starter';
+  }
+}
+
 function verifySession(req) {
   const token = readBearerToken(req);
   if (!token) {
@@ -385,6 +408,7 @@ module.exports = {
   getCollaboratorRoleForPlan,
   getPlannerModel,
   getPlanFromPlanner,
+  getSubscriptionTier,
   getUserModel,
   handlePreflight,
   hasPlanRole,

@@ -76,17 +76,29 @@ describe('api/planner/me.js', function () {
   });
 
   describe('with mocked Planner model', function () {
-    let Planner;
-    let origFindOne;
+    let Planner, User;
+    let origFindOne, origUserFindOne;
 
     before(function () {
-      const { getPlannerModel } = require('../api/_lib/core');
+      const { getPlannerModel, getUserModel } = require('../api/_lib/core');
       Planner = getPlannerModel();
       origFindOne = Planner.findOneAndUpdate;
+
+      // Mock User.findOne so getSubscriptionTier returns immediately (no DB buffer timeout).
+      // Returning null results in 'starter' tier; gate condition nextPlanCount > 1 is never
+      // true in these tests so no request is blocked.
+      User = getUserModel();
+      origUserFindOne = User.findOne;
+      User.findOne = () => ({ lean: async () => null });
     });
 
     afterEach(function () {
       Planner.findOneAndUpdate = origFindOne;
+      User.findOne = () => ({ lean: async () => null });
+    });
+
+    after(function () {
+      User.findOne = origUserFindOne;
     });
 
     it('GET returns 200 with sanitized planner for valid session', async function () {

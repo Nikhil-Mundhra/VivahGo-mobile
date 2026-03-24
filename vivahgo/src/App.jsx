@@ -23,6 +23,7 @@ import {
   fetchAccessiblePlanners,
   fetchPlanCollaborators,
   fetchPlanner,
+  getSubscriptionStatus,
   loginWithGoogle,
   removePlanCollaborator,
   savePlanner,
@@ -72,6 +73,10 @@ export default function VivahGoApp() {
   const [plannerOwnerId, setPlannerOwnerId] = useState("");
   const [accessibleWorkspaces, setAccessibleWorkspaces] = useState([]);
   const [isSwitchingWorkspace, setIsSwitchingWorkspace] = useState(false);
+  // Subscription
+  const [subscription, setSubscription] = useState({ tier: "starter", status: "active", currentPeriodEnd: null });
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
+  const [upgradePromptMessage, setUpgradePromptMessage] = useState("");
   const weddingSwipe = useSwipeDown(() => closeWeddingDetailsEditor());
 
   const saveTimerRef = useRef(null);
@@ -171,6 +176,20 @@ export default function VivahGoApp() {
     });
   }, [user?.email]);
 
+  async function fetchAndApplySubscription(token) {
+    if (!token) return;
+    try {
+      const status = await getSubscriptionStatus(token);
+      setSubscription({
+        tier: status.tier || "starter",
+        status: status.status || "active",
+        currentPeriodEnd: status.currentPeriodEnd || null,
+      });
+    } catch {
+      // Non-fatal: default to starter if status fetch fails
+    }
+  }
+
   function persistSession(session) {
     localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
   }
@@ -242,6 +261,14 @@ export default function VivahGoApp() {
 
   function createNewMarriage(formData) {
     if (!planAccess.canEdit) {
+      return;
+    }
+
+    // Subscription gate: Starter plan is limited to 1 wedding workspace
+    if (authMode === "google" && subscription.tier === "starter" && marriages.length >= 1) {
+      setUpgradePromptMessage("Starter plan supports 1 wedding. Upgrade to Premium for unlimited wedding workspaces.");
+      setShowUpgradePrompt(true);
+      setShowNewPlanModal(false);
       return;
     }
 
@@ -374,10 +401,19 @@ export default function VivahGoApp() {
     }
 
     if (authMode === "google" && authToken) {
-      const response = await addPlanCollaborator(authToken, { planId: targetPlanId, email, role, plannerOwnerId });
-      const next = Array.isArray(response.collaborators) ? response.collaborators : [];
-      syncPlanCollaborators(targetPlanId, next);
-      await refreshAccessibleWorkspaces(authToken);
+      try {
+        const response = await addPlanCollaborator(authToken, { planId: targetPlanId, email, role, plannerOwnerId });
+        const next = Array.isArray(response.collaborators) ? response.collaborators : [];
+        syncPlanCollaborators(targetPlanId, next);
+        await refreshAccessibleWorkspaces(authToken);
+      } catch (err) {
+        if (err.message && err.message.includes("Premium")) {
+          setUpgradePromptMessage("Collaborators require a Premium or Studio subscription.");
+          setShowUpgradePrompt(true);
+        } else {
+          throw err;
+        }
+      }
       return;
     }
 
@@ -562,6 +598,7 @@ export default function VivahGoApp() {
             applyPlanner(planner, access);
             setPlannerOwnerId(resolvedOwnerId || session.plannerOwnerId || session.user?.id || "");
             await refreshAccessibleWorkspaces(session.token);
+            await fetchAndApplySubscription(session.token);
             setScreen("splash");
           }
           return;
@@ -668,6 +705,7 @@ export default function VivahGoApp() {
       setPlannerOwnerId(resolvedOwnerId || authenticatedUser.id || "");
       persistSession({ mode: "google", token, user: authenticatedUser, plannerOwnerId: resolvedOwnerId || authenticatedUser.id || "" });
       await refreshAccessibleWorkspaces(token);
+      await fetchAndApplySubscription(token);
       setTab("home");
       setSaveState("idle");
       setScreen("splash");
@@ -904,12 +942,37 @@ export default function VivahGoApp() {
               authMode={authMode}
               wedding={wedding}
               setWedding={setWedding}
+              subscription={subscription}
+              authToken={authToken}
               onClose={closeAccountSettings}
               onLogout={() => { closeAccountSettings(); handleLogout(); }}
             />
           )}
           {showTermsModal && <TermsConditionsModal onClose={closeTermsModal} />}
           {showFeedbackModal && <FeedbackModal onClose={closeFeedbackModal} />}
+
+          {showUpgradePrompt && (
+            <div className="modal-overlay" onClick={() => setShowUpgradePrompt(false)}>
+              <div className="modal" onClick={e => e.stopPropagation()}>
+                <div className="modal-handle" />
+                <div className="modal-title">Upgrade Required ✨</div>
+                <p style={{ color: "var(--color-light-text)", fontSize: 14, lineHeight: 1.6, marginBottom: 20 }}>
+                  {upgradePromptMessage}
+                </p>
+                <a
+                  className="btn-primary"
+                  href="/home#pricing"
+                  style={{ display: "block", textAlign: "center", textDecoration: "none" }}
+                  onClick={() => setShowUpgradePrompt(false)}
+                >
+                  View Premium Plans
+                </a>
+                <button className="btn-secondary" onClick={() => setShowUpgradePrompt(false)}>
+                  Maybe Later
+                </button>
+              </div>
+            </div>
+          )}
           {showMarriagePlanSelector && (
             <MarriagePlanSelector
               marriages={marriages}

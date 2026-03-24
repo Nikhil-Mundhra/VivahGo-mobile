@@ -4,6 +4,7 @@ const {
   getCollaboratorRoleForPlan,
   getPlannerModel,
   getPlanFromPlanner,
+  getSubscriptionTier,
   handlePreflight,
   hasPlanRole,
   normalizeEmail,
@@ -101,6 +102,16 @@ module.exports = async function handler(req, res) {
     const ownerFallback = !email && ownerId === auth.sub;
     if (!ownerFallback && !hasPlanRole(nextPlan, email, 'editor')) {
       return res.status(403).json({ error: 'You have view-only access to this plan.' });
+    }
+
+    // Subscription gate: Starter users may only have one plan
+    const currentPlanCount = Array.isArray(normalized.marriages) ? normalized.marriages.length : 0;
+    const nextPlanCount = Array.isArray(nextPlanner.marriages) ? nextPlanner.marriages.length : 0;
+    if (nextPlanCount > currentPlanCount) {
+      const tier = await getSubscriptionTier(auth.sub);
+      if (tier === 'starter' && nextPlanCount > 1) {
+        return res.status(403).json({ error: 'Starter plan supports 1 wedding. Upgrade to Premium for unlimited plans.', code: 'UPGRADE_REQUIRED' });
+      }
     }
 
     const updated = await Planner.findOneAndUpdate(

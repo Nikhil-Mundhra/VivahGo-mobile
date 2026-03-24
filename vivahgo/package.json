@@ -26,7 +26,8 @@
     "mongodb": "^7.1.0",
     "mongoose": "^8.19.3",
     "react": "^19.2.4",
-    "react-dom": "^19.2.4"
+    "react-dom": "^19.2.4",
+    "stripe": "^17.7.0"
   },
   "devDependencies": {
     "@capacitor/cli": "^7.6.0",

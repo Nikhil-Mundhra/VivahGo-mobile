@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useBackButtonClose } from "../hooks/useBackButtonClose";
+import { createPortalSession } from "../api";
 
-function AccountScreen({ user, authMode, wedding, setWedding, onClose, onLogout }) {
+function AccountScreen({ user, authMode, wedding, setWedding, subscription, authToken, onClose, onLogout }) {
   const [form, setForm] = useState({
     bride: wedding.bride || "",
     groom: wedding.groom || "",
@@ -11,6 +12,8 @@ function AccountScreen({ user, authMode, wedding, setWedding, onClose, onLogout 
     guests: wedding.guests || "",
   });
   const [saved, setSaved] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
+  const [portalError, setPortalError] = useState("");
 
   useBackButtonClose(true, onClose);
 
@@ -22,6 +25,29 @@ function AccountScreen({ user, authMode, wedding, setWedding, onClose, onLogout 
   }
 
   const isDemo = authMode === "demo";
+
+  const tier = subscription?.tier || "starter";
+  const tierLabel = tier === "studio" ? "Studio" : tier === "premium" ? "Premium" : "Starter";
+  const tierColors = {
+    starter: { bg: "rgba(139,26,26,0.09)", text: "var(--color-crimson)", border: "rgba(139,26,26,0.18)" },
+    premium: { bg: "rgba(212,175,55,0.12)", text: "#8B6914", border: "rgba(212,175,55,0.3)" },
+    studio: { bg: "rgba(30,60,114,0.10)", text: "#1a3a7c", border: "rgba(30,60,114,0.25)" },
+  };
+  const tierColor = tierColors[tier] || tierColors.starter;
+
+  async function handleManageSubscription() {
+    if (!authToken) return;
+    setPortalError("");
+    setPortalLoading(true);
+    try {
+      const { url } = await createPortalSession(authToken);
+      window.location.href = url;
+    } catch (err) {
+      setPortalError(err.message || "Could not open subscription portal.");
+    } finally {
+      setPortalLoading(false);
+    }
+  }
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -90,6 +116,59 @@ function AccountScreen({ user, authMode, wedding, setWedding, onClose, onLogout 
             </div>
           </div>
         </div>
+
+        {/* Subscription Tier */}
+        {!isDemo && (
+          <div style={{
+            marginBottom: 20, paddingBottom: 20,
+            borderBottom: "1px solid rgba(212,175,55,0.15)",
+          }}>
+            <div style={{
+              fontSize: 11, fontWeight: 700,
+              color: "var(--color-gold)", textTransform: "uppercase",
+              letterSpacing: 1, marginBottom: 10,
+            }}>
+              Subscription
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <span style={{
+                fontSize: 12, fontWeight: 700,
+                borderRadius: 8, padding: "3px 11px",
+                background: tierColor.bg,
+                color: tierColor.text,
+                border: `1px solid ${tierColor.border}`,
+              }}>
+                {tierLabel} Plan
+              </span>
+              {subscription?.currentPeriodEnd && tier !== "starter" && (
+                <span style={{ fontSize: 11, color: "var(--color-light-text)" }}>
+                  Renews {new Date(subscription.currentPeriodEnd).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                </span>
+              )}
+            </div>
+            {portalError && (
+              <p style={{ fontSize: 12, color: "var(--color-crimson)", marginTop: 8 }}>{portalError}</p>
+            )}
+            {tier !== "starter" ? (
+              <button
+                className="btn-secondary"
+                onClick={handleManageSubscription}
+                disabled={portalLoading}
+                style={{ marginTop: 10, opacity: portalLoading ? 0.7 : 1 }}
+              >
+                {portalLoading ? "Opening\u2026" : "Manage Subscription"}
+              </button>
+            ) : (
+              <a
+                className="btn-primary"
+                href="/home#pricing"
+                style={{ display: "block", textAlign: "center", textDecoration: "none", marginTop: 10 }}
+              >
+                Upgrade to Premium
+              </a>
+            )}
+          </div>
+        )}
 
         {/* Section label */}
         <div style={{

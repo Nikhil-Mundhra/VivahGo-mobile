@@ -3,7 +3,7 @@ const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 
 const { createRes } = require('./helpers/testUtils.cjs');
-const { getPlannerModel } = require('../api/_lib/core');
+const { getPlannerModel, getUserModel } = require('../api/_lib/core');
 
 const handler = require('../api/planner/me/collaborators');
 
@@ -44,9 +44,9 @@ function makePlannerDoc(overrides = {}) {
 }
 
 describe('api/planner/me/collaborators.js', function () {
-  let Planner;
+  let Planner, User;
   let origConnect;
-  let origFindOne;
+  let origFindOne, origUserFindOne;
   let origFindOneAndUpdate;
 
   before(function () {
@@ -57,14 +57,21 @@ describe('api/planner/me/collaborators.js', function () {
     Planner = getPlannerModel();
     origFindOne = Planner.findOne;
     origFindOneAndUpdate = Planner.findOneAndUpdate;
+
+    // Mock User.findOne so the subscription gate treats all test users as premium
+    User = getUserModel();
+    origUserFindOne = User.findOne;
+    User.findOne = () => ({ lean: async () => ({ subscriptionTier: 'premium', subscriptionStatus: 'active' }) });
   });
 
   afterEach(function () {
     Planner.findOne = origFindOne;
     Planner.findOneAndUpdate = origFindOneAndUpdate;
+    User.findOne = () => ({ lean: async () => ({ subscriptionTier: 'premium', subscriptionStatus: 'active' }) });
   });
 
   after(function () {
+    User.findOne = origUserFindOne;
     mongoose.connect = origConnect;
     delete process.env.MONGODB_URI;
   });

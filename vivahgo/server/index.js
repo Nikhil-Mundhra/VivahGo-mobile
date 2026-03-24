@@ -7,6 +7,7 @@ import mongoose from 'mongoose';
 import { OAuth2Client } from 'google-auth-library';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import Stripe from 'stripe';
 
 import Planner from './models/Planner.js';
 import User from './models/User.js';
@@ -592,6 +593,16 @@ export function createApp(options = {}) {
         return res.status(403).json({ error: 'You have view-only access to this plan.' });
       }
 
+      // Subscription gate: Starter users may only have one plan
+      const currentPlanCount = Array.isArray(normalizedCurrent.marriages) ? normalizedCurrent.marriages.length : 0;
+      const nextPlanCount = Array.isArray(planner.marriages) ? planner.marriages.length : 0;
+      if (nextPlanCount > currentPlanCount) {
+        const tier = await getUserSubscriptionTier(UserModel, req.auth.sub);
+        if (tier === 'starter' && nextPlanCount > 1) {
+          return res.status(403).json({ error: 'Starter plan supports 1 wedding. Upgrade to Premium for unlimited plans.', code: 'UPGRADE_REQUIRED' });
+        }
+      }
+
       const updatedPlanner = await PlannerModel.findOneAndUpdate(
         { _id: plannerDoc._id || ownerId },
         {
@@ -659,6 +670,12 @@ export function createApp(options = {}) {
       const plannerDoc = await PlannerModel.findOne({ googleId: plannerOwnerId });
       if (!plannerDoc) {
         return res.status(404).json({ error: 'Planner not found.' });
+      }
+
+      // Subscription gate: only Premium / Studio can add collaborators
+      const tier = await getUserSubscriptionTier(UserModel, req.auth.sub);
+      if (tier === 'starter') {
+        return res.status(403).json({ error: 'Collaborators require a Premium or Studio subscription.', code: 'UPGRADE_REQUIRED' });
       }
 
       const email = normalizeEmail(req.auth.email);
@@ -853,7 +870,212 @@ export function createApp(options = {}) {
     }
   });
 
+  // ── Subscription routes ──────────────────────────────────────────────────
+
+  const SUBSCRIPTION_PRICE_MAP = {
+    premium: { monthly: process.env.STRIPE_PREMIUM_MONTHLY_PRICE_ID, yearly: process.env.STRIPE_PREMIUM_YEARLY_PRICE_ID },
+    studio: { monthly: process.env.STRIPE_STUDIO_MONTHLY_PRICE_ID, yearly: process.env.STRIPE_STUDIO_YEARLY_PRICE_ID },
+  };
+
+  app.get('/api/subscription/status', (req, res, next) => authMiddleware(req, res, next, injectedJwtSecret), async (req, res) => {
+    try {
+      const user = await UserModel.findOne({ googleId: req.auth.sub }).lean();
+      if (!user) {
+        return res.json({ tier: 'starter', status: 'active', currentPeriodEnd: null });
+      }
+      return res.json({
+        tier: user.subscriptionTier || 'starter',
+        status: user.subscriptionStatus || 'active',
+        currentPeriodEnd: user.subscriptionCurrentPeriodEnd || null,
+      });
+    } catch (error) {
+      console.error('Subscription status failed:', error);
+      return res.status(500).json({ error: 'Failed to load subscription status.' });
+    }
+  });
+
+  app.post('/api/subscription/checkout', (req, res, next) => authMiddleware(req, res, next, injectedJwtSecret), async (req, res) => {
+    const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+    if (!stripeSecretKey) {
+      return res.status(500).json({ error: 'Payment gateway is not configured.' });
+    }
+
+    const { plan, billingCycle } = req.body || {};
+    if (!plan || !['premium', 'studio'].includes(plan)) {
+      return res.status(400).json({ error: 'Invalid plan. Must be "premium" or "studio".' });
+    }
+
+    const cycle = billingCycle === 'yearly' ? 'yearly' : 'monthly';
+    const priceId = SUBSCRIPTION_PRICE_MAP[plan]?.[cycle];
+    if (!priceId) {
+      return res.status(500).json({ error: `Price ID for ${plan} (${cycle}) is not configured.` });
+    }
+
+    const clientOrigin = (process.env.CLIENT_ORIGIN || '').split(',')[0].trim() || 'http://localhost:5173';
+    const returnUrl = process.env.STRIPE_PORTAL_RETURN_URL || clientOrigin;
+
+    try {
+      const user = await UserModel.findOne({ googleId: req.auth.sub });
+      if (!user) return res.status(404).json({ error: 'User not found.' });
+
+      const stripe = Stripe(stripeSecretKey);
+      let customerId = user.stripeCustomerId;
+      if (!customerId) {
+        const customer = await stripe.customers.create({
+          email: user.email,
+          name: user.name,
+          metadata: { googleId: user.googleId },
+        });
+        customerId = customer.id;
+        await UserModel.updateOne({ googleId: req.auth.sub }, { $set: { stripeCustomerId: customerId } });
+      }
+
+      const session = await stripe.checkout.sessions.create({
+        mode: 'subscription',
+        customer: customerId,
+        line_items: [{ price: priceId, quantity: 1 }],
+        success_url: `${returnUrl}/?subscription=success`,
+        cancel_url: `${returnUrl}/?subscription=canceled`,
+        subscription_data: { metadata: { googleId: req.auth.sub, plan } },
+      });
+
+      return res.json({ url: session.url });
+    } catch (error) {
+      console.error('Checkout session creation failed:', error);
+      return res.status(500).json({ error: 'Failed to create checkout session.' });
+    }
+  });
+
+  app.post('/api/subscription/portal', (req, res, next) => authMiddleware(req, res, next, injectedJwtSecret), async (req, res) => {
+    const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+    if (!stripeSecretKey) {
+      return res.status(500).json({ error: 'Payment gateway is not configured.' });
+    }
+
+    const clientOrigin = (process.env.CLIENT_ORIGIN || '').split(',')[0].trim() || 'http://localhost:5173';
+    const returnUrl = process.env.STRIPE_PORTAL_RETURN_URL || clientOrigin;
+
+    try {
+      const user = await UserModel.findOne({ googleId: req.auth.sub }).lean();
+      if (!user || !user.stripeCustomerId) {
+        return res.status(400).json({ error: 'No active subscription found to manage.' });
+      }
+      const stripe = Stripe(stripeSecretKey);
+      const portalSession = await stripe.billingPortal.sessions.create({
+        customer: user.stripeCustomerId,
+        return_url: returnUrl,
+      });
+      return res.json({ url: portalSession.url });
+    } catch (error) {
+      console.error('Portal session creation failed:', error);
+      return res.status(500).json({ error: 'Failed to open subscription management portal.' });
+    }
+  });
+
+  app.post('/api/subscription/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+    const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+    if (!stripeSecretKey || !webhookSecret) {
+      return res.status(500).json({ error: 'Stripe webhook is not configured.' });
+    }
+
+    const stripe = Stripe(stripeSecretKey);
+    const sig = req.headers['stripe-signature'];
+    let event;
+    try {
+      event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+    } catch (err) {
+      console.error('Stripe webhook signature verification failed:', err.message);
+      return res.status(400).json({ error: `Webhook signature verification failed: ${err.message}` });
+    }
+
+    try {
+      if (event.type === 'checkout.session.completed') {
+        const session = event.data.object;
+        if (session.mode === 'subscription' && session.subscription && session.customer) {
+          const subscription = await stripe.subscriptions.retrieve(session.subscription);
+          const googleId = subscription.metadata?.googleId;
+          const plan = tierForPlan(subscription.metadata?.plan || '');
+          if (googleId) {
+            await UserModel.updateOne({ googleId }, {
+              $set: {
+                stripeCustomerId: session.customer,
+                subscriptionId: session.subscription,
+                subscriptionTier: plan,
+                subscriptionStatus: 'active',
+                subscriptionCurrentPeriodEnd: new Date(subscription.current_period_end * 1000),
+              },
+            });
+          }
+        }
+      }
+
+      if (event.type === 'customer.subscription.updated') {
+        const subscription = event.data.object;
+        const googleId = subscription.metadata?.googleId;
+        if (googleId) {
+          const stripeStatus = subscription.status;
+          const appStatus = ['active', 'past_due'].includes(stripeStatus) ? stripeStatus : 'inactive';
+          const plan = tierForPlan(subscription.metadata?.plan || '');
+          await UserModel.updateOne({ googleId }, {
+            $set: {
+              subscriptionId: subscription.id,
+              subscriptionTier: appStatus === 'active' ? plan : 'starter',
+              subscriptionStatus: appStatus,
+              subscriptionCurrentPeriodEnd: new Date(subscription.current_period_end * 1000),
+            },
+          });
+        }
+      }
+
+      if (event.type === 'customer.subscription.deleted') {
+        const subscription = event.data.object;
+        const googleId = subscription.metadata?.googleId;
+        if (googleId) {
+          await UserModel.updateOne({ googleId }, {
+            $set: { subscriptionTier: 'starter', subscriptionStatus: 'inactive', subscriptionCurrentPeriodEnd: null },
+          });
+        }
+      }
+
+      if (event.type === 'invoice.payment_failed') {
+        const invoice = event.data.object;
+        if (invoice.customer) {
+          await UserModel.updateOne({ stripeCustomerId: invoice.customer }, { $set: { subscriptionStatus: 'past_due' } });
+        }
+      }
+
+      return res.json({ received: true });
+    } catch (error) {
+      console.error('Stripe webhook handler failed:', error);
+      return res.status(500).json({ error: 'Webhook processing failed.' });
+    }
+  });
+
   return app;
+}
+
+function tierForPlan(plan) {
+  if (plan === 'studio') return 'studio';
+  if (plan === 'premium') return 'premium';
+  return 'starter';
+}
+
+async function getUserSubscriptionTier(UserModel, googleId) {
+  if (typeof UserModel?.findOne !== 'function') {
+    return 'starter';
+  }
+  try {
+    const user = await UserModel.findOne({ googleId }).lean();
+    if (!user) return 'starter';
+    const tier = user.subscriptionTier || 'starter';
+    const status = user.subscriptionStatus || 'active';
+    if (status !== 'active' && tier !== 'starter') return 'starter';
+    return tier;
+  } catch {
+    return 'starter';
+  }
 }
 
 export const app = createApp();

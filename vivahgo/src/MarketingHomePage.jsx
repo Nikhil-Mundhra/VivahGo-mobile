@@ -3,6 +3,7 @@ import "./marketing-home.css";
 import TermsConditionsModal from "./components/TermsConditionsModal";
 import FeedbackModal from "./components/FeedbackModal";
 import LegalFooter from "./components/LegalFooter";
+import { createCheckoutSession } from "./api";
 
 const SESSION_STORAGE_KEY = "vivahgo.session";
 
@@ -142,6 +143,8 @@ export default function MarketingHomePage() {
   const [billingCycle, setBillingCycle] = useState("monthly");
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [checkoutLoadingPlan, setCheckoutLoadingPlan] = useState(null);
+  const [subscriptionBanner, setSubscriptionBanner] = useState(null);
 
   useEffect(() => {
     const syncSession = () => {
@@ -156,6 +159,17 @@ export default function MarketingHomePage() {
 
     document.title = "VivahGo | Home";
     syncSession();
+
+    // Detect Stripe redirect outcome
+    const params = new URLSearchParams(window.location.search);
+    const subscriptionResult = params.get("subscription");
+    if (subscriptionResult === "success") {
+      setSubscriptionBanner({ type: "success", message: "Subscription activated! Enjoy your plan." });
+      window.history.replaceState({}, "", window.location.pathname);
+    } else if (subscriptionResult === "canceled") {
+      setSubscriptionBanner({ type: "info", message: "Checkout canceled — no charge was made." });
+      window.history.replaceState({}, "", window.location.pathname);
+    }
 
     window.addEventListener("storage", syncSession);
     window.addEventListener("focus", syncSession);
@@ -173,8 +187,55 @@ export default function MarketingHomePage() {
   const firstName = session?.user?.given_name || session?.user?.name?.split(" ")[0] || "there";
   const primaryCtaLabel = isSignedIn ? "Open Your Planner" : "Login / Signup";
 
+  async function handleChoosePlan(planName) {
+    const planKey = planName.toLowerCase();
+    if (!isSignedIn) {
+      window.location.href = "/";
+      return;
+    }
+    const token = session?.token;
+    if (!token) {
+      window.location.href = "/";
+      return;
+    }
+    try {
+      setCheckoutLoadingPlan(planKey);
+      const { url } = await createCheckoutSession(token, planKey, billingCycle);
+      window.location.href = url;
+    } catch (err) {
+      setSubscriptionBanner({ type: "error", message: err.message || "Could not start checkout. Please try again." });
+    } finally {
+      setCheckoutLoadingPlan(null);
+    }
+  }
+
   return (
     <div className="marketing-home-shell">
+      {subscriptionBanner && (
+        <div style={{
+          position: "sticky", top: 0, zIndex: 100,
+          padding: "12px 24px", textAlign: "center",
+          fontSize: 14, fontWeight: 600,
+          background: subscriptionBanner.type === "success"
+            ? "rgba(46,125,50,0.92)"
+            : subscriptionBanner.type === "error"
+              ? "rgba(183,28,28,0.92)"
+              : "rgba(30,60,114,0.92)",
+          color: "#fff",
+          backdropFilter: "blur(6px)",
+        }}>
+          {subscriptionBanner.message}
+          <button
+            type="button"
+            onClick={() => setSubscriptionBanner(null)}
+            style={{
+              marginLeft: 16, background: "transparent", border: "none",
+              color: "#fff", cursor: "pointer", fontSize: 16, lineHeight: 1,
+            }}
+            aria-label="Dismiss"
+          >✕</button>
+        </div>
+      )}
       <header className="marketing-header">
         <a className="marketing-brand" href="/home" aria-label="VivahGo home page">
           <img src="/Thumbnail.png" alt="VivahGo" className="marketing-brand-mark" />
@@ -348,12 +409,24 @@ export default function MarketingHomePage() {
                     <li key={item}>{item}</li>
                   ))}
                 </ul>
-                <a
-                  className={`marketing-price-action ${plan.featured ? "marketing-price-action-featured" : "marketing-price-action-ghost"}`}
-                  href="/"
-                >
-                  {plan.name === "Starter" ? "Try Starter" : "Choose " + plan.name}
-                </a>
+                {plan.name === "Starter" ? (
+                  <a
+                    className="marketing-price-action marketing-price-action-ghost"
+                    href="/"
+                  >
+                    Try Starter
+                  </a>
+                ) : (
+                  <button
+                    type="button"
+                    className={`marketing-price-action ${plan.featured ? "marketing-price-action-featured" : "marketing-price-action-ghost"}`}
+                    onClick={() => handleChoosePlan(plan.name)}
+                    disabled={checkoutLoadingPlan === plan.name.toLowerCase()}
+                    style={checkoutLoadingPlan === plan.name.toLowerCase() ? { opacity: 0.7, cursor: "not-allowed" } : undefined}
+                  >
+                    {checkoutLoadingPlan === plan.name.toLowerCase() ? "Redirecting…" : `Choose ${plan.name}`}
+                  </button>
+                )}
               </article>
             ))}
           </div>
