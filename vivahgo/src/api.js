@@ -150,6 +150,14 @@ export function createCheckoutSession(token, plan, billingCycle, couponCode) {
   });
 }
 
+export function getCheckoutQuote(token, plan, billingCycle, couponCode) {
+  return request('/subscription/quote', {
+    method: 'POST',
+    token,
+    body: { plan, billingCycle, couponCode },
+  });
+}
+
 export function confirmCheckoutPayment(token, payload) {
   return request('/subscription/confirm', {
     method: 'POST',

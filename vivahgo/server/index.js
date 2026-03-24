@@ -981,6 +981,35 @@ export function createApp(options = {}) {
     }
   });
 
+  app.post('/api/subscription/quote', (req, res, next) => authMiddleware(req, res, next, injectedJwtSecret), async (req, res) => {
+    const { plan, billingCycle, couponCode } = req.body || {};
+    if (!plan || !['premium', 'studio'].includes(plan)) {
+      return res.status(400).json({ error: 'Invalid plan. Must be "premium" or "studio".' });
+    }
+
+    const cycle = billingCycle === 'yearly' ? 'yearly' : 'monthly';
+    const baseAmount = resolveSubscriptionAmount(plan, cycle);
+    if (!baseAmount) {
+      return res.status(500).json({ error: `Amount for ${plan} (${cycle}) is not configured.` });
+    }
+
+    try {
+      const coupon = resolveCoupon(couponCode);
+      const amount = applyCouponDiscount(baseAmount, coupon);
+      return res.json({
+        amount,
+        baseAmount,
+        currency: 'INR',
+        appliedCoupon: coupon,
+        plan,
+        billingCycle: cycle,
+      });
+    } catch (error) {
+      const statusCode = /coupon/i.test(error?.message || '') ? 400 : 500;
+      return res.status(statusCode).json({ error: error?.message || 'Failed to calculate checkout quote.' });
+    }
+  });
+
   app.post('/api/subscription/checkout', (req, res, next) => authMiddleware(req, res, next, injectedJwtSecret), async (req, res) => {
     const razorpayKeyId = process.env.RAZORPAY_KEY_ID;
     const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET;

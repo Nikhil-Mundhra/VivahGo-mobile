@@ -5,7 +5,8 @@ import FeedbackModal from "./components/FeedbackModal";
 import LegalFooter from "./components/LegalFooter";
 import GoogleLoginButton from "./components/GoogleLoginButton";
 import SubscriptionCheckoutSheet from "./components/SubscriptionCheckoutSheet";
-import { confirmCheckoutPayment, createCheckoutSession, loginWithGoogle } from "./api";
+import SubscriptionCheckoutPage from "./components/SubscriptionCheckoutPage";
+import { confirmCheckoutPayment, createCheckoutSession, getCheckoutQuote, loginWithGoogle } from "./api";
 
 const SESSION_STORAGE_KEY = "vivahgo.session";
 
@@ -113,6 +114,27 @@ function readStoredSession() {
   }
 }
 
+function readCheckoutRouteFromUrl() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("checkout") !== "1") {
+    return null;
+  }
+
+  const plan = params.get("plan") === "studio" ? "studio" : "premium";
+  const billingCycle = params.get("cycle") === "yearly" ? "yearly" : "monthly";
+  const couponCode = (params.get("coupon") || "").trim().toUpperCase();
+
+  return {
+    plan,
+    billingCycle,
+    couponCode,
+  };
+}
+
 function SocialIcon({ name }) {
   if (name === "Instagram") {
     return (
@@ -152,6 +174,7 @@ export default function MarketingHomePage() {
   const [planLoginLoading, setPlanLoginLoading] = useState(false);
   const [planLoginError, setPlanLoginError] = useState("");
   const [subscriptionBanner, setSubscriptionBanner] = useState(null);
+  const [checkoutRoute, setCheckoutRoute] = useState(() => readCheckoutRouteFromUrl());
 
   useEffect(() => {
     const syncSession = () => {
@@ -175,6 +198,17 @@ export default function MarketingHomePage() {
       window.removeEventListener("storage", syncSession);
       window.removeEventListener("focus", syncSession);
       document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setCheckoutRoute(readCheckoutRouteFromUrl());
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
     };
   }, []);
 
@@ -245,6 +279,54 @@ export default function MarketingHomePage() {
 
   function handlePlanLoginError(error) {
     setPlanLoginError(error?.message || "Google login failed. Please try again.");
+  }
+
+  function openCheckoutPage(nextCheckout) {
+    const checkoutState = {
+      plan: nextCheckout.plan,
+      billingCycle: nextCheckout.billingCycle,
+      couponCode: (nextCheckout.couponCode || "").trim().toUpperCase(),
+    };
+    const params = new URLSearchParams();
+    params.set("checkout", "1");
+    params.set("plan", checkoutState.plan);
+    params.set("cycle", checkoutState.billingCycle);
+    if (checkoutState.couponCode) {
+      params.set("coupon", checkoutState.couponCode);
+    }
+
+    const nextUrl = `${window.location.pathname}?${params.toString()}`;
+    window.history.pushState({}, "", nextUrl);
+    setCheckoutSheetPlan(null);
+    setCheckoutLoadingPlan(null);
+    setCheckoutRoute(checkoutState);
+  }
+
+  function closeCheckoutPage() {
+    window.history.pushState({}, "", window.location.pathname);
+    setCheckoutRoute(null);
+  }
+
+  if (checkoutRoute) {
+    return (
+      <SubscriptionCheckoutPage
+        token={session?.token}
+        initialPlan={checkoutRoute.plan}
+        initialBillingCycle={checkoutRoute.billingCycle}
+        initialCouponCode={checkoutRoute.couponCode}
+        fetchQuote={getCheckoutQuote}
+        createSession={createCheckoutSession}
+        confirmPayment={confirmCheckoutPayment}
+        onBack={closeCheckoutPage}
+        onError={(message) => {
+          setSubscriptionBanner({ type: "error", message });
+        }}
+        onSuccess={() => {
+          setSubscriptionBanner({ type: "success", message: "Payment received. Your plan is now active." });
+          closeCheckoutPage();
+        }}
+      />
+    );
   }
 
   return (
@@ -459,8 +541,8 @@ export default function MarketingHomePage() {
                     type="button"
                     className={`marketing-price-action ${plan.featured ? "marketing-price-action-featured" : "marketing-price-action-ghost"}`}
                     onClick={() => handleChoosePlan(plan.name)}
-                    disabled={checkoutLoadingPlan === plan.name.toLowerCase() || Boolean(checkoutSheetPlan)}
-                    style={checkoutLoadingPlan === plan.name.toLowerCase() || checkoutSheetPlan ? { opacity: 0.7, cursor: "not-allowed" } : undefined}
+                    disabled={checkoutLoadingPlan === plan.name.toLowerCase() || Boolean(checkoutSheetPlan) || Boolean(checkoutRoute)}
+                    style={checkoutLoadingPlan === plan.name.toLowerCase() || checkoutSheetPlan || checkoutRoute ? { opacity: 0.7, cursor: "not-allowed" } : undefined}
                   >
                     {checkoutLoadingPlan === plan.name.toLowerCase() ? "Loading checkout..." : `Get ${plan.name}`}
                   </button>
@@ -602,13 +684,14 @@ export default function MarketingHomePage() {
             setCheckoutLoadingPlan(null);
             setSubscriptionBanner({ type: "error", message });
           }}
-          onSuccess={() => {
-            setCheckoutLoadingPlan(null);
-            setCheckoutSheetPlan(null);
-            setSubscriptionBanner({ type: "success", message: "Payment received. Your plan is now active." });
+          onProceed={({ plan, billingCycle: nextBillingCycle, couponCode }) => {
+            openCheckoutPage({
+              plan,
+              billingCycle: nextBillingCycle,
+              couponCode,
+            });
           }}
-          createSession={createCheckoutSession}
-          confirmPayment={confirmCheckoutPayment}
+          fetchQuote={getCheckoutQuote}
         />
       )}
 
