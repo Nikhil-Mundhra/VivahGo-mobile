@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 let razorpayScriptPromise;
+const QUOTE_CACHE_TTL_MS = 60000;
 
 const PLAN_LABELS = {
   premium: "Premium",
@@ -76,23 +77,40 @@ export default function SubscriptionCheckoutPage({
   const [isPaying, setIsPaying] = useState(false);
   const [quoteError, setQuoteError] = useState("");
   const [quote, setQuote] = useState(null);
+  const onErrorRef = useRef(onError);
+  const quoteCacheRef = useRef(new Map());
 
-  const refreshQuote = useCallback(async () => {
+  useEffect(() => {
+    onErrorRef.current = onError;
+  }, [onError]);
+
+  const refreshQuote = useCallback(async ({ force = false } = {}) => {
+    const quoteKey = `${plan}:${billingCycle}:${appliedCouponCode || ""}`;
+    const now = Date.now();
+    const cachedQuote = quoteCacheRef.current.get(quoteKey);
+    if (!force && cachedQuote && now - cachedQuote.timestamp < QUOTE_CACHE_TTL_MS) {
+      setQuoteError("");
+      setQuote(cachedQuote.value);
+      setIsLoadingQuote(false);
+      return;
+    }
+
     setIsLoadingQuote(true);
     setQuoteError("");
 
     try {
       const response = await fetchQuote(token, plan, billingCycle, appliedCouponCode);
+      quoteCacheRef.current.set(quoteKey, { value: response, timestamp: now });
       setQuote(response);
     } catch (error) {
       const message = error?.message || "Could not calculate price right now.";
       setQuoteError(message);
-      onError?.(message);
+      onErrorRef.current?.(message);
       setQuote(null);
     } finally {
       setIsLoadingQuote(false);
     }
-  }, [appliedCouponCode, billingCycle, fetchQuote, onError, plan, token]);
+  }, [appliedCouponCode, billingCycle, fetchQuote, plan, token]);
 
   useEffect(() => {
     refreshQuote();
@@ -229,7 +247,7 @@ export default function SubscriptionCheckoutPage({
               <button type="button" className="marketing-price-action marketing-price-action-featured" onClick={handlePay} disabled={isPaying || isLoadingQuote || !quote} style={isPaying ? { opacity: 0.7, cursor: "not-allowed" } : undefined}>
                 {isPaying ? "Opening..." : "Pay with Razorpay"}
               </button>
-              <button type="button" className="marketing-price-action marketing-price-action-ghost" onClick={refreshQuote} disabled={isLoadingQuote || isPaying}>
+              <button type="button" className="marketing-price-action marketing-price-action-ghost" onClick={() => refreshQuote({ force: true })} disabled={isLoadingQuote || isPaying}>
                 Refresh Price
               </button>
             </div>

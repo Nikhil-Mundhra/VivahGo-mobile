@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+const QUOTE_CACHE_TTL_MS = 60000;
+
 function formatAmount(amount, currency) {
   if (!amount) {
     return "";
@@ -35,6 +37,7 @@ export default function SubscriptionCheckoutSheet({
   const onLoadingStartRef = useRef(onLoadingStart);
   const onReadyRef = useRef(onReady);
   const onErrorRef = useRef(onError);
+  const quoteCacheRef = useRef(new Map());
 
   useEffect(() => {
     onLoadingStartRef.current = onLoadingStart;
@@ -42,7 +45,18 @@ export default function SubscriptionCheckoutSheet({
     onErrorRef.current = onError;
   }, [onLoadingStart, onReady, onError]);
 
-  const prepareQuote = useCallback(async (active = () => true) => {
+  const prepareQuote = useCallback(async (active = () => true, force = false) => {
+    const quoteKey = `${plan}:${billingCycle}:${appliedCouponCode || ""}`;
+    const now = Date.now();
+    const cachedQuote = quoteCacheRef.current.get(quoteKey);
+    if (!force && cachedQuote && now - cachedQuote.timestamp < QUOTE_CACHE_TTL_MS) {
+      setQuoteError("");
+      setQuoteData(cachedQuote.value);
+      setIsPreparing(false);
+      onReadyRef.current?.();
+      return;
+    }
+
     setQuoteError("");
     setIsPreparing(true);
     onLoadingStartRef.current?.();
@@ -54,6 +68,7 @@ export default function SubscriptionCheckoutSheet({
         return;
       }
 
+      quoteCacheRef.current.set(quoteKey, { value: nextQuote, timestamp: now });
       setQuoteData(nextQuote);
     } catch (error) {
       const message = error?.message || "Could not calculate your price.";
@@ -197,7 +212,7 @@ export default function SubscriptionCheckoutSheet({
           <div className="marketing-checkout-error-block">
             <p>{quoteError}</p>
             <div className="marketing-checkout-actions">
-              <button type="button" className="marketing-price-action marketing-price-action-featured" onClick={() => prepareQuote(() => true)}>
+              <button type="button" className="marketing-price-action marketing-price-action-featured" onClick={() => prepareQuote(() => true, true)}>
                 Retry
               </button>
               <button type="button" className="marketing-price-action marketing-price-action-ghost" onClick={onClose}>

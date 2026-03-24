@@ -1127,6 +1127,7 @@ body[data-route='home'] #root {
   margin: 8px 0 10px;
   font-family: 'Playfair Display', serif;
   font-size: clamp(1.9rem, 3.4vw, 2.8rem);
+  color: var(--marketing-accent-soft);
 }
 
 .marketing-checkout-page-toggle-row {
