@@ -51,6 +51,8 @@ export default function SubscriptionCheckoutSheet({
   plan,
   planName,
   billingCycle,
+  onPlanChange,
+  onBillingCycleChange,
   onLoadingStart,
   onReady,
   onClose,
@@ -64,6 +66,8 @@ export default function SubscriptionCheckoutSheet({
   const [isOpeningCheckout, setIsOpeningCheckout] = useState(false);
   const [checkoutError, setCheckoutError] = useState("");
   const [checkoutData, setCheckoutData] = useState(null);
+  const [couponDraft, setCouponDraft] = useState("");
+  const [appliedCouponCode, setAppliedCouponCode] = useState("");
   const onLoadingStartRef = useRef(onLoadingStart);
   const onReadyRef = useRef(onReady);
   const onErrorRef = useRef(onError);
@@ -87,7 +91,7 @@ export default function SubscriptionCheckoutSheet({
         throw new Error("Could not load Razorpay checkout.");
       }
 
-      const nextCheckoutData = await createSession(token, plan, billingCycle);
+      const nextCheckoutData = await createSession(token, plan, billingCycle, appliedCouponCode);
       if (!nextCheckoutData?.orderId || !nextCheckoutData?.keyId) {
         throw new Error("Razorpay checkout could not be prepared.");
       }
@@ -109,7 +113,7 @@ export default function SubscriptionCheckoutSheet({
         onReadyRef.current?.();
       }
     }
-  }, [billingCycle, createSession, plan, token]);
+  }, [appliedCouponCode, billingCycle, createSession, plan, token]);
 
   useEffect(() => {
     let active = true;
@@ -172,13 +176,24 @@ export default function SubscriptionCheckoutSheet({
   }, [billingCycle, checkoutData, confirmPayment, plan, planName, token]);
 
   const amountLabel = useMemo(() => formatAmount(checkoutData?.amount, checkoutData?.currency), [checkoutData]);
+  const baseAmountLabel = useMemo(() => formatAmount(checkoutData?.baseAmount, checkoutData?.currency), [checkoutData]);
   const fallbackPaymentUrl = useMemo(() => {
-    if (billingCycle !== "monthly") {
+    if (billingCycle !== "monthly" || appliedCouponCode) {
       return "";
     }
 
     return FALLBACK_PAYMENT_LINKS[plan] || "";
-  }, [billingCycle, plan]);
+  }, [appliedCouponCode, billingCycle, plan]);
+
+  const handleApplyCoupon = useCallback(() => {
+    const normalizedCode = couponDraft.trim().toUpperCase();
+    setAppliedCouponCode(normalizedCode);
+  }, [couponDraft]);
+
+  const handleRemoveCoupon = useCallback(() => {
+    setCouponDraft("");
+    setAppliedCouponCode("");
+  }, []);
 
   return (
     <div className="marketing-checkout-overlay" role="presentation">
@@ -191,12 +206,81 @@ export default function SubscriptionCheckoutSheet({
         <header className="marketing-checkout-header">
           <p className="marketing-checkout-kicker">Secure Checkout</p>
           <h2>Complete payment for {planName}</h2>
+          <div className="marketing-checkout-plan-toggle" role="group" aria-label="Checkout plan type">
+            <button
+              type="button"
+              className={`marketing-checkout-plan-option${plan === "premium" ? " marketing-checkout-plan-option-active" : ""}`}
+              onClick={() => onPlanChange?.("premium", "Premium")}
+              disabled={isPreparing || isOpeningCheckout}
+            >
+              Premium
+            </button>
+            <button
+              type="button"
+              className={`marketing-checkout-plan-option${plan === "studio" ? " marketing-checkout-plan-option-active" : ""}`}
+              onClick={() => onPlanChange?.("studio", "Studio")}
+              disabled={isPreparing || isOpeningCheckout}
+            >
+              Studio
+            </button>
+          </div>
+          <div className="marketing-checkout-cycle-toggle" role="group" aria-label="Checkout billing cycle">
+            <button
+              type="button"
+              className={`marketing-checkout-cycle-option${billingCycle === "monthly" ? " marketing-checkout-cycle-option-active" : ""}`}
+              onClick={() => onBillingCycleChange?.("monthly")}
+              disabled={isPreparing || isOpeningCheckout}
+            >
+              Monthly
+            </button>
+            <button
+              type="button"
+              className={`marketing-checkout-cycle-option${billingCycle === "yearly" ? " marketing-checkout-cycle-option-active" : ""}`}
+              onClick={() => onBillingCycleChange?.("yearly")}
+              disabled={isPreparing || isOpeningCheckout}
+            >
+              Yearly
+            </button>
+          </div>
           <div className="marketing-checkout-meta">
             <span>{planName}</span>
             <span>{formatBillingCycle(billingCycle)}</span>
             <span>Secure checkout by Razorpay</span>
           </div>
         </header>
+
+        <div className="marketing-checkout-coupon-panel">
+          <label className="marketing-checkout-coupon-label" htmlFor="checkout-coupon-code">Coupon code</label>
+          <div className="marketing-checkout-coupon-row">
+            <input
+              id="checkout-coupon-code"
+              className="marketing-checkout-coupon-input"
+              type="text"
+              value={couponDraft}
+              onChange={(event) => setCouponDraft(event.target.value.toUpperCase())}
+              placeholder="Enter coupon"
+              disabled={isPreparing || isOpeningCheckout}
+            />
+            <button
+              type="button"
+              className="marketing-price-action marketing-price-action-featured"
+              onClick={handleApplyCoupon}
+              disabled={isPreparing || isOpeningCheckout || !couponDraft.trim()}
+            >
+              Apply
+            </button>
+          </div>
+          {appliedCouponCode && checkoutData?.appliedCoupon && (
+            <div className="marketing-checkout-coupon-applied">
+              <span>
+                {checkoutData.appliedCoupon.code} applied for {checkoutData.appliedCoupon.discountPercent}% off
+              </span>
+              <button type="button" onClick={handleRemoveCoupon} disabled={isPreparing || isOpeningCheckout}>
+                Remove
+              </button>
+            </div>
+          )}
+        </div>
 
         {isPreparing ? (
           <div className="marketing-checkout-loading-block">
@@ -232,6 +316,12 @@ export default function SubscriptionCheckoutSheet({
           </div>
         ) : (
           <div className="marketing-checkout-loading-block">
+            {checkoutData?.appliedCoupon && baseAmountLabel && amountLabel ? (
+              <div className="marketing-checkout-price-summary">
+                <span>Original: {baseAmountLabel}</span>
+                <strong>Discounted: {amountLabel}</strong>
+              </div>
+            ) : null}
             <p>{amountLabel ? `Amount due: ${amountLabel}` : "Amount will be shown in Razorpay."}</p>
             <p>Use the button below to open Razorpay Checkout in a secure popup.</p>
             <div className="marketing-checkout-actions">

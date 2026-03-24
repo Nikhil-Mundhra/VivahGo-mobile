@@ -142,11 +142,11 @@ export function getSubscriptionStatus(token) {
   return request('/subscription/status', { token });
 }
 
-export function createCheckoutSession(token, plan, billingCycle) {
+export function createCheckoutSession(token, plan, billingCycle, couponCode) {
   return request('/subscription/checkout', {
     method: 'POST',
     token,
-    body: { plan, billingCycle },
+    body: { plan, billingCycle, couponCode },
   });
 }
 

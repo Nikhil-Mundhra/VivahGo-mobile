@@ -3,6 +3,7 @@ import 'dotenv/config';
 import cors from 'cors';
 import crypto from 'node:crypto';
 import express from 'express';
+import fs from 'node:fs';
 import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import { OAuth2Client } from 'google-auth-library';
@@ -38,6 +39,8 @@ const DEFAULT_SUBSCRIPTION_AMOUNT_MAP = {
   studio: { monthly: 500000, yearly: 4800000 },
 };
 
+const COUPON_FILE_PATH = new URL('../../config/subscription-coupons.json', import.meta.url);
+
 function resolveSubscriptionAmount(plan, billingCycle) {
   const cycle = billingCycle === 'yearly' ? 'yearly' : 'monthly';
   const envKey = `RAZORPAY_${plan.toUpperCase()}_${cycle.toUpperCase()}_AMOUNT`;
@@ -47,6 +50,50 @@ function resolveSubscriptionAmount(plan, billingCycle) {
   }
 
   return DEFAULT_SUBSCRIPTION_AMOUNT_MAP[plan]?.[cycle] || 0;
+}
+
+function readCouponCatalog() {
+  try {
+    return JSON.parse(fs.readFileSync(COUPON_FILE_PATH, 'utf8'));
+  } catch {
+    return [];
+  }
+}
+
+function resolveCoupon(couponCode) {
+  const normalizedCode = typeof couponCode === 'string' ? couponCode.trim().toUpperCase() : '';
+  if (!normalizedCode) {
+    return null;
+  }
+
+  const coupon = readCouponCatalog().find((entry) => entry?.code === normalizedCode);
+  if (!coupon) {
+    throw new Error('Coupon code is invalid.');
+  }
+
+  const expiresAt = Date.parse(coupon.expiresAt);
+  if (!Number.isFinite(expiresAt) || expiresAt < Date.now()) {
+    throw new Error('Coupon code has expired.');
+  }
+
+  const discountPercent = Number(coupon.discountPercent);
+  if (!Number.isFinite(discountPercent) || discountPercent <= 0 || discountPercent >= 100) {
+    throw new Error('Coupon discount is invalid.');
+  }
+
+  return {
+    code: normalizedCode,
+    expiresAt: coupon.expiresAt,
+    discountPercent,
+  };
+}
+
+function applyCouponDiscount(amount, coupon) {
+  if (!coupon) {
+    return amount;
+  }
+
+  return Math.round(amount * (100 - coupon.discountPercent) / 100);
 }
 
 function buildSubscriptionPeriodEnd(billingCycle, startDate = new Date()) {
@@ -941,20 +988,23 @@ export function createApp(options = {}) {
       return res.status(500).json({ error: 'Payment gateway is not configured.' });
     }
 
-    const { plan, billingCycle } = req.body || {};
+    const { plan, billingCycle, couponCode } = req.body || {};
     if (!plan || !['premium', 'studio'].includes(plan)) {
       return res.status(400).json({ error: 'Invalid plan. Must be "premium" or "studio".' });
     }
 
     const cycle = billingCycle === 'yearly' ? 'yearly' : 'monthly';
-    const amount = resolveSubscriptionAmount(plan, cycle);
-    if (!amount) {
+    const baseAmount = resolveSubscriptionAmount(plan, cycle);
+    if (!baseAmount) {
       return res.status(500).json({ error: `Amount for ${plan} (${cycle}) is not configured.` });
     }
 
     try {
       const user = await UserModel.findOne({ googleId: req.auth.sub }).lean();
       if (!user) return res.status(404).json({ error: 'User not found.' });
+
+      const coupon = resolveCoupon(couponCode);
+      const amount = applyCouponDiscount(baseAmount, coupon);
 
       const razorpay = new Razorpay({ key_id: razorpayKeyId, key_secret: razorpayKeySecret });
       const order = await razorpay.orders.create({
@@ -966,6 +1016,7 @@ export function createApp(options = {}) {
           plan,
           billingCycle: cycle,
           email: user.email,
+          couponCode: coupon?.code || '',
         },
       });
 
@@ -973,9 +1024,11 @@ export function createApp(options = {}) {
         keyId: razorpayKeyId,
         orderId: order.id,
         amount: order.amount,
+        baseAmount,
         currency: order.currency,
         name: 'VivahGo',
         description: `${plan === 'studio' ? 'Studio' : 'Premium'} ${cycle === 'yearly' ? 'yearly' : 'monthly'} plan`,
+        appliedCoupon: coupon,
         prefill: {
           name: user.name,
           email: user.email,
@@ -984,7 +1037,8 @@ export function createApp(options = {}) {
       });
     } catch (error) {
       console.error('Razorpay order creation failed:', error);
-      return res.status(500).json({ error: 'Failed to create checkout order.' });
+      const statusCode = /coupon/i.test(error?.message || '') ? 400 : 500;
+      return res.status(statusCode).json({ error: error?.message || 'Failed to create checkout order.' });
     }
   });
 

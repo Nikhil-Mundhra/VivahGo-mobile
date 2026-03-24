@@ -578,6 +578,20 @@ export default function MarketingHomePage() {
           plan={checkoutSheetPlan.key}
           planName={checkoutSheetPlan.name}
           billingCycle={billingCycle}
+          onPlanChange={(nextPlanKey, nextPlanName) => {
+            setCheckoutSheetPlan((current) => {
+              if (!current) {
+                return current;
+              }
+
+              return {
+                ...current,
+                key: nextPlanKey,
+                name: nextPlanName,
+              };
+            });
+          }}
+          onBillingCycleChange={setBillingCycle}
           onReady={() => setCheckoutLoadingPlan(null)}
           onLoadingStart={() => setCheckoutLoadingPlan(checkoutSheetPlan.key)}
           onClose={() => {

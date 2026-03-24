@@ -1,3 +1,5 @@
+const fs = require('fs');
+const path = require('path');
 const Razorpay = require('razorpay');
 const {
   connectDb,
@@ -12,6 +14,8 @@ const DEFAULT_SUBSCRIPTION_AMOUNT_MAP = {
   studio: { monthly: 500000, yearly: 4800000 },
 };
 
+const COUPON_FILE_PATH = path.join(__dirname, '..', '..', 'config', 'subscription-coupons.json');
+
 function resolveSubscriptionAmount(plan, billingCycle) {
   const cycle = billingCycle === 'yearly' ? 'yearly' : 'monthly';
   const envKey = `RAZORPAY_${plan.toUpperCase()}_${cycle.toUpperCase()}_AMOUNT`;
@@ -21,6 +25,50 @@ function resolveSubscriptionAmount(plan, billingCycle) {
   }
 
   return DEFAULT_SUBSCRIPTION_AMOUNT_MAP[plan]?.[cycle] || 0;
+}
+
+function readCouponCatalog() {
+  try {
+    return JSON.parse(fs.readFileSync(COUPON_FILE_PATH, 'utf8'));
+  } catch {
+    return [];
+  }
+}
+
+function resolveCoupon(couponCode) {
+  const normalizedCode = typeof couponCode === 'string' ? couponCode.trim().toUpperCase() : '';
+  if (!normalizedCode) {
+    return null;
+  }
+
+  const coupon = readCouponCatalog().find((entry) => entry?.code === normalizedCode);
+  if (!coupon) {
+    throw new Error('Coupon code is invalid.');
+  }
+
+  const expiresAt = Date.parse(coupon.expiresAt);
+  if (!Number.isFinite(expiresAt) || expiresAt < Date.now()) {
+    throw new Error('Coupon code has expired.');
+  }
+
+  const discountPercent = Number(coupon.discountPercent);
+  if (!Number.isFinite(discountPercent) || discountPercent <= 0 || discountPercent >= 100) {
+    throw new Error('Coupon discount is invalid.');
+  }
+
+  return {
+    code: normalizedCode,
+    expiresAt: coupon.expiresAt,
+    discountPercent,
+  };
+}
+
+function applyCouponDiscount(amount, coupon) {
+  if (!coupon) {
+    return amount;
+  }
+
+  return Math.round(amount * (100 - coupon.discountPercent) / 100);
 }
 
 module.exports = async function handler(req, res) {
@@ -46,15 +94,15 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: 'Payment gateway is not configured.' });
   }
 
-  const { plan, billingCycle } = req.body || {};
+  const { plan, billingCycle, couponCode } = req.body || {};
 
   if (!plan || !['premium', 'studio'].includes(plan)) {
     return res.status(400).json({ error: 'Invalid plan. Must be "premium" or "studio".' });
   }
 
   const cycle = billingCycle === 'yearly' ? 'yearly' : 'monthly';
-  const amount = resolveSubscriptionAmount(plan, cycle);
-  if (!amount) {
+  const baseAmount = resolveSubscriptionAmount(plan, cycle);
+  if (!baseAmount) {
     return res.status(500).json({ error: `Amount for ${plan} (${cycle}) is not configured.` });
   }
 
@@ -67,6 +115,9 @@ module.exports = async function handler(req, res) {
       return res.status(404).json({ error: 'User not found.' });
     }
 
+    const coupon = resolveCoupon(couponCode);
+    const amount = applyCouponDiscount(baseAmount, coupon);
+
     const razorpay = new Razorpay({ key_id: razorpayKeyId, key_secret: razorpayKeySecret });
     const order = await razorpay.orders.create({
       amount,
@@ -77,6 +128,7 @@ module.exports = async function handler(req, res) {
         plan,
         billingCycle: cycle,
         email: user.email,
+        couponCode: coupon?.code || '',
       },
     });
 
@@ -84,9 +136,11 @@ module.exports = async function handler(req, res) {
       keyId: razorpayKeyId,
       orderId: order.id,
       amount: order.amount,
+      baseAmount,
       currency: order.currency,
       name: 'VivahGo',
       description: `${plan === 'studio' ? 'Studio' : 'Premium'} ${cycle === 'yearly' ? 'yearly' : 'monthly'} plan`,
+      appliedCoupon: coupon,
       prefill: {
         name: user.name,
         email: user.email,
@@ -95,6 +149,7 @@ module.exports = async function handler(req, res) {
     });
   } catch (err) {
     console.error('Razorpay order creation failed:', err);
-    return res.status(500).json({ error: 'Failed to create checkout order.' });
+    const statusCode = /coupon/i.test(err?.message || '') ? 400 : 500;
+    return res.status(statusCode).json({ error: err?.message || 'Failed to create checkout order.' });
   }
 };
