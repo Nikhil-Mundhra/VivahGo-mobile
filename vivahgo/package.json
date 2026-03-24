@@ -16,6 +16,7 @@
     "@capacitor/core": "^8.2.0",
     "@capacitor/ios": "^8.2.0",
     "@react-oauth/google": "^0.13.4",
+    "@vercel/analytics": "^2.0.1",
     "concurrently": "^9.2.1",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",

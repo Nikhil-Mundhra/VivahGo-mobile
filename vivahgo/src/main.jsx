@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { GoogleOAuthProvider } from '@react-oauth/google'
+import { Analytics } from '@vercel/analytics/react'
 import './index.css'
 import App from './App.jsx'
 import MarketingHomePage from './MarketingHomePage.jsx'
@@ -16,6 +17,7 @@ if (typeof document !== 'undefined') {
 const app = (
   <StrictMode>
     {isMarketingHomeRoute ? <MarketingHomePage /> : <App />}
+    <Analytics />
   </StrictMode>
 );
 
