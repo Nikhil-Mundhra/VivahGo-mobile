@@ -3,6 +3,12 @@
   "buildCommand": "npm --prefix vivahgo run build",
   "outputDirectory": "vivahgo/dist",
   "rewrites": [
+    { "source": "/api/subscription/status", "destination": "/api/subscription?op=status" },
+    { "source": "/api/subscription/quote", "destination": "/api/subscription?op=quote" },
+    { "source": "/api/subscription/checkout", "destination": "/api/subscription?op=checkout" },
+    { "source": "/api/subscription/confirm", "destination": "/api/subscription?op=confirm" },
+    { "source": "/api/subscription/portal", "destination": "/api/subscription?op=portal" },
+    { "source": "/api/subscription/webhook", "destination": "/api/subscription?op=webhook" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }

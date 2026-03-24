@@ -14,6 +14,15 @@ function collectRawBody(req) {
   });
 }
 
+/**
+ * Maps a plan name to its corresponding tier name.
+ * @param {string} plan Name of the plan.
+ * @returns {string} Tier name for the plan.
+ * @example
+ * tierForPlan('studio') // 'studio'
+ * tierForPlan('premium') // 'premium'
+ * tierForPlan('basic') // 'starter'
+ */
 function tierForPlan(plan) {
   if (plan === 'studio') return 'studio';
   if (plan === 'premium') return 'premium';
