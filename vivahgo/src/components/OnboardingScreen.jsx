@@ -286,7 +286,6 @@ function OnboardingScreen({ onComplete }) {
           {/* Step 0: Template */}
           {step === 0 && (
             <div className="onboard-form-field">
-              <div className="onboard-form-label">Wedding Template</div>
               <select className="chat-input onboard-form-select" value={form.template} onChange={e => updateForm("template", e.target.value)}>
                 {templateOptions.map(template => (
                   <option key={template.id} value={template.id}>
