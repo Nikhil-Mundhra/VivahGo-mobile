@@ -123,8 +123,9 @@ function EventsScreen({ events, setEvents, expenses, setExpenses, onOpenBudget, 
     <div>
       <div className="section-head">
         <div className="section-title">Wedding Ceremonies</div>
-        <div style={{display:"flex",gap:12,alignItems:"center"}}>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
           <button className="section-action" onClick={onOpenBudget}>Budget</button>
+          <button className="section-action" style={{color:"var(--color-gold-dark)"}} onClick={() => window.open("/wedding", "_blank", "noopener,noreferrer")} title="Preview your wedding website">🌐 Website</button>
           <button className="section-action guest-section-add" onClick={() => setShowAdd(true)}>+ Add</button>
         </div>
       </div>

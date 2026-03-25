@@ -677,6 +677,62 @@ body { background: var(--color-deep-red); }
 .rsvp-no { background: #FFEBEE; color: #C62828; }
 .rsvp-pending { background: #FFF8E1; color: #F57F17; }
 
+/* BULK WHATSAPP */
+.bulk-whatsapp-btn {
+  background: rgba(37,211,102,0.13);
+  border: 1.5px solid rgba(37,211,102,0.4);
+  color: #1A7A40;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 12px;
+  padding: 7px 14px;
+  cursor: pointer;
+  font-family: 'Jost', sans-serif;
+  transition: background 0.15s;
+}
+.bulk-whatsapp-btn:active { background: rgba(37,211,102,0.22); }
+.bulk-guest-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(0,0,0,0.04);
+}
+.bulk-guest-row:last-child { border-bottom: none; }
+.bulk-send-btn {
+  background: rgba(37,211,102,0.12);
+  border: 1px solid rgba(37,211,102,0.35);
+  color: #1FA855;
+  border-radius: 9px;
+  padding: 5px 13px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Jost', sans-serif;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+.bulk-send-btn.sent {
+  background: rgba(37,211,102,0.22);
+  color: #14803a;
+  border-color: rgba(37,211,102,0.5);
+}
+.bulk-copy-btn {
+  background: rgba(212,175,55,0.12);
+  border: 1px solid rgba(212,175,55,0.35);
+  color: var(--color-gold-dark);
+  border-radius: 9px;
+  padding: 5px 13px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Jost', sans-serif;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+.bulk-copy-btn:active { background: rgba(212,175,55,0.22); }
+
 /* VENDORS */
 .vendor-tabs { display: flex; gap: 8px; padding: 0 16px 16px; overflow-x: auto; }
 .vendor-tab {

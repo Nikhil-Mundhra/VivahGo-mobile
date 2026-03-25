@@ -3,6 +3,9 @@ import { initials } from "../utils";
 import { useSwipeDown } from "../hooks/useSwipeDown";
 import { useBackButtonClose } from "../hooks/useBackButtonClose";
 
+const DEFAULT_BULK_MESSAGE = "Hi {name}, we warmly invite you to our wedding celebrations! Kindly confirm your attendance by replying to this message. We look forward to your presence. 🙏💍";
+
+
 const GUEST_TITLES = new Set(["mr", "mrs", "ms", "miss", "dr", "prof", "shri", "smt", "km", "kum"]);
 
 function createGuestForm() {
@@ -57,6 +60,10 @@ function GuestsScreen({ guests, setGuests, planId }) {
   const [sideFilter, setSideFilter] = useState("all");
   const [rsvpFilter, setRsvpFilter] = useState(null);
   const [formError, setFormError] = useState("");
+  const [showBulkModal, setShowBulkModal] = useState(false);
+  const [bulkMessage, setBulkMessage] = useState(DEFAULT_BULK_MESSAGE);
+  const [bulkSentIds, setBulkSentIds] = useState(new Set());
+  const [copySuccess, setCopySuccess] = useState(false);
 
   const getGuestCount = (guest) => {
     const parsed = Number(guest?.guestCount);
@@ -171,6 +178,42 @@ function GuestsScreen({ guests, setGuests, planId }) {
     window.open(url, "_blank", "noopener,noreferrer");
   }
 
+  function sendBulkWhatsApp(guest) {
+    const phone = String(guest?.phone || "").replace(/[^0-9]/g, "");
+    if (!phone) return;
+    const guestName = getDisplayName(guest) || "there";
+    const personalized = bulkMessage.replace(/\{name\}/gi, guestName);
+    const url = `https://api.whatsapp.com/send/?phone=${phone}&text=${encodeURIComponent(personalized)}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+    setBulkSentIds(prev => new Set([...prev, guest.id]));
+  }
+
+  function copyAllNumbers(pendingGuests) {
+    const numbers = pendingGuests.map(g => String(g.phone || "").trim()).filter(Boolean).join(", ");
+    if (!numbers) return;
+    navigator.clipboard.writeText(numbers).then(() => {
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    });
+  }
+
+  function openBulkModal() {
+    setBulkMessage(DEFAULT_BULK_MESSAGE);
+    setBulkSentIds(new Set());
+    setCopySuccess(false);
+    setShowBulkModal(true);
+  }
+
+  function closeBulkModal() {
+    setShowBulkModal(false);
+    setBulkSentIds(new Set());
+    setCopySuccess(false);
+  }
+
+  const bulkSwipe = useSwipeDown(() => closeBulkModal());
+
+  useBackButtonClose(showBulkModal, closeBulkModal);
+
   function cycleRSVP(id) {
     setGuests(gs=>gs.map(g=>g.id===id?{...g,rsvp:g.rsvp==="pending"?"yes":g.rsvp==="yes"?"no":"pending"}:g));
   }
@@ -240,7 +283,18 @@ function GuestsScreen({ guests, setGuests, planId }) {
 
       <div className="section-head" style={{paddingTop:0}}>
         <div className="section-title">Guest List</div>
-        <button className="section-action guest-section-add" onClick={openAddGuest}>+ Add</button>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          {guests.some(g => g.rsvp === "pending" && g.phone) && (
+            <button
+              className="section-action bulk-whatsapp-btn"
+              onClick={openBulkModal}
+              title="Send bulk WhatsApp reminders to pending guests"
+            >
+              📲 Bulk Message
+            </button>
+          )}
+          <button className="section-action guest-section-add" onClick={openAddGuest}>+ Add</button>
+        </div>
       </div>
 
       <div className="vendor-tabs" style={{paddingBottom:12}}>
@@ -367,6 +421,95 @@ function GuestsScreen({ guests, setGuests, planId }) {
           </div>
         </div>
       )}
+
+      {showBulkModal && (() => {
+        const pendingWithPhone = guests.filter(g => g.rsvp === "pending" && g.phone);
+        const notPendingWithPhone = guests.filter(g => g.rsvp !== "pending" && g.phone);
+        const allWithPhone = [...pendingWithPhone, ...notPendingWithPhone];
+        return (
+          <div className="modal-overlay" onClick={closeBulkModal}>
+            <div className="modal" {...bulkSwipe.modalProps} onClick={e => e.stopPropagation()}>
+              <div className="modal-handle"/>
+              <div className="modal-title">📲 Bulk WhatsApp Message</div>
+              <div style={{marginBottom:16,padding:"10px 14px",background:"rgba(37,211,102,0.07)",border:"1px solid rgba(37,211,102,0.25)",borderRadius:12,fontSize:12.5,color:"#1a6b35",lineHeight:1.5}}>
+                Send personalized WhatsApp messages to your guests. Use <strong>{"{name}"}</strong> in your message to insert each guest&apos;s name automatically.
+              </div>
+              <div className="input-group">
+                <div className="input-label">Message Template</div>
+                <textarea
+                  className="input-field"
+                  rows={4}
+                  value={bulkMessage}
+                  onChange={e => setBulkMessage(e.target.value)}
+                  style={{resize:"vertical",minHeight:90}}
+                />
+              </div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                <div style={{fontSize:12,fontWeight:600,color:"var(--color-mid-text)",textTransform:"uppercase",letterSpacing:0.5}}>
+                  {pendingWithPhone.length} pending · {allWithPhone.length - pendingWithPhone.length} others with phone
+                </div>
+                {allWithPhone.length > 0 && (
+                  <button
+                    className="bulk-copy-btn"
+                    onClick={() => copyAllNumbers(allWithPhone)}
+                  >
+                    {copySuccess ? "✓ Copied!" : "Copy Numbers"}
+                  </button>
+                )}
+              </div>
+              {allWithPhone.length === 0 ? (
+                <div style={{textAlign:"center",padding:"20px",color:"var(--color-light-text)",fontSize:13}}>
+                  No guests with phone numbers found.
+                </div>
+              ) : (
+                <div style={{maxHeight:280,overflowY:"auto",borderRadius:12,border:"1px solid rgba(212,175,55,0.15)"}}>
+                  {pendingWithPhone.length > 0 && (
+                    <div style={{padding:"8px 14px 4px",fontSize:11,fontWeight:700,color:"#F57F17",textTransform:"uppercase",letterSpacing:0.4,background:"rgba(245,127,23,0.05)"}}>
+                      Pending RSVP
+                    </div>
+                  )}
+                  {pendingWithPhone.map(g => (
+                    <div key={g.id} className="bulk-guest-row">
+                      <div className="guest-avatar" style={{width:34,height:34,fontSize:13}}>{initials(getDisplayName(g))}</div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:13.5,fontWeight:500,color:"var(--color-dark-text)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{getDisplayName(g)}</div>
+                        <div style={{fontSize:11.5,color:"var(--color-light-text)"}}>{g.phone}</div>
+                      </div>
+                      <button
+                        className={`bulk-send-btn${bulkSentIds.has(g.id) ? " sent" : ""}`}
+                        onClick={() => sendBulkWhatsApp(g)}
+                      >
+                        {bulkSentIds.has(g.id) ? "✓ Sent" : "Send"}
+                      </button>
+                    </div>
+                  ))}
+                  {notPendingWithPhone.length > 0 && pendingWithPhone.length > 0 && (
+                    <div style={{padding:"8px 14px 4px",fontSize:11,fontWeight:700,color:"var(--color-light-text)",textTransform:"uppercase",letterSpacing:0.4,background:"rgba(0,0,0,0.02)"}}>
+                      Other Guests
+                    </div>
+                  )}
+                  {notPendingWithPhone.map(g => (
+                    <div key={g.id} className="bulk-guest-row">
+                      <div className="guest-avatar" style={{width:34,height:34,fontSize:13}}>{initials(getDisplayName(g))}</div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:13.5,fontWeight:500,color:"var(--color-dark-text)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{getDisplayName(g)}</div>
+                        <div style={{fontSize:11.5,color:"var(--color-light-text)"}}>{g.phone} · <span className={`rsvp-badge rsvp-${g.rsvp}`} style={{padding:"1px 7px",fontSize:10}}>{g.rsvp==="yes"?"Confirmed":g.rsvp==="no"?"Declined":"Pending"}</span></div>
+                      </div>
+                      <button
+                        className={`bulk-send-btn${bulkSentIds.has(g.id) ? " sent" : ""}`}
+                        onClick={() => sendBulkWhatsApp(g)}
+                      >
+                        {bulkSentIds.has(g.id) ? "✓ Sent" : "Send"}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <button className="btn-secondary" onClick={closeBulkModal} style={{marginTop:16}}>Close</button>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
