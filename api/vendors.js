@@ -1,4 +1,5 @@
 const { connectDb, handlePreflight, setCorsHeaders, getVendorModel } = require('./_lib/core');
+const { normalizeMediaList } = require('./_lib/r2');
 
 module.exports = async function handler(req, res) {
   if (handlePreflight(req, res)) { return; }
@@ -17,13 +18,10 @@ module.exports = async function handler(req, res) {
       .select('-__v')
       .lean();
 
-    // Normalize to the shape VendorsScreen expects
     const vendors = raw.map(v => {
-      const media = Array.isArray(v.media)
-        ? [...v.media]
-          .filter(item => item?.isVisible !== false)
-          .sort((a, b) => (a?.sortOrder ?? 0) - (b?.sortOrder ?? 0))
-        : [];
+      const media = normalizeMediaList(v.media)
+        .filter(item => item?.isVisible !== false)
+        .sort((a, b) => (a?.sortOrder ?? 0) - (b?.sortOrder ?? 0));
       const coverMedia = media.find(item => item?.isCover) || media[0] || null;
 
       return {

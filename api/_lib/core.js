@@ -88,6 +88,7 @@ function getUserModel() {
 function getVendorModel() {
   const mediaSchema = new mongoose.Schema(
     {
+      key: { type: String, default: '', trim: true },
       url: { type: String, required: true },
       type: { type: String, enum: ['IMAGE', 'VIDEO'], required: true },
       sortOrder: { type: Number, default: 0 },

@@ -132,6 +132,7 @@ export default function VendorPortfolioManager({ token, media, onVendorUpdated }
           updateItem(id, { progress: 100 });
           try {
             const data = await saveVendorMedia(token, {
+              key: presignedData.key,
               url: presignedData.publicUrl,
               type: getMediaType(file),
               filename: file.name,

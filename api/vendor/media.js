@@ -1,4 +1,5 @@
 const { connectDb, handlePreflight, setCorsHeaders, verifySession, getVendorModel } = require('../_lib/core');
+const { extractObjectKeyFromUrl, normalizeMediaList } = require('../_lib/r2');
 
 const ALLOWED_MEDIA_TYPES = ['IMAGE', 'VIDEO'];
 const MAX_CAPTION_LENGTH = 280;
@@ -16,13 +17,19 @@ function normalizeMediaForResponse(vendor) {
     return vendor;
   }
 
-  vendor.media = [...vendor.media].sort((a, b) => {
-    const orderA = typeof a.sortOrder === 'number' ? a.sortOrder : 0;
-    const orderB = typeof b.sortOrder === 'number' ? b.sortOrder : 0;
-    return orderA - orderB;
-  });
+  return {
+    ...vendor,
+    media: normalizeMediaList([...vendor.media].sort((a, b) => {
+      const orderA = typeof a?.sortOrder === 'number' ? a.sortOrder : 0;
+      const orderB = typeof b?.sortOrder === 'number' ? b.sortOrder : 0;
+      return orderA - orderB;
+    })),
+  };
+}
 
-  return vendor;
+function serializeVendor(vendor) {
+  const vendorObject = typeof vendor?.toObject === 'function' ? vendor.toObject() : vendor;
+  return normalizeMediaForResponse(vendorObject);
 }
 
 module.exports = async function handler(req, res) {
@@ -39,10 +46,11 @@ module.exports = async function handler(req, res) {
     const Vendor = getVendorModel();
 
     if (req.method === 'POST') {
-      const { url, type, sortOrder, filename, size, caption, altText, isVisible } = req.body || {};
+      const { key, url, type, sortOrder, filename, size, caption, altText, isVisible } = req.body || {};
+      const normalizedKey = typeof key === 'string' && key ? key.replace(/^\/+/, '') : extractObjectKeyFromUrl(url);
 
-      if (!url || typeof url !== 'string' || !url.startsWith('http')) {
-        return res.status(400).json({ error: 'A valid url is required.' });
+      if (!normalizedKey) {
+        return res.status(400).json({ error: 'A valid media key is required.' });
       }
       if (!ALLOWED_MEDIA_TYPES.includes(type)) {
         return res.status(400).json({ error: 'type must be IMAGE or VIDEO.' });
@@ -61,8 +69,9 @@ module.exports = async function handler(req, res) {
         }, -1) + 1
         : 0;
 
-      const mediaItem = {
-        url,
+      vendor.media.push({
+        key: normalizedKey,
+        url: typeof url === 'string' ? url : '',
         type,
         sortOrder: typeof sortOrder === 'number' ? sortOrder : nextSortOrder,
         filename: typeof filename === 'string' ? filename.slice(0, 255) : '',
@@ -71,12 +80,10 @@ module.exports = async function handler(req, res) {
         altText: sanitizeText(altText, MAX_ALT_TEXT_LENGTH),
         isVisible: typeof isVisible === 'boolean' ? isVisible : true,
         isCover: !vendor.media.some(item => item?.isCover),
-      };
+      });
 
-      vendor.media.push(mediaItem);
       await vendor.save();
-
-      return res.status(201).json({ vendor: normalizeMediaForResponse(vendor.toObject()) });
+      return res.status(201).json({ vendor: serializeVendor(vendor) });
     }
 
     if (req.method === 'PUT') {
@@ -111,7 +118,7 @@ module.exports = async function handler(req, res) {
         });
 
         await vendor.save();
-        return res.status(200).json({ vendor: normalizeMediaForResponse(vendor.toObject()) });
+        return res.status(200).json({ vendor: serializeVendor(vendor) });
       }
 
       if (!mediaId || typeof mediaId !== 'string') {
@@ -139,7 +146,7 @@ module.exports = async function handler(req, res) {
       }
 
       await vendor.save();
-      return res.status(200).json({ vendor: normalizeMediaForResponse(vendor.toObject()) });
+      return res.status(200).json({ vendor: serializeVendor(vendor) });
     }
 
     if (req.method === 'DELETE') {
@@ -181,7 +188,7 @@ module.exports = async function handler(req, res) {
       });
 
       await vendor.save();
-      return res.status(200).json({ vendor: normalizeMediaForResponse(vendor.toObject()) });
+      return res.status(200).json({ vendor: serializeVendor(vendor) });
     }
 
     res.setHeader('Allow', 'POST, PUT, DELETE, OPTIONS');
