@@ -5,9 +5,10 @@ const { OAuth2Client } = require('google-auth-library');
 const { connectDb, getUserModel, getPlannerModel } = require('../api/_lib/core');
 const { createRes } = require('./helpers/testUtils.cjs');
 
-const handler = require('../api/auth/google');
+const authHandler = require('../api/auth');
+const { handleGoogleAuth: handler } = authHandler;
 
-describe('api/auth/google.js', function () {
+describe('api/auth.js -> google route', function () {
   // ── connectDb (cachedConnection is null here — must run before any DB mock) ──
   it('connectDb throws when MONGODB_URI is not set', async function () {
     const savedUri = process.env.MONGODB_URI;
@@ -20,10 +21,14 @@ describe('api/auth/google.js', function () {
 
   // ── Preflight ────────────────────────────────────────────────────────────────
   it('handles OPTIONS preflight with 204', async function () {
-    const req = { method: 'OPTIONS', headers: { origin: 'https://example.com' } };
+    const req = {
+      method: 'OPTIONS',
+      headers: { origin: 'https://example.com' },
+      query: { route: 'google' },
+    };
     const res = createRes();
 
-    await handler(req, res);
+    await authHandler(req, res);
 
     assert.equal(res.statusCode, 204);
     assert.equal(res.ended, true);

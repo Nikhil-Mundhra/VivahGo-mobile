@@ -4,7 +4,8 @@ const mongoose = require('mongoose');
 
 const { createRes } = require('./helpers/testUtils.cjs');
 
-const handler = require('../api/planner/me');
+const plannerHandler = require('../api/planner');
+const { handlePlannerMe: handler } = plannerHandler;
 
 function makeToken(payload = {}) {
   return jwt.sign(
@@ -29,7 +30,7 @@ function makePlannerDoc(overrides = {}) {
   };
 }
 
-describe('api/planner/me.js', function () {
+describe('api/planner.js -> me route', function () {
   let originalMongooseConnect;
 
   before(function () {
@@ -45,10 +46,10 @@ describe('api/planner/me.js', function () {
 
   // ── Preflight ────────────────────────────────────────────────────────────────
   it('handles OPTIONS preflight with 204', async function () {
-    const req = { method: 'OPTIONS', headers: {} };
+    const req = { method: 'OPTIONS', headers: {}, query: { route: 'me' } };
     const res = createRes();
 
-    await handler(req, res);
+    await plannerHandler(req, res);
 
     assert.equal(res.statusCode, 204);
     assert.equal(res.ended, true);

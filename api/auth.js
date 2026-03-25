@@ -7,21 +7,32 @@ const {
   createSessionToken,
   getPlannerModel,
   getUserModel,
+  getVendorModel,
   handlePreflight,
   normalizeEmail,
   normalizeStaffRole,
   resolveStaffRole,
   sanitizePlanner,
   setCorsHeaders,
-} = require('../_lib/core');
+  verifySession,
+} = require('./_lib/core');
 
-module.exports = async function handler(req, res) {
-  if (handlePreflight(req, res)) {
-    return;
-  }
+/******************************************************************************
+ * Route Resolution
+ ******************************************************************************/
 
-  setCorsHeaders(req, res);
+function resolveAuthRoute(req) {
+  return String(req.query?.route || '').trim().toLowerCase();
+}
 
+/******************************************************************************
+ * /api/auth/google
+ *
+ * Google sign-in remains isolated here so future auth providers can be added
+ * beside it without mixing the token-verification flow with account deletion.
+ ******************************************************************************/
+
+async function handleGoogleAuth(req, res) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST, OPTIONS');
     return res.status(405).json({ error: 'Method not allowed.' });
@@ -106,4 +117,70 @@ module.exports = async function handler(req, res) {
     console.error('Google auth failed:', error);
     return res.status(401).json({ error: 'Google sign-in could not be verified.' });
   }
-};
+}
+
+/******************************************************************************
+ * /api/auth/me
+ *
+ * Account deletion is intentionally separate from sign-in logic so future
+ * profile/account endpoints can live in this section with their own methods.
+ ******************************************************************************/
+
+async function handleAuthMe(req, res) {
+  if (req.method !== 'DELETE') {
+    res.setHeader('Allow', 'DELETE, OPTIONS');
+    return res.status(405).json({ error: 'Method not allowed.' });
+  }
+
+  const { auth, error } = verifySession(req);
+  if (error) {
+    return res.status(401).json({ error });
+  }
+
+  try {
+    await connectDb();
+    const User = getUserModel();
+    const Planner = getPlannerModel();
+    const Vendor = getVendorModel();
+
+    await Promise.all([
+      User.deleteOne({ googleId: auth.sub }),
+      Planner.deleteOne({ googleId: auth.sub }),
+      Vendor.deleteOne({ googleId: auth.sub }),
+    ]);
+
+    return res.status(200).json({ ok: true });
+  } catch (err) {
+    console.error('DELETE /auth/me error:', err);
+    return res.status(500).json({ error: 'Failed to delete account. Please try again.' });
+  }
+}
+
+/******************************************************************************
+ * Main Entrypoint
+ ******************************************************************************/
+
+async function handler(req, res) {
+  if (handlePreflight(req, res)) {
+    return;
+  }
+
+  setCorsHeaders(req, res);
+
+  const route = resolveAuthRoute(req);
+
+  if (route === 'google') {
+    return handleGoogleAuth(req, res);
+  }
+
+  if (route === 'me') {
+    return handleAuthMe(req, res);
+  }
+
+  res.setHeader('Allow', 'OPTIONS');
+  return res.status(404).json({ error: 'Auth route not found.' });
+}
+
+module.exports = handler;
+module.exports.handleGoogleAuth = handleGoogleAuth;
+module.exports.handleAuthMe = handleAuthMe;

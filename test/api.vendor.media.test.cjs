@@ -4,7 +4,7 @@ const jwt = require('jsonwebtoken');
 const { createRes } = require('./helpers/testUtils.cjs');
 
 const corePath = require.resolve('../api/_lib/core');
-const handlerPath = require.resolve('../api/vendor/media');
+const handlerPath = require.resolve('../api/vendor');
 
 function makeToken(payload = {}) {
   return jwt.sign(
@@ -54,7 +54,7 @@ function makeVendorDoc(items = []) {
   };
 }
 
-describe('api/vendor/media.js', function () {
+describe('api/vendor.js -> media route', function () {
   const originalCore = require(corePath);
 
   afterEach(function () {
@@ -74,7 +74,7 @@ describe('api/vendor/media.js', function () {
       }),
     };
 
-    const handler = require(handlerPath);
+    const { handleVendorMedia: handler } = require(handlerPath);
     const req = {
       method: 'POST',
       headers: { authorization: `Bearer ${makeToken()}` },
@@ -112,7 +112,7 @@ describe('api/vendor/media.js', function () {
       }),
     };
 
-    const handler = require(handlerPath);
+    const { handleVendorMedia: handler } = require(handlerPath);
     const req = {
       method: 'PUT',
       headers: { authorization: `Bearer ${makeToken()}` },
@@ -153,7 +153,7 @@ describe('api/vendor/media.js', function () {
       }),
     };
 
-    const handler = require(handlerPath);
+    const { handleVendorMedia: handler } = require(handlerPath);
     const reorderReq = {
       method: 'PUT',
       headers: { authorization: `Bearer ${makeToken()}` },
@@ -199,7 +199,7 @@ describe('api/vendor/media.js', function () {
       }),
     };
 
-    const handler = require(handlerPath);
+    const { handleVendorMedia: handler } = require(handlerPath);
     const req = {
       method: 'POST',
       headers: { authorization: `Bearer ${makeToken()}` },
@@ -233,7 +233,7 @@ describe('api/vendor/media.js', function () {
       }),
     };
 
-    const handler = require(handlerPath);
+    const { handleVendorMedia: handler } = require(handlerPath);
     const req = {
       method: 'POST',
       headers: { authorization: `Bearer ${makeToken()}` },
@@ -266,7 +266,7 @@ describe('api/vendor/media.js', function () {
       }),
     };
 
-    const handler = require(handlerPath);
+    const { handleVendorMedia: handler } = require(handlerPath);
     const req = {
       method: 'POST',
       headers: { authorization: `Bearer ${makeToken()}` },

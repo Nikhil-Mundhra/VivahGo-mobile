@@ -3,9 +3,9 @@ const mongoose = require('mongoose');
 
 const { createRes } = require('./helpers/testUtils.cjs');
 
-const handler = require('../api/planner/public');
+const { handlePlannerPublic: handler } = require('../api/planner');
 
-describe('api/planner/public.js', function () {
+describe('api/planner.js -> public route', function () {
   let originalMongooseConnect;
 
   before(function () {

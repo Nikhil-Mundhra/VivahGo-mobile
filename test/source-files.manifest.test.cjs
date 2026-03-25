@@ -5,11 +5,12 @@ const { appPath, toAbs } = require('./helpers/testUtils.cjs');
 
 const SOURCE_JS_FILES = [
   'api/_lib/core.js',
-  'api/auth/google.js',
+  'api/admin.js',
+  'api/auth.js',
   'api/feedback.js',
   'api/health.js',
-  'api/planner/access.js',
-  'api/planner/me.js',
+  'api/planner.js',
+  'api/vendor.js',
   appPath('eslint.config.js'),
   appPath('server/index.js'),
   appPath('server/models/Planner.js'),

@@ -5,7 +5,7 @@ const mongoose = require('mongoose');
 const { createRes } = require('./helpers/testUtils.cjs');
 const { getPlannerModel, getUserModel } = require('../api/_lib/core');
 
-const handler = require('../api/planner/me/collaborators');
+const { handlePlannerCollaborators: handler } = require('../api/planner');
 
 function makeToken(payload = {}) {
   return jwt.sign(
@@ -43,7 +43,7 @@ function makePlannerDoc(overrides = {}) {
   };
 }
 
-describe('api/planner/me/collaborators.js', function () {
+describe('api/planner.js -> collaborators route', function () {
   let Planner, User;
   let origConnect;
   let origFindOne, origUserFindOne;
