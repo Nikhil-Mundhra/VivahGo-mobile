@@ -4,7 +4,7 @@ import GoogleLoginButton from './components/GoogleLoginButton';
 import VendorRegistrationForm from './components/VendorRegistrationForm';
 import VendorPortfolioManager from './components/VendorPortfolioManager';
 import VendorPortfolioGallery from './components/VendorPortfolioGallery';
-import { fetchVendorProfile, loginWithGoogle, removeVendorMedia } from './api';
+import { fetchVendorProfile, loginWithGoogle } from './api';
 
 const SESSION_KEY = 'vivahgo.session';
 
@@ -21,7 +21,6 @@ export default function VendorPortal() {
   const [session, setSession] = useState(() => readSession());
   const [vendor, setVendor] = useState(null);
   const [vendorLoadError, setVendorLoadError] = useState('');
-  const [removeError, setRemoveError] = useState('');
   // Track which token we last completed a fetch for.
   // loadingVendor is derived: we have a token but haven't finished fetching for it yet.
   const [lastFetchedToken, setLastFetchedToken] = useState(null);
@@ -72,16 +71,6 @@ export default function VendorPortal() {
       setSession(newSession);
     } catch {
       // Error shown implicitly; user can retry
-    }
-  }
-
-  async function handleRemoveMedia(mediaId) {
-    setRemoveError('');
-    try {
-      const data = await removeVendorMedia(session.token, mediaId);
-      setVendor(data.vendor);
-    } catch (err) {
-      setRemoveError(err.message || 'Could not remove media item.');
     }
   }
 
@@ -179,23 +168,24 @@ export default function VendorPortal() {
             </div>
 
             {/* Portfolio section */}
-            <div className="bg-white rounded-2xl shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-1">Portfolio</h2>
-              <p className="text-sm text-gray-500 mb-4">Upload photos and videos to showcase your work.</p>
+            <div className="grid gap-6 lg:grid-cols-[1.3fr_0.9fr]">
+              <div className="bg-white rounded-2xl shadow-sm p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-1">Portfolio Manager</h2>
+                <p className="text-sm text-gray-500 mb-4">Upload, organize, and fine-tune what couples see first.</p>
 
-              <VendorPortfolioManager
-                token={session.token}
-                onMediaAdded={updatedVendor => setVendor(updatedVendor)}
-              />
+                <VendorPortfolioManager
+                  token={session.token}
+                  media={vendor.media || []}
+                  onVendorUpdated={updatedVendor => setVendor(updatedVendor)}
+                />
+              </div>
 
-              {removeError && (
-                <p className="text-sm text-red-600 mt-3" role="alert">{removeError}</p>
-              )}
+              <div className="bg-white rounded-2xl shadow-sm p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-1">Live Preview</h2>
+                <p className="text-sm text-gray-500 mb-4">This is how your public portfolio is currently being presented.</p>
 
-              <VendorPortfolioGallery
-                media={vendor.media || []}
-                onRemove={handleRemoveMedia}
-              />
+                <VendorPortfolioGallery media={vendor.media || []} />
+              </div>
             </div>
           </div>
         )}
