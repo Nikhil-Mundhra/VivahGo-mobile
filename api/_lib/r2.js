@@ -40,4 +40,20 @@ async function createPresignedPutUrl(key, contentType, expiresIn = 3600) {
   return getSignedUrl(client, command, { expiresIn });
 }
 
-module.exports = { createPresignedPutUrl };
+function createPublicObjectUrl(key) {
+  const publicBase = (process.env.R2_PUBLIC_URL || '').trim();
+  if (!publicBase) {
+    throw new Error('R2_PUBLIC_URL is not configured.');
+  }
+
+  let baseUrl;
+  try {
+    baseUrl = new URL(publicBase.endsWith('/') ? publicBase : `${publicBase}/`);
+  } catch {
+    throw new Error('R2_PUBLIC_URL must be a valid absolute URL.');
+  }
+
+  return new URL(key, baseUrl).toString();
+}
+
+module.exports = { createPresignedPutUrl, createPublicObjectUrl };

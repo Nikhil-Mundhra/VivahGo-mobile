@@ -1,6 +1,6 @@
 const { randomUUID } = require('crypto');
 const { connectDb, handlePreflight, setCorsHeaders, verifySession } = require('../_lib/core');
-const { createPresignedPutUrl } = require('../_lib/r2');
+const { createPresignedPutUrl, createPublicObjectUrl } = require('../_lib/r2');
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
 
@@ -40,8 +40,7 @@ module.exports = async function handler(req, res) {
   try {
     await connectDb();
     const uploadUrl = await createPresignedPutUrl(key, contentType);
-    const publicBase = (process.env.R2_PUBLIC_URL || '').replace(/\/$/, '');
-    const publicUrl = `${publicBase}/${key}`;
+    const publicUrl = createPublicObjectUrl(key);
 
     return res.status(200).json({ uploadUrl, key, publicUrl });
   } catch (error) {
