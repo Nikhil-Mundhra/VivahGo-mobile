@@ -93,6 +93,10 @@ function getVendorModel() {
       sortOrder: { type: Number, default: 0 },
       filename: { type: String, default: '' },
       size: { type: Number, default: 0 },
+      caption: { type: String, default: '', trim: true, maxlength: 280 },
+      altText: { type: String, default: '', trim: true, maxlength: 180 },
+      isCover: { type: Boolean, default: false },
+      isVisible: { type: Boolean, default: true },
     },
     { _id: true }
   );

@@ -206,6 +206,10 @@ export function saveVendorMedia(token, mediaData) {
   return request('/vendor/media', { method: 'POST', token, body: mediaData });
 }
 
+export function updateVendorMedia(token, mediaData) {
+  return request('/vendor/media', { method: 'PUT', token, body: mediaData });
+}
+
 export function removeVendorMedia(token, mediaId) {
   return request('/vendor/media', { method: 'DELETE', token, body: { mediaId } });
 }

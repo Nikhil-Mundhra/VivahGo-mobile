@@ -96,7 +96,15 @@ function VendorsScreen({ vendors }) {
         return (
         <div className="vendor-card vendor-card-clickable" key={v.id} onClick={()=>setSelectedVendor(v)}>
           <div className="vendor-top">
-            <div className="vendor-icon">{v.emoji}</div>
+            {v.coverImageUrl ? (
+              <img
+                src={v.coverImageUrl}
+                alt={v.name}
+                style={{ width: 56, height: 56, borderRadius: 14, objectFit: "cover", flexShrink: 0 }}
+              />
+            ) : (
+              <div className="vendor-icon">{v.emoji}</div>
+            )}
             <div className="vendor-info">
               <div className="vendor-name">{v.name}</div>
               <div className="vendor-type">{v.type} · {v.city}</div>
