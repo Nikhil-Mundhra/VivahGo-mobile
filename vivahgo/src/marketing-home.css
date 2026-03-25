@@ -5,13 +5,17 @@
   --marketing-surface: rgba(255, 248, 239, 0.86);
   --marketing-surface-strong: rgba(255, 250, 244, 0.96);
   --marketing-ink: #2d1a15;
-  --marketing-muted: #6d5046;
+  --marketing-muted: #5a3f36;
+  --marketing-muted-strong: #493129;
   --marketing-line: rgba(86, 50, 37, 0.12);
   --marketing-accent: #bb4d28;
   --marketing-accent-deep: #7d2512;
   --marketing-accent-soft: #f3bf73;
   --marketing-highlight: #fff0d3;
+  --marketing-on-dark: #fff8f0;
+  --marketing-on-dark-muted: rgba(255, 245, 234, 0.92);
   --marketing-shadow: 0 30px 80px rgba(94, 42, 22, 0.14);
+  --iphone-17-screen-ratio: 1206 / 2622;
 }
 
 body[data-route='home'] {
@@ -114,6 +118,17 @@ body[data-route='home'] #root {
   color: var(--marketing-muted);
 }
 
+.marketing-summary,
+.marketing-feature-card p,
+.marketing-section-heading p,
+.marketing-shot-caption,
+.marketing-price-description,
+.marketing-faq-item p,
+.marketing-footer-copy p,
+.marketing-social-link span {
+  color: var(--marketing-muted-strong);
+}
+
 .marketing-nav {
   display: inline-flex;
   align-items: center;
@@ -129,6 +144,7 @@ body[data-route='home'] #root {
   text-decoration: none;
   font-size: 0.95rem;
   font-weight: 600;
+  color: var(--marketing-muted-strong);
 }
 
 .marketing-auth {
@@ -145,6 +161,7 @@ body[data-route='home'] #root {
   border-radius: 999px;
   font-size: 0.92rem;
   white-space: nowrap;
+  color: var(--marketing-muted-strong);
 }
 
 .marketing-auth-button,
@@ -176,7 +193,7 @@ body[data-route='home'] #root {
 .marketing-secondary-action,
 .marketing-price-action,
 .marketing-price-action-ghost {
-  color: var(--marketing-ink);
+  color: var(--marketing-accent-deep);
   background: rgba(255, 250, 246, 0.74);
   border: 1px solid rgba(87, 50, 38, 0.14);
 }
@@ -239,6 +256,13 @@ body[data-route='home'] #root {
 .marketing-panel-label,
 .marketing-panel-metric {
   color: var(--marketing-accent-deep);
+}
+
+.marketing-panel-label,
+.marketing-panel-metric,
+.marketing-section-kicker,
+.marketing-kicker {
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.18);
 }
 
 .marketing-hero h1,
@@ -388,7 +412,7 @@ body[data-route='home'] #root {
 }
 
 .marketing-feature-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .marketing-feature-card,
@@ -402,6 +426,10 @@ body[data-route='home'] #root {
 .marketing-feature-card {
   padding: 24px;
   text-align: center;
+}
+
+.marketing-feature-card-left {
+  text-align: left;
 }
 
 .marketing-feature-card h3 {
@@ -426,12 +454,32 @@ body[data-route='home'] #root {
 .marketing-section-band strong,
 .marketing-section-band span,
 .marketing-section-band .marketing-section-kicker {
-  color: #fff5ea;
+  color: var(--marketing-on-dark);
+}
+
+.marketing-section-band p,
+.marketing-section-band span {
+  color: var(--marketing-on-dark-muted);
 }
 
 .marketing-band-points {
   display: grid;
   gap: 16px;
+}
+
+.marketing-band-copy-left {
+  text-align: left;
+}
+
+.marketing-band-copy-centered {
+  max-width: 54rem;
+  margin-inline: auto;
+  text-align: center;
+}
+
+.marketing-band-points-inline {
+  margin-top: 22px;
+  margin-bottom: 24px;
 }
 
 .marketing-band-points div {
@@ -466,7 +514,11 @@ body[data-route='home'] #root {
 .marketing-price-card-featured .marketing-price-description,
 .marketing-price-card-featured li,
 .marketing-price-card-featured .marketing-price-value span {
-  color: #fff7ee;
+  color: var(--marketing-on-dark);
+}
+
+.marketing-price-card-featured .marketing-price-ribbon {
+  color: #5a210f;
 }
 
 .marketing-price-ribbon {
@@ -620,6 +672,153 @@ body[data-route='home'] #root {
 .marketing-faq-item p {
   margin-top: 12px;
   line-height: 1.7;
+}
+
+.marketing-product-shot {
+  display: grid;
+  grid-template-rows: minmax(28px, auto) minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+  height: 100%;
+  padding: 18px;
+  border-radius: 26px;
+  background: rgba(255, 252, 248, 0.9);
+  border: 1px solid rgba(87, 50, 38, 0.1);
+  box-shadow: 0 18px 40px rgba(63, 31, 18, 0.12);
+}
+
+.marketing-shot-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 28px;
+}
+
+.marketing-shot-header-centered {
+  justify-content: center;
+  text-align: center;
+}
+
+.marketing-shot-header strong {
+  color: var(--marketing-ink);
+  font-size: 0.98rem;
+}
+
+.marketing-shot-caption {
+  margin: 0;
+  color: var(--marketing-muted);
+  font-size: 0.92rem;
+  line-height: 1.55;
+  text-align: center;
+}
+
+.marketing-screen-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+  align-items: stretch;
+}
+
+.marketing-product-views-section .marketing-section-heading {
+  max-width: 100%;
+  text-align: center;
+}
+
+.marketing-panel-stack {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 18px;
+}
+
+.marketing-app-preview {
+  position: relative;
+  display: grid;
+  place-items: start center;
+  overflow: hidden;
+  border-radius: 22px;
+  background: #fbf6ef;
+  border: 1px solid rgba(87, 50, 38, 0.12);
+  pointer-events: none;
+  --marketing-preview-width: 100%;
+  --marketing-preview-scale: 1;
+}
+
+.marketing-app-preview::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0));
+  pointer-events: none;
+  z-index: 2;
+}
+
+.marketing-app-preview > * {
+  display: block;
+  width: var(--marketing-preview-width);
+  max-width: none;
+  flex: 0 0 auto;
+  transform: scale(var(--marketing-preview-scale));
+  transform-origin: top center;
+}
+
+.marketing-app-preview-dashboard {
+  height: 650px;
+  max-height: 650px;
+}
+
+.marketing-app-preview-dashboard > * {
+  --marketing-preview-width: 122%;
+  --marketing-preview-scale: 0.82;
+}
+
+.marketing-app-preview-events,
+.marketing-app-preview-guests,
+.marketing-app-preview-budget {
+  height: 650px;
+  max-height: 650px;
+}
+
+.marketing-app-preview-events > *,
+.marketing-app-preview-guests > *,
+.marketing-app-preview-budget > * {
+  --marketing-preview-width: 158%;
+  --marketing-preview-scale: 0.63;
+}
+
+.marketing-section-contrast {
+  background: linear-gradient(180deg, rgba(255, 248, 240, 0.92) 0%, rgba(252, 238, 219, 0.96) 100%);
+}
+
+.marketing-differentiator-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 28px;
+}
+
+.marketing-differentiator-card {
+  border-radius: 24px;
+  background: var(--marketing-surface-strong);
+  border: 1px solid rgba(87, 50, 38, 0.12);
+  padding: 24px;
+  box-shadow: 0 18px 38px rgba(63, 31, 18, 0.08);
+}
+
+.marketing-differentiator-card p {
+  margin: 0;
+  color: var(--marketing-ink);
+  font-size: 1.05rem;
+  line-height: 1.45;
+  font-weight: 700;
+}
+
+.marketing-final-cta .marketing-section-heading {
+  max-width: 42rem;
+}
+
+.marketing-final-actions {
+  justify-content: center;
 }
 
 .marketing-footer {
@@ -1169,8 +1368,13 @@ body[data-route='home'] #root {
   .marketing-footer,
   .marketing-feature-grid,
   .marketing-pricing-grid,
-  .marketing-social-links {
+  .marketing-social-links,
+  .marketing-differentiator-list {
     grid-template-columns: 1fr;
+  }
+
+  .marketing-screen-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .marketing-pricing-grid {
@@ -1187,6 +1391,31 @@ body[data-route='home'] #root {
     font-size: 0.62rem;
   }
 
+  .marketing-product-shot {
+    padding: 16px;
+  }
+
+  .marketing-app-preview-dashboard {
+    height: 360px;
+  }
+
+  .marketing-app-preview-dashboard > * {
+    --marketing-preview-width: 118%;
+    --marketing-preview-scale: 0.85;
+  }
+
+  .marketing-app-preview-events,
+  .marketing-app-preview-guests,
+  .marketing-app-preview-budget {
+    aspect-ratio: var(--iphone-17-screen-ratio);
+  }
+
+  .marketing-app-preview-events > *,
+  .marketing-app-preview-guests > *,
+  .marketing-app-preview-budget > * {
+    --marketing-preview-width: 150%;
+    --marketing-preview-scale: 0.67;
+  }
 }
 
 @media (max-width: 720px) {
@@ -1259,8 +1488,28 @@ body[data-route='home'] #root {
   }
 
   .marketing-proof-strip,
-  .marketing-panel-stack {
+  .marketing-panel-stack,
+  .marketing-screen-grid {
     grid-template-columns: 1fr;
+  }
+
+  .marketing-app-preview-dashboard,
+  .marketing-app-preview-events,
+  .marketing-app-preview-guests,
+  .marketing-app-preview-budget {
+    aspect-ratio: auto;
+  }
+
+  .marketing-app-preview-dashboard > * {
+    --marketing-preview-width: 100%;
+    --marketing-preview-scale: 1;
+  }
+
+  .marketing-app-preview-events > *,
+  .marketing-app-preview-guests > *,
+  .marketing-app-preview-budget > * {
+    --marketing-preview-width: 100%;
+    --marketing-preview-scale: 1;
   }
 
   .marketing-billing-toggle {
@@ -1321,5 +1570,18 @@ body[data-route='home'] #root {
 
   .marketing-login-dialog h3 {
     font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 560px) {
+  .marketing-product-shot {
+    padding: 14px;
+    border-radius: 22px;
+  }
+
+  .marketing-shot-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
   }
 }

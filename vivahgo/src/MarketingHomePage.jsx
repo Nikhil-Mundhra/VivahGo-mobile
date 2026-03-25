@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import "./styles.css";
 import "./marketing-home.css";
 import TermsConditionsModal from "./components/TermsConditionsModal";
 import FeedbackModal from "./components/FeedbackModal";
@@ -6,41 +7,64 @@ import LegalFooter from "./components/LegalFooter";
 import GoogleLoginButton from "./components/GoogleLoginButton";
 import SubscriptionCheckoutSheet from "./components/SubscriptionCheckoutSheet";
 import SubscriptionCheckoutPage from "./components/SubscriptionCheckoutPage";
+import Dashboard from "./components/Dashboard";
+import EventsScreen from "./components/EventsScreen";
+import BudgetScreen from "./components/BudgetScreen";
+import GuestsScreen from "./components/GuestsScreen";
 import { confirmCheckoutPayment, createCheckoutSession, getCheckoutQuote, loginWithGoogle } from "./api";
+import { createDemoPlanner } from "./plannerDefaults";
 
 const SESSION_STORAGE_KEY = "vivahgo.session";
+const DEMO_PLANNER = createDemoPlanner();
 
-const featureGroups = [
+const trustSignals = [
+  "Used by early couples and planners across India",
+  "Built for multi-event Indian weddings",
+  "Guests, budgets, vendors, and timelines in one place",
+];
+
+const painPoints = [
   {
-    eyebrow: "Plan Together",
-    title: "Shared timelines for every ceremony and task",
-    description: "Keep families, partners, and planners aligned with one view of events, responsibilities, and key deadlines.",
+    title: "WhatsApp is where decisions disappear.",
+    description: "Vendor quotes, family approvals, and guest updates get buried fast.",
   },
   {
-    eyebrow: "Budget Control",
-    title: "See spending before it becomes stressful",
-    description: "Track categories, compare actuals against budget, and catch overspending early instead of after vendor payments pile up.",
+    title: "Spreadsheets break the moment plans change.",
+    description: "Nobody knows which guest list or budget version is the latest.",
   },
   {
-    eyebrow: "Guest Flow",
-    title: "Manage lists, groups, and RSVPs with context",
-    description: "Organize guest details by event, family, or priority so invitations and headcounts stay accurate across functions.",
+    title: "Family coordination turns into full-time follow-up.",
+    description: "You keep answering the same questions across calls, chats, and side conversations.",
   },
   {
-    eyebrow: "Vendor Hub",
-    title: "Store contacts, notes, and decisions in one place",
-    description: "Keep decorators, caterers, photographers, and venue discussions attached to your plan instead of buried across chats.",
+    title: "Small misses become expensive.",
+    description: "Late payments, duplicate work, and forgotten tasks usually come from scattered planning.",
+  },
+];
+
+const benefitCards = [
+  {
+    title: "Everyone sees the same plan",
+    description: "Couples, parents, and planners stay aligned without repeated updates.",
   },
   {
-    eyebrow: "Collaborator Access",
-    title: "Let the right people edit the right plan",
-    description: "Share a wedding workspace with owners, editors, or viewers so coordination stays secure and intentional.",
+    title: "Nothing important slips through",
+    description: "Track tasks, payments, guest details, and event timelines in one place.",
   },
   {
-    eyebrow: "Live Persistence",
-    title: "Return to your planner exactly where you left off",
-    description: "Use demo mode for quick exploration or Google sign-in for saved planner data that follows you across sessions.",
+    title: "Budget stress shows up earlier",
+    description: "Spot pending payments and overspending before they snowball.",
   },
+  {
+    title: "Planning feels calmer",
+    description: "Less chasing. Fewer surprises. More headspace for the wedding itself.",
+  },
+];
+
+const differentiators = [
+  "WhatsApp is for talking. It is terrible at keeping a wedding on track.",
+  "Excel can store a plan. It cannot keep a family aligned.",
+  "VivahGo keeps the latest plan live, shared, and visible to the people who matter.",
 ];
 
 const plans = [
@@ -48,46 +72,46 @@ const plans = [
     name: "Starter",
     monthlyPrice: 0,
     yearlyPrice: 0,
-    description: "For couples exploring the workflow before locking in their planning stack.",
-    features: ["1 wedding workspace", "Core budget, tasks, guest, and vendor tracking", "Demo planner access", "Google sign-in"],
+    description: "Best for getting your wedding out of chats and into one clear workspace.",
+    features: ["1 wedding workspace", "Events, guests, budget, and vendor tracking", "Google sign-in", "Shareable planning foundation"],
   },
   {
     name: "Premium",
     monthlyPrice: 2000,
     yearlyPrice: 1600,
-    description: "For active planning with shared ownership, faster coordination, and a cleaner handoff to families.",
-    features: ["Everything in Starter, plus:", "Multiple wedding workspaces", "Collaborator permissions", "Priority planner sync"],
+    description: "Best for active planning with more family involvement and tighter coordination.",
+    features: ["Everything in Starter", "Multiple wedding workspaces", "Collaborator permissions", "Priority planner sync"],
     featured: true,
   },
   {
     name: "Studio",
     monthlyPrice: 5000,
     yearlyPrice: 4000,
-    description: "For professional agencies and power planners.",
-    features: ["Everything in Premium, plus:", "Client-ready workspaces", "Team collaboration", "Admin visibility across plans"],
+    description: "Best for planners and studios running multiple client weddings.",
+    features: ["Everything in Premium", "Client-ready workspaces", "Team collaboration", "Admin visibility across plans"],
   },
 ];
 
 const faqs = [
   {
-    question: "Can I try VivahGo before signing in?",
-    answer: "Yes. The planner supports a demo mode with seeded wedding data so you can inspect the workflow before connecting a Google account.",
+    question: "Is VivahGo for couples or planners?",
+    answer: "Both. Couples and families can run their own wedding here, and planners can use it to manage client coordination with more visibility.",
   },
   {
-    question: "What happens after I sign in with Google?",
-    answer: "VivahGo creates or restores your account, loads your planner, and keeps future changes synced to your saved workspace.",
+    question: "Can family members be involved without creating more confusion?",
+    answer: "Yes. VivahGo is built for shared visibility, so people can stay involved without relying on scattered chats and repeated updates.",
   },
   {
-    question: "Can multiple people manage the same wedding plan?",
-    answer: "Yes. Shared plans support collaborator access so owners can grant editor or viewer permissions to family members or planning partners.",
+    question: "When should we start using it?",
+    answer: "As early as possible. It helps most before details spread across WhatsApp, notes, and spreadsheets.",
   },
   {
-    question: "Does VivahGo work for weddings with multiple ceremonies?",
-    answer: "Yes. You can structure events, tasks, guests, and vendor details across the full wedding timeline instead of forcing everything into one day.",
+    question: "Does it replace WhatsApp completely?",
+    answer: "Not necessarily. People may still message, but VivahGo becomes the place where the actual plan stays updated and trackable.",
   },
   {
-    question: "Is the Premium plan required to keep my planner saved?",
-    answer: "No. Saved planning with Google sign-in works on the free tier. Premium is positioned for heavier collaboration and multi-workspace usage.",
+    question: "Can it handle weddings with multiple ceremonies?",
+    answer: "Yes. It is designed for Indian weddings with several events, many stakeholders, and lots of moving parts.",
   },
 ];
 
@@ -215,7 +239,7 @@ export default function MarketingHomePage() {
   const isSignedIn = Boolean(session?.mode && (session?.user || session?.token));
   const isYearlyBilling = billingCycle === "yearly";
   const firstName = session?.user?.given_name || session?.user?.name?.split(" ")[0] || "there";
-  const primaryCtaLabel = isSignedIn ? "Open Your Planner" : "Login / Signup";
+  const primaryCtaLabel = isSignedIn ? "Open Your Wedding Workspace" : "Create Your Wedding Workspace";
 
   function handleChoosePlan(planName) {
     const planKey = planName.toLowerCase();
@@ -362,10 +386,10 @@ export default function MarketingHomePage() {
         </a>
 
         <nav className="marketing-nav" aria-label="Homepage sections">
-          <a href="#features">Features</a>
+          <a href="#problem">Why It Matters</a>
+          <a href="#product">Product</a>
           <a href="#pricing">Pricing</a>
           <a href="#faqs">FAQs</a>
-          <a href="#social">Social</a>
           <a href="/vendor">For Vendors</a>
         </nav>
 
@@ -380,112 +404,200 @@ export default function MarketingHomePage() {
       <main className="marketing-main">
         <section className="marketing-hero">
           <div className="marketing-hero-copy">
-            <p className="marketing-kicker">Wedding planning for modern families and busy calendars</p>
-            <h1>One home base for events, guests, vendors, budgets, and shared decisions.</h1>
+            <p className="marketing-kicker">For Indian weddings with too many chats, lists, and opinions</p>
+            <h1>Stop planning your wedding across 12 WhatsApp chats.</h1>
             <p className="marketing-summary">
-              VivahGo gives couples and collaborators a clear planning system that stays organized from the first idea to the final celebration.
+              VivahGo keeps your events, guests, vendors, budget, and family decisions in one shared place, so everyone stays aligned and nothing important slips through.
             </p>
 
             <div className="marketing-hero-actions">
               <a className="marketing-primary-action" href="/">
-                {isSignedIn ? "Continue Planning" : "Start Planning"}
+                {isSignedIn ? "Open Your Wedding Workspace" : "Create Your Wedding Workspace"}
               </a>
-              <a className="marketing-secondary-action" href="#pricing">
-                View Premium Plans
-              </a>
-              <a className="marketing-secondary-action" href="/vendor" style={{ marginTop: 8 }}>
-                List Your Business →
+              <a className="marketing-secondary-action" href="#product">
+                See How It Works
               </a>
             </div>
 
             <div className="marketing-proof-strip" aria-label="VivahGo highlights">
-              <div>
-                <strong>Tasks and events</strong>
-                <span>Coordinate every ceremony and milestone</span>
-              </div>
-              <div>
-                <strong>Shared planning</strong>
-                <span>Invite partners, families, and editors</span>
-              </div>
-              <div>
-                <strong>Budget visibility</strong>
-                <span>Track every rupee and every vendor decision</span>
-              </div>
+              {trustSignals.map((item) => (
+                <div key={item}>
+                  <strong>{item}</strong>
+                </div>
+              ))}
             </div>
           </div>
 
           <div className="marketing-hero-panel" aria-label="VivahGo overview">
             <div className="marketing-panel-card marketing-panel-primary">
-              <span className="marketing-panel-label">Planner Overview</span>
-              <h2>Built for the full wedding journey</h2>
+              <span className="marketing-panel-label">What it replaces</span>
+              <h2>One shared wedding workspace instead of scattered updates</h2>
               <ul>
-                <li>Central dashboard with upcoming events and progress</li>
-                <li>Budget tracking aligned with your wedding profile</li>
-                <li>Guest, vendor, and task management in one workflow</li>
+                <li>WhatsApp groups for constant status chasing</li>
+                <li>Spreadsheet versions nobody trusts anymore</li>
+                <li>Mental tracking for guests, payments, and next steps</li>
               </ul>
             </div>
-
             <div className="marketing-panel-stack">
               <article className="marketing-panel-card">
-                <span className="marketing-panel-metric">Multi-plan support</span>
-                <p>Manage more than one wedding workspace without duplicating setup work.</p>
+                <span className="marketing-panel-metric">For couples and families</span>
+                <p>Keep everyone aligned without repeating the same update ten times.</p>
               </article>
               <article className="marketing-panel-card">
-                <span className="marketing-panel-metric">Google sign-in</span>
-                <p>Restore your saved plan on return and keep collaboration tied to a real account.</p>
+                <span className="marketing-panel-metric">For planners and studios</span>
+                <p>Run client weddings with clearer visibility and fewer follow-ups.</p>
               </article>
             </div>
           </div>
         </section>
 
-        <section className="marketing-section" id="features">
+        <section className="marketing-section" id="problem">
           <div className="marketing-section-heading">
-            <p className="marketing-section-kicker">Features</p>
-            <h2>Everything your wedding operation needs in one place</h2>
-            <p>
-              The planner stays focused on execution: what is happening, who owns it, what it costs, and what still needs attention.
-            </p>
+            <p className="marketing-section-kicker">Why This Feels Hard</p>
+            <h2>The wedding is not the problem. The scattered planning is.</h2>
+            <p>One update is in a family group. Another is in a vendor chat. The latest budget is in a sheet nobody trusts.</p>
           </div>
 
           <div className="marketing-feature-grid">
-            {featureGroups.map((feature) => (
-              <article className="marketing-feature-card" key={feature.title}>
-                <p className="marketing-feature-eyebrow">{feature.eyebrow}</p>
-                <h3>{feature.title}</h3>
-                <p>{feature.description}</p>
+            {painPoints.map((item) => (
+              <article className="marketing-feature-card marketing-feature-card-left" key={item.title}>
+                <h3>{item.title}</h3>
+                <p>{item.description}</p>
               </article>
             ))}
           </div>
         </section>
 
-        <section className="marketing-section marketing-section-band">
-          <div className="marketing-band-copy">
-            <p className="marketing-section-kicker">Why Couples Use It</p>
-            <h2>Less context switching. Fewer missed details. Better handoffs.</h2>
-            <p>
-              Instead of juggling notes, chats, spreadsheets, and vendor messages across different places, VivahGo keeps the wedding plan structured and visible.
-            </p>
+        <section className="marketing-section marketing-section-band" id="product">
+          <div className="marketing-band-copy marketing-band-copy-centered">
+            <p className="marketing-section-kicker">The Fix</p>
+            <h2>VivahGo is your wedding command center.</h2>
+            <p>Instead of running the wedding through chats, spreadsheets, notes, and memory, you run it in one shared workspace.</p>
+            <div className="marketing-band-points marketing-band-points-inline">
+              <div>
+                <strong>Track every event</strong>
+                <span>From roka to reception, keep dates, owners, and next steps visible.</span>
+              </div>
+              <div>
+                <strong>Keep budgets and guest lists live</strong>
+                <span>Know what changed, what is pending, and what needs action.</span>
+              </div>
+              <div>
+                <strong>Plan together without the back-and-forth</strong>
+                <span>Couples, parents, and planners can work from the same source of truth.</span>
+              </div>
+            </div>
+            <a className="marketing-primary-action" href="/">
+              {isSignedIn ? "Open Your Wedding Workspace" : "Start Your Wedding Plan Free"}
+            </a>
           </div>
 
-          <div className="marketing-band-points">
-            <div>
-              <strong>Faster coordination</strong>
-              <span>Everyone sees the same plan instead of asking for status in separate threads.</span>
-            </div>
-            <div>
-              <strong>Cleaner decision history</strong>
-              <span>Budgets, vendor notes, and tasks stay attached to the wedding instead of disappearing in chat scrollback.</span>
-            </div>
-            <div>
-              <strong>Safer collaboration</strong>
-              <span>Role-based access makes it easier to share plans without giving every participant full control.</span>
-            </div>
+        </section>
+
+        <section className="marketing-section marketing-product-views-section">
+          <div className="marketing-section-heading">
+            <p className="marketing-section-kicker">Real Product Views</p>
+            <h2>See the workspace your wedding runs on.</h2>
+          </div>
+
+          <div className="marketing-screen-grid">
+            <article className="marketing-product-shot">
+              <div className="marketing-shot-header marketing-shot-header-centered">
+                <strong>Dashboard</strong>
+              </div>
+              <div className="marketing-app-preview marketing-app-preview-dashboard">
+                <Dashboard
+                  wedding={DEMO_PLANNER.wedding}
+                  events={DEMO_PLANNER.events}
+                  expenses={DEMO_PLANNER.expenses}
+                  guests={DEMO_PLANNER.guests}
+                  onTabChange={() => {}}
+                  onEditEvent={() => {}}
+                />
+              </div>
+              <p className="marketing-shot-caption">Upcoming functions, budget progress, guest confirmations, and the live wedding calendar in one view.</p>
+            </article>
+
+            <article className="marketing-product-shot">
+              <div className="marketing-shot-header marketing-shot-header-centered">
+                <strong>Wedding timeline</strong>
+              </div>
+              <div className="marketing-app-preview marketing-app-preview-events">
+                <EventsScreen
+                  events={DEMO_PLANNER.events}
+                  setEvents={() => {}}
+                  expenses={DEMO_PLANNER.expenses}
+                  setExpenses={() => {}}
+                  onOpenBudget={() => {}}
+                  initialEditingEventId={null}
+                  planId={DEMO_PLANNER.activePlanId}
+                />
+              </div>
+              <p className="marketing-shot-caption">Track every ceremony, linked spend, venue status, and timeline from one screen.</p>
+            </article>
+
+            <article className="marketing-product-shot">
+              <div className="marketing-shot-header marketing-shot-header-centered">
+                <strong>Guest list and RSVPs</strong>
+              </div>
+              <div className="marketing-app-preview marketing-app-preview-guests">
+                <GuestsScreen guests={DEMO_PLANNER.guests} setGuests={() => {}} planId={DEMO_PLANNER.activePlanId} />
+              </div>
+              <p className="marketing-shot-caption">Keep families, confirmations, and follow-ups organized without a messy spreadsheet trail.</p>
+            </article>
+
+            <article className="marketing-product-shot">
+              <div className="marketing-shot-header marketing-shot-header-centered">
+                <strong>Budget tracking</strong>
+              </div>
+              <div className="marketing-app-preview marketing-app-preview-budget">
+                <BudgetScreen
+                  expenses={DEMO_PLANNER.expenses}
+                  setExpenses={() => {}}
+                  wedding={DEMO_PLANNER.wedding}
+                  events={DEMO_PLANNER.events}
+                  planId={DEMO_PLANNER.activePlanId}
+                />
+              </div>
+              <p className="marketing-shot-caption">Planned spend, actual spend, pending costs, and ceremony-wise breakdowns.</p>
+            </article>
+          </div>
+        </section>
+
+        <section className="marketing-section">
+          <div className="marketing-section-heading">
+            <p className="marketing-section-kicker">Why Couples Stick With It</p>
+            <h2>Less chasing. Less confusion. More control.</h2>
+          </div>
+
+          <div className="marketing-feature-grid">
+            {benefitCards.map((item) => (
+              <article className="marketing-feature-card marketing-feature-card-left" key={item.title}>
+                <h3>{item.title}</h3>
+                <p>{item.description}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="marketing-section marketing-section-contrast">
+          <div className="marketing-section-heading">
+            <p className="marketing-section-kicker">Why VivahGo Wins</p>
+            <h2>Better than WhatsApp and Excel because it was built for weddings.</h2>
+          </div>
+
+          <div className="marketing-differentiator-list">
+            {differentiators.map((item) => (
+              <article className="marketing-differentiator-card" key={item}>
+                <p>{item}</p>
+              </article>
+            ))}
           </div>
         </section>
 
         <section className="marketing-section" id="pricing">
           <div className="marketing-section-heading">
-            <p className="marketing-section-kicker">Premium Plans</p>
+            <p className="marketing-section-kicker">Pricing</p>
             <div className="marketing-billing-toggle" role="group" aria-label="Billing period">
               <button
                 type="button"
@@ -502,8 +614,8 @@ export default function MarketingHomePage() {
                 Yearly <span>Save 20%</span>
               </button>
             </div>
-            <h2>Pricing that scales from one wedding to a planning studio</h2>
-            <p>Start free, then move into premium collaboration when the wedding plan needs more structure and more people involved.</p>
+            <h2>Start simple. Upgrade when the wedding gets bigger.</h2>
+            <p>Start free, set up your workspace, and move up only when planning gets more collaborative.</p>
           </div>
 
           <div className="marketing-pricing-grid">
@@ -538,7 +650,7 @@ export default function MarketingHomePage() {
                     className="marketing-price-action marketing-price-action-ghost"
                     href="/"
                   >
-                    Try Starter
+                    Start Your Wedding Plan Free
                   </a>
                 ) : (
                   <button
@@ -548,7 +660,7 @@ export default function MarketingHomePage() {
                     disabled={checkoutLoadingPlan === plan.name.toLowerCase() || Boolean(checkoutSheetPlan) || Boolean(checkoutRoute)}
                     style={checkoutLoadingPlan === plan.name.toLowerCase() || checkoutSheetPlan || checkoutRoute ? { opacity: 0.7, cursor: "not-allowed" } : undefined}
                   >
-                    {checkoutLoadingPlan === plan.name.toLowerCase() ? "Loading checkout..." : `Get ${plan.name}`}
+                    {checkoutLoadingPlan === plan.name.toLowerCase() ? "Loading checkout..." : plan.name === "Studio" ? "Talk to Sales" : "Upgrade Your Workspace"}
                   </button>
                 )}
               </article>
@@ -559,7 +671,7 @@ export default function MarketingHomePage() {
         <section className="marketing-section" id="faqs">
           <div className="marketing-section-heading">
             <p className="marketing-section-kicker">FAQs</p>
-            <h2>Common questions before you start planning</h2>
+            <h2>Questions people ask before they start</h2>
           </div>
 
           <div className="marketing-faq-list">
@@ -571,13 +683,29 @@ export default function MarketingHomePage() {
             ))}
           </div>
         </section>
+
+        <section className="marketing-section marketing-final-cta">
+          <div className="marketing-section-heading">
+            <p className="marketing-section-kicker">Start Early</p>
+            <h2>Set up your wedding workspace before the chaos starts.</h2>
+            <p>The earlier the plan lives in one place, the easier every next decision becomes.</p>
+          </div>
+          <div className="marketing-hero-actions marketing-final-actions">
+            <a className="marketing-primary-action" href="/">
+              {isSignedIn ? "Open Your Wedding Workspace" : "Create Your Wedding Workspace"}
+            </a>
+            <a className="marketing-secondary-action" href="#pricing">
+              See Pricing
+            </a>
+          </div>
+        </section>
       </main>
 
       <footer className="marketing-footer" id="social">
         <div className="marketing-footer-copy">
-          <p className="marketing-section-kicker">Social Media</p>
-          <h2>Keep up with VivahGo</h2>
-          <p>Follow the product across social channels for updates, release notes, and planning inspiration.</p>
+          <p className="marketing-section-kicker">Stay Connected</p>
+          <h2>Follow VivahGo</h2>
+          <p>Product updates, planning ideas, and early release news.</p>
         </div>
 
         <div className="marketing-social-links">
