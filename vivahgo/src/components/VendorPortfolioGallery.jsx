@@ -55,7 +55,7 @@ export default function VendorPortfolioGallery({ media }) {
               {coverItem.type === 'VIDEO' ? 'Featured video' : 'Featured image'}
             </div>
             <p className="mt-2 text-base font-semibold">{coverItem.caption || coverItem.filename || 'Featured portfolio item'}</p>
-            {coverItem.altText && (
+          {coverItem.altText && (
               <p className="mt-1 text-sm text-white/80">{coverItem.altText}</p>
             )}
           </div>

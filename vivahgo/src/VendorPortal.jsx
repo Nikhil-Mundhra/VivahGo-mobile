@@ -117,20 +117,22 @@ export default function VendorPortal() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 to-amber-50">
-      <header className="bg-white shadow-sm border-b border-gray-100 px-6 py-4 flex items-center justify-between">
-        <a href="/home" className="flex items-center gap-2">
-          <img src="/Thumbnail.png" alt="VivahGo" className="h-8" />
-          <span className="font-semibold text-gray-900">Vendor Portal</span>
-        </a>
-        <div className="flex items-center gap-4">
-          {session.user?.name && (
-            <span className="text-sm text-gray-500 hidden sm:inline">{session.user.name}</span>
-          )}
-          <a href="/" className="text-sm text-rose-600 font-medium hover:underline">Open Planner</a>
+      <header className="bg-white shadow-sm border-b border-gray-100 px-3 py-4 sm:px-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <a href="/home" className="flex items-center gap-2 min-w-0">
+            <img src="/Thumbnail.png" alt="VivahGo" className="h-8" />
+            <span className="font-semibold text-gray-900 truncate">Vendor Portal</span>
+          </a>
+          <div className="flex flex-col items-start gap-2 min-[360px]:flex-row min-[360px]:items-center min-[360px]:justify-between sm:justify-end">
+            {session.user?.name && (
+              <span className="max-w-full text-sm text-gray-500 truncate">{session.user.name}</span>
+            )}
+            <a href="/" className="shrink-0 text-sm text-rose-600 font-medium hover:underline">Open Planner</a>
+          </div>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-8">
+      <main className="max-w-4xl mx-auto px-3 py-6 sm:px-4 sm:py-8">
         {!vendor ? (
           <VendorRegistrationForm
             token={session.token}
@@ -139,10 +141,10 @@ export default function VendorPortal() {
         ) : (
           <div className="space-y-6">
             {/* Profile card */}
-            <div className="bg-white rounded-2xl shadow-sm p-6">
-              <div className="flex items-start justify-between gap-4">
+            <div className="bg-white rounded-2xl shadow-sm p-4 sm:p-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
-                  <h1 className="text-2xl font-bold text-gray-900">{vendor.businessName}</h1>
+                  <h1 className="text-xl font-bold text-gray-900 sm:text-2xl">{vendor.businessName}</h1>
                   <p className="text-rose-600 font-medium text-sm mt-0.5">{vendor.type}</p>
                   {vendor.city && <p className="text-gray-500 text-sm">{vendor.city}</p>}
                   {vendor.phone && (
@@ -161,7 +163,7 @@ export default function VendorPortal() {
                     <p className="text-gray-700 text-sm mt-3">{vendor.description}</p>
                   )}
                 </div>
-                <span className={`shrink-0 inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${vendor.isApproved ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                <span className={`inline-flex w-fit items-center px-3 py-1 rounded-full text-xs font-semibold ${vendor.isApproved ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
                   {vendor.isApproved ? '✓ Approved' : 'Pending Approval'}
                 </span>
               </div>
@@ -169,7 +171,7 @@ export default function VendorPortal() {
 
             {/* Portfolio section */}
             <div className="grid gap-6 lg:grid-cols-[1.3fr_0.9fr]">
-              <div className="bg-white rounded-2xl shadow-sm p-6">
+              <div className="bg-white rounded-2xl shadow-sm p-4 sm:p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-1">Portfolio Manager</h2>
                 <p className="text-sm text-gray-500 mb-4">Upload, organize, and fine-tune what couples see first.</p>
 
@@ -180,7 +182,7 @@ export default function VendorPortal() {
                 />
               </div>
 
-              <div className="bg-white rounded-2xl shadow-sm p-6">
+              <div className="bg-white rounded-2xl shadow-sm p-4 sm:p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-1">Live Preview</h2>
                 <p className="text-sm text-gray-500 mb-4">This is how your public portfolio is currently being presented.</p>
 

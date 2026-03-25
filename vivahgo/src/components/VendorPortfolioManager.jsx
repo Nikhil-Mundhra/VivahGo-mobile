@@ -278,7 +278,7 @@ export default function VendorPortfolioManager({ token, media, onVendorUpdated }
         </div>
       </div>
 
-      <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-5">
+      <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-4 sm:p-5">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <h3 className="text-base font-semibold text-gray-900">Upload New Work</h3>
@@ -286,13 +286,12 @@ export default function VendorPortfolioManager({ token, media, onVendorUpdated }
           </div>
           <button
             type="button"
-            className="inline-flex items-center justify-center rounded-xl bg-rose-500 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-rose-600"
+            className="inline-flex w-full items-center justify-center rounded-xl bg-rose-500 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-rose-600 min-[360px]:w-auto"
             onClick={() => inputRef.current?.click()}
           >
             Select Files
           </button>
         </div>
-
         <input
           ref={inputRef}
           type="file"
@@ -303,7 +302,7 @@ export default function VendorPortfolioManager({ token, media, onVendorUpdated }
         />
 
         <div
-          className="mt-4 rounded-2xl border-2 border-dashed border-gray-200 bg-white p-6 text-center"
+          className="mt-4 rounded-2xl border-2 border-dashed border-gray-200 bg-white p-5 text-center sm:p-6"
           role="button"
           tabIndex={0}
           onClick={() => inputRef.current?.click()}
@@ -314,7 +313,7 @@ export default function VendorPortfolioManager({ token, media, onVendorUpdated }
             }
           }}
         >
-          <p className="text-sm font-medium text-gray-700">Click to choose images or videos</p>
+          <p className="text-sm font-medium text-gray-700">Tap to choose images or videos</p>
           <p className="mt-1 text-xs text-gray-400">JPG, PNG, WebP, MP4 and more. Max 50 MB per file.</p>
         </div>
 
@@ -325,10 +324,10 @@ export default function VendorPortfolioManager({ token, media, onVendorUpdated }
         {fileItems.length > 0 && (
           <ul className="mt-4 space-y-2" aria-label="Selected files">
             {fileItems.map(item => (
-              <li key={item.id} className="flex items-center gap-3 rounded-xl bg-white p-3 shadow-sm">
+              <li key={item.id} className="flex flex-col gap-3 rounded-xl bg-white p-3 shadow-sm sm:flex-row sm:items-center">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-gray-800">{item.file.name}</p>
-                  <p className="text-xs text-gray-400">
+                  <p className="text-xs text-gray-400 break-words">
                     {formatFileSize(item.file.size)} · {getMediaType(item.file)}
                   </p>
                   {item.status === 'uploading' && (
@@ -341,18 +340,18 @@ export default function VendorPortfolioManager({ token, media, onVendorUpdated }
                   )}
                 </div>
 
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex flex-col gap-2 min-[360px]:flex-row min-[360px]:items-center min-[360px]:justify-between sm:shrink-0 sm:justify-end">
                   {item.status === 'pending' && (
                     <button
                       type="button"
                       onClick={() => uploadFile(item)}
-                      className="rounded-full bg-rose-500 px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-rose-600"
+                      className="min-h-10 w-full rounded-full bg-rose-500 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-rose-600 min-[360px]:w-auto"
                     >
                       Upload
                     </button>
                   )}
                   {item.status === 'uploading' && (
-                    <span className="text-xs text-gray-400">{item.progress}%</span>
+                    <span className="min-w-10 text-xs text-gray-400 min-[360px]:text-right">{item.progress}%</span>
                   )}
                   {item.status === 'done' && (
                     <span className="text-xs font-medium text-green-600">Uploaded</span>
@@ -361,10 +360,12 @@ export default function VendorPortfolioManager({ token, media, onVendorUpdated }
                     <button
                       type="button"
                       onClick={() => removeQueuedItem(item.id)}
-                      className="text-sm text-gray-400 transition-colors hover:text-red-500"
+                      className="flex min-h-10 min-w-10 items-center justify-center rounded-full text-sm text-gray-400 transition-colors hover:text-red-500"
                       aria-label={`Remove ${item.file.name}`}
                     >
-                      Remove
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18 18 6M6 6l12 12" />
+                      </svg>
                     </button>
                   )}
                 </div>
