@@ -13,6 +13,7 @@ import Razorpay from 'razorpay';
 
 import Planner from './models/Planner.js';
 import User from './models/User.js';
+import Vendor from './models/Vendor.js';
 
 const port = Number(process.env.PORT || 4000);
 const mongoUri = process.env.MONGODB_URI;
@@ -39,6 +40,32 @@ const ROLE_LEVEL = {
   editor: 2,
   owner: 3,
 };
+
+const VENDOR_TYPES = ['Venue', 'Photography', 'Catering', 'Wedding Invitations', 'Wedding Gifts', 'Music', 'Wedding Transportation', 'Tent House', 'Wedding Entertainment', 'Florists', 'Wedding Planners', 'Wedding Videography', 'Honeymoon', 'Wedding Decorators', 'Wedding Cakes', 'Wedding DJ', 'Pandit', 'Photobooth', 'Astrologers', 'Party Places', 'Choreographer', 'Bride', 'Groom'];
+const BUNDLED_SERVICE_OPTIONS = VENDOR_TYPES.filter(type => type !== 'Honeymoon');
+const VENDOR_SUBTYPE_OPTIONS = {
+  Venue: ['Wedding Lawns', 'Farmhouses', 'Hotels', 'Banquet Halls', 'Marriage Garden', 'Kalyana Mandapams', 'Wedding Resorts'],
+  'Wedding Transportation': ['Guest Transport', 'Airport Transfers', 'Luxury Cars', 'Baraat Entry Vehicles'],
+  'Wedding Entertainment': ['Live Performers', 'Celebrity Acts', 'Anchors / MC', 'Baraat Entertainment'],
+  Music: ['Live Band', 'Dhol', 'Sufi Night', 'Instrumental Ensemble'],
+  'Wedding Invitations': ['Luxury Box Invitations', 'Digital E-Invites', 'Traditional Cards', 'Invitation Hampers'],
+  'Wedding Gifts': ['Guest Hampers', 'Shagun Gifts', 'Bridesmaid Gifts', 'Corporate Gifting'],
+  Florists: ['Varmala Florals', 'Fresh Venue Florals', 'Car Florals', 'Table Arrangements'],
+  'Wedding Planners': ['Full Planning', 'Partial Planning', 'Wedding Coordination', 'Destination Wedding Planning'],
+  'Wedding Videography': ['Cinematic Wedding Films', 'Teaser Reels', 'Documentary Coverage', 'Drone Videography'],
+  'Wedding Decorators': ['Mandap Decor', 'Floral Decor', 'Stage Decor', 'Theme Decor'],
+  'Wedding Cakes': ['Tiered Wedding Cakes', 'Dessert Tables', 'Fondant Cakes', 'Eggless Cakes'],
+  'Wedding DJ': ['Sangeet DJ', 'Cocktail DJ', 'After Party DJ', 'Sound & Lights'],
+  Pandit: ['Wedding Pandit', 'Phera Specialist', 'South Indian Priest', 'Samagri Guidance'],
+  Photobooth: ['Instant Print Booth', 'GIF Booth', 'Mirror Booth', '360 Video Booth'],
+  Astrologers: ['Kundli Matching', 'Muhurat Consultation', 'Remedy Guidance', 'Online Consultation'],
+  'Party Places': ['Cocktail Venues', 'Rooftop Venues', 'Private Dining', 'After Party Spaces'],
+  Choreographer: ['Couple Choreography', 'Family Performances', 'Sangeet Concepts', 'At-Home Rehearsals'],
+  Bride: ['Bridal Jewellery', 'Bridal Makeup Artists', 'Bridal Lehenga', 'Mehndi Artists', 'Makeup Salon', 'Trousseau Packing'],
+  Groom: ['Sherwani'],
+};
+const MIN_BUDGET_LIMIT = 10000;
+const MAX_BUDGET_LIMIT = 5000000;
 
 const DEFAULT_SUBSCRIPTION_AMOUNT_MAP = {
   premium: { monthly: 200000, yearly: 1920000 },
@@ -505,6 +532,67 @@ function findOwnerEmail(plan) {
   return plan.collaborators.find(item => item.role === 'owner')?.email || '';
 }
 
+function normalizeVendorSubtype(type, subType) {
+  const allowedSubtypes = VENDOR_SUBTYPE_OPTIONS[type] || [];
+  const normalizedSubType = typeof subType === 'string' ? subType.trim() : '';
+
+  if (!normalizedSubType) {
+    return '';
+  }
+
+  if (!allowedSubtypes.includes(normalizedSubType)) {
+    throw new Error(`subType must be one of: ${allowedSubtypes.join(', ')}.`);
+  }
+
+  return normalizedSubType;
+}
+
+function normalizeCoverageAreas(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .filter(item => item && typeof item === 'object')
+    .map(item => ({
+      country: typeof item.country === 'string' ? item.country.trim() : '',
+      state: typeof item.state === 'string' ? item.state.trim() : '',
+      city: typeof item.city === 'string' ? item.city.trim() : '',
+    }))
+    .filter(item => item.country && item.state && item.city);
+}
+
+function normalizeBundledServices(type, value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return Array.from(new Set(
+    value
+      .filter(item => typeof item === 'string')
+      .map(item => item.trim())
+      .filter(item => item && item !== type && BUNDLED_SERVICE_OPTIONS.includes(item))
+  ));
+}
+
+function normalizeBudgetRange(value) {
+  if (!value || typeof value !== 'object') {
+    return { min: 100000, max: 300000 };
+  }
+
+  const min = Number(value.min);
+  const max = Number(value.max);
+
+  if (!Number.isFinite(min) || !Number.isFinite(max)) {
+    throw new Error('budgetRange.min and budgetRange.max must be numbers.');
+  }
+
+  const safeMin = Math.max(MIN_BUDGET_LIMIT, Math.min(Math.round(min), MAX_BUDGET_LIMIT));
+  const safeMax = Math.max(safeMin, Math.min(Math.round(max), MAX_BUDGET_LIMIT));
+
+  return { min: safeMin, max: safeMax };
+}
+
 async function resolvePlannerForSession(PlannerModel, auth) {
   const email = normalizeEmail(auth.email);
   const requestedOwnerId = typeof auth.plannerOwnerId === 'string' ? auth.plannerOwnerId : '';
@@ -733,6 +821,185 @@ export function createApp(options = {}) {
     } catch (err) {
       console.error('DELETE /api/auth/me error:', err);
       return res.status(500).json({ error: 'Failed to delete account. Please try again.' });
+    }
+  });
+
+  app.get('/api/vendor/me', (req, res, next) => authMiddleware(req, res, next, injectedJwtSecret), async (req, res) => {
+    try {
+      const vendor = await Vendor.findOne({ googleId: req.auth.sub }).lean();
+      if (!vendor) {
+        return res.status(404).json({ error: 'No vendor profile found.' });
+      }
+      return res.json({ vendor });
+    } catch (error) {
+      console.error('Failed to load vendor profile:', error);
+      return res.status(500).json({ error: 'An unexpected error occurred.' });
+    }
+  });
+
+  app.post('/api/vendor/me', (req, res, next) => authMiddleware(req, res, next, injectedJwtSecret), async (req, res) => {
+    try {
+      const {
+        businessName,
+        type,
+        subType,
+        description,
+        country,
+        state,
+        city,
+        phone,
+        website,
+        coverageAreas,
+        bundledServices,
+        budgetRange,
+      } = req.body || {};
+
+      if (!businessName || typeof businessName !== 'string' || !businessName.trim()) {
+        return res.status(400).json({ error: 'businessName is required.' });
+      }
+      if (!VENDOR_TYPES.includes(type)) {
+        return res.status(400).json({ error: `type must be one of: ${VENDOR_TYPES.join(', ')}.` });
+      }
+
+      let normalizedSubType = '';
+      let normalizedBudgetRange;
+      try {
+        normalizedSubType = normalizeVendorSubtype(type, subType);
+        normalizedBudgetRange = normalizeBudgetRange(budgetRange || {});
+      } catch (error) {
+        return res.status(400).json({ error: error.message });
+      }
+
+      const existing = await Vendor.findOne({ googleId: req.auth.sub }).lean();
+      if (existing) {
+        return res.status(409).json({ error: 'Vendor profile already exists. Use PATCH to update.' });
+      }
+
+      const vendor = await Vendor.create({
+        googleId: req.auth.sub,
+        businessName: businessName.trim(),
+        type,
+        subType: normalizedSubType,
+        bundledServices: normalizeBundledServices(type, bundledServices),
+        country: (country || '').trim(),
+        state: (state || '').trim(),
+        description: (description || '').trim(),
+        city: (city || '').trim(),
+        coverageAreas: normalizeCoverageAreas(coverageAreas),
+        phone: (phone || '').trim(),
+        website: (website || '').trim(),
+        budgetRange: normalizedBudgetRange,
+      });
+
+      await UserModel.findOneAndUpdate(
+        { googleId: req.auth.sub },
+        { $set: { isVendor: true, vendorId: vendor._id } }
+      );
+
+      return res.status(201).json({ vendor });
+    } catch (error) {
+      console.error('Vendor registration failed:', error);
+      return res.status(500).json({ error: 'An unexpected error occurred.' });
+    }
+  });
+
+  app.patch('/api/vendor/me', (req, res, next) => authMiddleware(req, res, next, injectedJwtSecret), async (req, res) => {
+    try {
+      const body = req.body || {};
+      const updates = {};
+      const existingVendor = await Vendor.findOne({ googleId: req.auth.sub }).lean();
+
+      if (!existingVendor) {
+        return res.status(404).json({ error: 'No vendor profile found.' });
+      }
+
+      const allowedUpdateFields = ['businessName', 'type', 'subType', 'description', 'country', 'state', 'city', 'phone', 'website'];
+      for (const field of allowedUpdateFields) {
+        if (typeof body[field] === 'string') {
+          updates[field] = body[field].trim();
+        }
+      }
+
+      if (Array.isArray(body.coverageAreas)) {
+        updates.coverageAreas = normalizeCoverageAreas(body.coverageAreas);
+      }
+
+      if (Array.isArray(body.bundledServices)) {
+        updates.bundledServices = normalizeBundledServices(updates.type || existingVendor.type, body.bundledServices);
+      }
+
+      if (body.budgetRange && typeof body.budgetRange === 'object') {
+        try {
+          updates.budgetRange = normalizeBudgetRange(body.budgetRange);
+        } catch (error) {
+          return res.status(400).json({ error: error.message });
+        }
+      }
+
+      if (updates.type && !VENDOR_TYPES.includes(updates.type)) {
+        return res.status(400).json({ error: `type must be one of: ${VENDOR_TYPES.join(', ')}.` });
+      }
+
+      try {
+        const resolvedType = updates.type || existingVendor.type;
+        if ('subType' in updates || updates.type) {
+          updates.subType = normalizeVendorSubtype(resolvedType, updates.subType ?? body.subType ?? '');
+        }
+        if (updates.type && !('bundledServices' in updates)) {
+          updates.bundledServices = normalizeBundledServices(resolvedType, existingVendor.bundledServices);
+        }
+      } catch (error) {
+        return res.status(400).json({ error: error.message });
+      }
+
+      const vendor = await Vendor.findOneAndUpdate(
+        { googleId: req.auth.sub },
+        { $set: updates },
+        { new: true }
+      );
+
+      return res.json({ vendor });
+    } catch (error) {
+      console.error('Vendor profile update failed:', error);
+      return res.status(500).json({ error: 'An unexpected error occurred.' });
+    }
+  });
+
+  app.get('/api/vendors', async (_req, res) => {
+    try {
+      const raw = await Vendor.find({ isApproved: true }).select('-__v').lean();
+      const vendors = raw.map(vendor => ({
+        id: `db_${vendor._id}`,
+        name: vendor.businessName,
+        type: vendor.type,
+        subType: vendor.subType || '',
+        bundledServices: Array.isArray(vendor.bundledServices) ? vendor.bundledServices : [],
+        description: vendor.description || '',
+        country: vendor.country || '',
+        state: vendor.state || '',
+        city: vendor.city || '',
+        phone: vendor.phone || '',
+        website: vendor.website || '',
+        emoji: '🏷️',
+        rating: 0,
+        priceLevel: null,
+        booked: false,
+        locations: [
+          [vendor.city, vendor.state, vendor.country].filter(Boolean).join(', '),
+          ...(Array.isArray(vendor.coverageAreas)
+            ? vendor.coverageAreas.map(item => [item.city, item.state, item.country].filter(Boolean).join(', '))
+            : []),
+        ].filter(Boolean),
+        media: Array.isArray(vendor.media) ? vendor.media : [],
+        coverImageUrl: Array.isArray(vendor.media)
+          ? (vendor.media.find(item => item?.type === 'IMAGE')?.url || '')
+          : '',
+      }));
+
+      return res.json({ vendors });
+    } catch (error) {
+      console.error('Approved vendors fetch failed:', error);
+      return res.status(500).json({ error: 'Could not fetch vendors.' });
     }
   });
 

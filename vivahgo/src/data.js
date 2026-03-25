@@ -449,7 +449,7 @@ const DEFAULT_VENDOR_CATALOG = [
 export const DEFAULT_VENDORS = DEFAULT_VENDOR_CATALOG.map((vendor, index) => ({
   id: index + 1,
   name: `VivahGo's Choice ${vendor.type}`,
-  booked: vendor.type === "Venue" || vendor.type === "Pandit",
+  booked: false,
   featured: true,
   featuredLabel: "VivahGo's Choice",
   reviewCount: vendor.testimonials.length + (vendor.rating >= 5 ? 18 : 11),

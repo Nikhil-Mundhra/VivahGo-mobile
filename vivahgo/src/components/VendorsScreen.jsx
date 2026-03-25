@@ -33,7 +33,7 @@ function VendorsScreen({ vendors }) {
     // DB-approved vendors take precedence over static data; merge by id
     const staticWithBooked = DEFAULT_VENDORS.map(v => ({
       ...v,
-      booked: bookedById.get(v.id) ?? Boolean(v.booked),
+      booked: bookedById.get(v.id) ?? false,
     }));
     // DB vendors have ids prefixed with "db_" so they never collide with static ids
     return [...staticWithBooked, ...dbVendors];
