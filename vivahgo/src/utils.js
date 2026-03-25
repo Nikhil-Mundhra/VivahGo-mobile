@@ -36,6 +36,37 @@ export function getVendorQuickFacts(vendor) {
   return [formatVendorGuestRange(vendor), vendor?.typicalTiming].filter(Boolean);
 }
 
+const PRIMARY_VENDOR_MEDIA_BASE = new URL("https://media.vivahgo.com/portfolio/");
+const FALLBACK_VENDOR_MEDIA_BASE = new URL("https://pub-47c8cf1fe5da4a1b89c93045916376d7.r2.dev/");
+
+export function getVendorMediaFallbackUrl(url) {
+  if (!url || typeof url !== "string") {
+    return "";
+  }
+
+  let mediaUrl;
+  try {
+    mediaUrl = new URL(url);
+  } catch {
+    return "";
+  }
+
+  const primaryPath = PRIMARY_VENDOR_MEDIA_BASE.pathname.endsWith("/")
+    ? PRIMARY_VENDOR_MEDIA_BASE.pathname
+    : `${PRIMARY_VENDOR_MEDIA_BASE.pathname}/`;
+
+  if (mediaUrl.origin !== PRIMARY_VENDOR_MEDIA_BASE.origin || !mediaUrl.pathname.startsWith(primaryPath)) {
+    return "";
+  }
+
+  const objectKey = decodeURIComponent(mediaUrl.pathname.slice(primaryPath.length));
+  if (!objectKey) {
+    return "";
+  }
+
+  return new URL(objectKey, FALLBACK_VENDOR_MEDIA_BASE).toString();
+}
+
 // Validation functions for onboarding
 export function validateOnboardingAnswer(key, value) {
   const trimmedValue = value.trim();

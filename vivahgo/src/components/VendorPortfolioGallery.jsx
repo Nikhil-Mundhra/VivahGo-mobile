@@ -1,3 +1,5 @@
+import { FallbackImage, FallbackVideo } from './MediaWithFallback';
+
 function sortVisibleMedia(media) {
   return [...(Array.isArray(media) ? media : [])]
     .filter(item => item?.isVisible !== false)
@@ -11,7 +13,7 @@ function PreviewTile({ item, cover = false }) {
 
   if (item.type === 'VIDEO') {
     return (
-      <video
+      <FallbackVideo
         src={item.url}
         preload="metadata"
         controls
@@ -22,7 +24,7 @@ function PreviewTile({ item, cover = false }) {
   }
 
   return (
-    <img
+    <FallbackImage
       src={item.url}
       alt={item.altText || item.filename || 'Portfolio image'}
       loading="lazy"

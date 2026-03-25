@@ -1,5 +1,6 @@
 import { WHATSAPP_SUPPORT_NUMBER } from "../constants";
 import { formatVendorPriceTier, getVendorQuickFacts } from "../utils";
+import { FallbackImage, FallbackVideo } from "./MediaWithFallback";
 
 function VendorDetailScreen({ vendor, onBack }) {
   const quickFacts = getVendorQuickFacts(vendor);
@@ -57,14 +58,14 @@ function VendorDetailScreen({ vendor, onBack }) {
           <div style={{ display: "grid", gap: 12 }}>
             <div style={{ borderRadius: 20, overflow: "hidden", background: "#F6F1EA" }}>
               {coverItem.type === "VIDEO" ? (
-                <video
+                <FallbackVideo
                   src={coverItem.url}
                   controls
                   preload="metadata"
                   style={{ width: "100%", aspectRatio: "16 / 9", objectFit: "cover", display: "block" }}
                 />
               ) : (
-                <img
+                <FallbackImage
                   src={coverItem.url}
                   alt={coverItem.altText || coverItem.filename || vendor.name}
                   style={{ width: "100%", aspectRatio: "16 / 9", objectFit: "cover", display: "block" }}
@@ -79,13 +80,13 @@ function VendorDetailScreen({ vendor, onBack }) {
                   .map(item => (
                     <div key={item._id || item.url} style={{ borderRadius: 16, overflow: "hidden", background: "#F6F1EA" }}>
                       {item.type === "VIDEO" ? (
-                        <video
+                        <FallbackVideo
                           src={item.url}
                           preload="metadata"
                           style={{ width: "100%", aspectRatio: "1 / 1", objectFit: "cover", display: "block" }}
                         />
                       ) : (
-                        <img
+                        <FallbackImage
                           src={item.url}
                           alt={item.altText || item.filename || vendor.name}
                           style={{ width: "100%", aspectRatio: "1 / 1", objectFit: "cover", display: "block" }}

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { fetchPresignedUrl, removeVendorMedia, saveVendorMedia, updateVendorMedia } from '../api';
+import { FallbackImage, FallbackVideo } from './MediaWithFallback';
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
 
@@ -33,7 +34,7 @@ function buildDraftMap(media) {
 function MediaPreview({ item }) {
   if (item.type === 'VIDEO') {
     return (
-      <video
+      <FallbackVideo
         src={item.url}
         preload="metadata"
         controls
@@ -44,7 +45,7 @@ function MediaPreview({ item }) {
   }
 
   return (
-    <img
+    <FallbackImage
       src={item.url}
       alt={item.altText || item.filename || 'Portfolio image'}
       loading="lazy"
