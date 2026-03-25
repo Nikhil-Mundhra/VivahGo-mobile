@@ -82,6 +82,10 @@ export function fetchPlanner(token, plannerOwnerId) {
   return request(withOwnerQuery('/planner/me', plannerOwnerId), { token });
 }
 
+export function fetchPublicWeddingWebsite(slug) {
+  return request(`/planner/public?slug=${encodeURIComponent(slug)}`);
+}
+
 export function savePlanner(token, planner, plannerOwnerId) {
   return request(withOwnerQuery('/planner/me', plannerOwnerId), {
     method: 'PUT',

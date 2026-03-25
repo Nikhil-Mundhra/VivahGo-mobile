@@ -28,6 +28,12 @@ const emptyWedding = {
   budget: '',
 };
 
+const defaultWebsiteSettings = {
+  isActive: true,
+  showCountdown: true,
+  showCalendar: true,
+};
+
 const ROLE_LEVEL = {
   viewer: 1,
   editor: 2,
@@ -149,6 +155,8 @@ export function buildEmptyPlanner(options = {}) {
         venue: '',
         budget: '',
         guests: '',
+        websiteSlug: '',
+        websiteSettings: { ...defaultWebsiteSettings },
         template: 'blank',
         collaborators: ownerEmail
           ? [
@@ -221,6 +229,81 @@ function sanitizeCollaborators(value, ownerEmail, ownerId) {
   return [...byEmail.values()];
 }
 
+function slugifyWeddingNamePart(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .replace(/-{2,}/g, '-');
+}
+
+function buildWeddingWebsiteBaseSlug(plan = {}) {
+  const bride = slugifyWeddingNamePart(plan.bride);
+  const groom = slugifyWeddingNamePart(plan.groom);
+  const combined = [bride, groom].filter(Boolean).join('-');
+  return combined || 'our-wedding';
+}
+
+function escapeRegex(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function extractSlugCounter(slug, baseSlug) {
+  const match = String(slug || '').match(new RegExp(`^${escapeRegex(baseSlug)}-(\\d+)$`, 'i'));
+  return match ? Number(match[1]) : null;
+}
+
+async function assignWeddingWebsiteSlugs(planner, ownerId = '') {
+  if (!planner || !Array.isArray(planner.marriages)) {
+    return planner;
+  }
+
+  const reservedCountersByBase = new Map();
+  const nextMarriages = [];
+
+  for (const marriage of planner.marriages) {
+    const baseSlug = buildWeddingWebsiteBaseSlug(marriage);
+    const reservedCounters = reservedCountersByBase.get(baseSlug) || new Set();
+    const matchingDocs = await PlannerModel.find({
+      'marriages.websiteSlug': { $regex: `^${escapeRegex(baseSlug)}-`, $options: 'i' },
+    }).lean();
+
+    const usedCounters = new Set(reservedCounters);
+    for (const doc of matchingDocs) {
+      for (const plan of Array.isArray(doc?.marriages) ? doc.marriages : []) {
+        if (doc?.googleId === ownerId && plan?.id === marriage.id) {
+          continue;
+        }
+        const counter = extractSlugCounter(plan?.websiteSlug, baseSlug);
+        if (counter) {
+          usedCounters.add(counter);
+        }
+      }
+    }
+
+    let preferredCounter = extractSlugCounter(marriage.websiteSlug, baseSlug);
+    if (!preferredCounter || usedCounters.has(preferredCounter)) {
+      preferredCounter = 1;
+      while (usedCounters.has(preferredCounter)) {
+        preferredCounter += 1;
+      }
+    }
+
+    usedCounters.add(preferredCounter);
+    reservedCountersByBase.set(baseSlug, usedCounters);
+    nextMarriages.push({
+      ...marriage,
+      websiteSlug: `${baseSlug}-${preferredCounter}`,
+    });
+  }
+
+  return {
+    ...planner,
+    marriages: nextMarriages,
+  };
+}
+
 function sanitizeMarriages(value, ownerEmail, ownerId) {
   if (!Array.isArray(value)) {
     return [];
@@ -236,6 +319,11 @@ function sanitizeMarriages(value, ownerEmail, ownerId) {
       venue: marriage.venue || '',
       budget: marriage.budget || '',
       guests: marriage.guests || '',
+      websiteSlug: typeof marriage.websiteSlug === 'string' ? marriage.websiteSlug.trim() : '',
+      websiteSettings: {
+        ...defaultWebsiteSettings,
+        ...(isRecord(marriage.websiteSettings) ? marriage.websiteSettings : {}),
+      },
       template: marriage.template || 'blank',
       collaborators: sanitizeCollaborators(marriage.collaborators, ownerEmail, ownerId),
       createdAt: marriage.createdAt || new Date(),
@@ -271,6 +359,8 @@ export function sanitizePlanner(payload = {}, options = {}) {
       venue: '',
       budget: '',
       guests: '',
+      websiteSlug: '',
+      websiteSettings: { ...defaultWebsiteSettings },
       template: 'blank',
       collaborators: sanitizeCollaborators([], ownerEmail, ownerId),
       createdAt: new Date(),
@@ -690,7 +780,8 @@ export function createApp(options = {}) {
       const normalizedCurrent = normalizePlannerOwnership(plannerDoc.toObject(), email, ownerId);
       const currentPlan = getPlanFromPlanner(normalizedCurrent, normalizedCurrent.activePlanId);
       const ownerEmail = findOwnerEmail(currentPlan) || email;
-      const planner = sanitizePlanner(req.body?.planner, { ownerEmail, ownerId });
+      const sanitizedPlanner = sanitizePlanner(req.body?.planner, { ownerEmail, ownerId });
+      const planner = await assignWeddingWebsiteSlugs(sanitizedPlanner, ownerId);
       const nextPlan = getPlanFromPlanner(planner, planner.activePlanId);
 
       const ownerFallback = !email && ownerId === req.auth.sub;
@@ -729,6 +820,56 @@ export function createApp(options = {}) {
     } catch (error) {
       console.error('Failed to save planner:', error);
       return res.status(500).json({ error: 'Failed to save planner data.' });
+    }
+  });
+
+  app.get('/api/planner/public', async (req, res) => {
+    try {
+      const slug = typeof req.query?.slug === 'string' ? req.query.slug.trim().toLowerCase() : '';
+      if (!slug) {
+        return res.status(400).json({ error: 'A website slug is required.' });
+      }
+
+      const plannerDoc = await PlannerModel.findOne({ 'marriages.websiteSlug': slug });
+      if (!plannerDoc) {
+        return res.status(404).json({ error: 'Wedding website not found.' });
+      }
+
+      const planner = sanitizePlanner(plannerDoc.toObject(), { ownerId: plannerDoc.googleId || '' });
+      const publicPlan = (planner.marriages || []).find(item => String(item.websiteSlug || '').toLowerCase() === slug);
+      if (!publicPlan) {
+        return res.status(404).json({ error: 'Wedding website not found.' });
+      }
+      if (publicPlan.websiteSettings?.isActive === false) {
+        return res.status(404).json({ error: 'Wedding website not found.' });
+      }
+
+      const wedding = {
+        ...planner.wedding,
+        bride: publicPlan.bride || planner.wedding?.bride || '',
+        groom: publicPlan.groom || planner.wedding?.groom || '',
+        date: publicPlan.date || planner.wedding?.date || '',
+        venue: publicPlan.venue || planner.wedding?.venue || '',
+        guests: publicPlan.guests || planner.wedding?.guests || '',
+        budget: publicPlan.budget || planner.wedding?.budget || '',
+      };
+
+      return res.json({
+        wedding,
+        plan: {
+          id: publicPlan.id,
+          bride: publicPlan.bride || '',
+          groom: publicPlan.groom || '',
+          date: publicPlan.date || '',
+          venue: publicPlan.venue || '',
+        websiteSlug: publicPlan.websiteSlug || '',
+        websiteSettings: publicPlan.websiteSettings || {},
+      },
+        events: (planner.events || []).filter(item => item?.planId === publicPlan.id && item?.isPublicWebsiteVisible !== false),
+      });
+    } catch (error) {
+      console.error('Failed to load public planner website:', error);
+      return res.status(500).json({ error: 'Failed to load wedding website.' });
     }
   });
 

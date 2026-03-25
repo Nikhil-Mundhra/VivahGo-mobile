@@ -30,7 +30,7 @@ import {
   savePlanner,
   updatePlanCollaboratorRole,
 } from "./api";
-import { EMPTY_WEDDING, createBlankPlanner, createDemoPlanner, hasWeddingProfile, normalizePlanner, generatePlanId, createTemplatePlanCollections } from "./plannerDefaults";
+import { DEFAULT_WEBSITE_SETTINGS, EMPTY_WEDDING, buildWeddingWebsitePath, createBlankPlanner, createDemoPlanner, hasWeddingProfile, normalizePlanner, generatePlanId, createTemplatePlanCollections } from "./plannerDefaults";
 import { useSwipeDown } from "./hooks/useSwipeDown";
 
 const SESSION_STORAGE_KEY = "vivahgo.session";
@@ -96,8 +96,9 @@ export default function VivahGoApp() {
           date: nextWedding.date || "",
           venue: nextWedding.venue || "",
           guests: nextWedding.guests || "",
-          budget: nextWedding.budget || "",
-        }
+      budget: nextWedding.budget || "",
+      websiteSettings: plan.websiteSettings || { ...DEFAULT_WEBSITE_SETTINGS },
+    }
         : plan
     )));
   }
@@ -155,6 +156,8 @@ export default function VivahGoApp() {
   const activeGuests = (guests || []).filter(item => item?.planId === activePlanId);
   const activeVendors = (vendors || []).filter(item => item?.planId === activePlanId);
   const activeTasks = (tasks || []).filter(item => item?.planId === activePlanId);
+  const activeMarriage = marriages.find(item => item?.id === activePlanId) || null;
+  const activeWeddingWebsitePath = buildWeddingWebsitePath(activeMarriage, wedding);
 
   const setActiveEvents = createPlanScopedSetter(setEvents, activePlanId);
   const setActiveExpenses = createPlanScopedSetter(setExpenses, activePlanId);
@@ -194,6 +197,29 @@ export default function VivahGoApp() {
       canManageSharing: derivedRole === "owner",
     });
   }, [user?.email]);
+
+  function syncWebsiteSlugsFromPlanner(nextPlanner) {
+    const normalized = normalizePlanner(nextPlanner);
+
+    setMarriages(current => {
+      let didChange = false;
+      const updated = current.map(plan => {
+        const serverPlan = normalized.marriages.find(item => item.id === plan.id);
+        if (!serverPlan) {
+          return plan;
+        }
+
+        if ((serverPlan.websiteSlug || "") !== (plan.websiteSlug || "")) {
+          didChange = true;
+          return { ...plan, websiteSlug: serverPlan.websiteSlug || "" };
+        }
+
+        return plan;
+      });
+
+      return didChange ? updated : current;
+    });
+  }
 
   async function fetchAndApplySubscription(token) {
     if (!token) return;
@@ -302,6 +328,7 @@ export default function VivahGoApp() {
       guests: formData.guests,
       budget: formData.budget,
       template: formData.template,
+      websiteSettings: { ...DEFAULT_WEBSITE_SETTINGS },
       collaborators: user?.email
         ? [{ email: normalizeEmail(user.email), role: "owner", addedBy: user.id || "", addedAt: new Date() }]
         : [],
@@ -478,6 +505,25 @@ export default function VivahGoApp() {
 
     const next = collaborators.filter(item => normalizeEmail(item.email) !== normalizeEmail(email));
     syncPlanCollaborators(targetPlanId, next);
+  }
+
+  function updateActiveMarriageWebsiteSettings(nextSettings) {
+    if (!activePlanId || !planAccess.canEdit) {
+      return;
+    }
+
+    setMarriages(current => current.map(plan => (
+      plan.id === activePlanId
+        ? {
+          ...plan,
+          websiteSettings: {
+            ...DEFAULT_WEBSITE_SETTINGS,
+            ...(plan.websiteSettings || {}),
+            ...nextSettings,
+          },
+        }
+        : plan
+    )));
   }
 
   useEffect(() => {
@@ -679,7 +725,10 @@ export default function VivahGoApp() {
     saveTimerRef.current = setTimeout(async () => {
       try {
         setSaveState("saving");
-        await savePlanner(authToken, planner, plannerOwnerId);
+        const response = await savePlanner(authToken, planner, plannerOwnerId);
+        if (response?.planner) {
+          syncWebsiteSlugsFromPlanner(response.planner);
+        }
         setSaveState("saved");
       } catch (error) {
         console.error("Auto-save failed:", error);
@@ -1013,7 +1062,7 @@ export default function VivahGoApp() {
           {/* Content */}
           <div className={`content-area ${!planAccess.canEdit ? "content-area-readonly" : ""}`} ref={contentAreaRef}>
             {tab==="home" && <Dashboard wedding={wedding} events={activeEvents} expenses={activeExpenses} guests={activeGuests} budget={wedding.budget} onTabChange={setTab} onEditEvent={openEventEditorFromCalendar}/>}
-            {tab==="events" && <EventsScreen events={activeEvents} setEvents={setActiveEvents} expenses={activeExpenses} setExpenses={setActiveExpenses} planId={activePlanId} onOpenBudget={() => setTab("budget")} initialEditingEventId={eventToEditId}/>}
+            {tab==="events" && <EventsScreen events={activeEvents} setEvents={setActiveEvents} expenses={activeExpenses} setExpenses={setActiveExpenses} planId={activePlanId} websitePath={activeWeddingWebsitePath} websiteSettings={activeMarriage?.websiteSettings || DEFAULT_WEBSITE_SETTINGS} onSaveWebsiteSettings={updateActiveMarriageWebsiteSettings} onOpenBudget={() => setTab("budget")} initialEditingEventId={eventToEditId}/>}
             {tab==="budget" && <BudgetScreen expenses={activeExpenses} setExpenses={setActiveExpenses} wedding={wedding} events={activeEvents} planId={activePlanId}/>} 
             {tab==="guests" && <GuestsScreen guests={activeGuests} setGuests={setActiveGuests} planId={activePlanId}/>} 
             {tab==="vendors" && <VendorsScreen vendors={activeVendors}/>} 

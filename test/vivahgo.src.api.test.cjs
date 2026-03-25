@@ -128,15 +128,17 @@ describe('VivahGo/src/api.js', function () {
       await mod.loginWithGoogle('cred-1');
       await mod.fetchPlanner('jwt-2');
       await mod.savePlanner('jwt-3', { wedding: { bride: 'A' } });
+      await mod.fetchPublicWeddingWebsite('asha-rohan-1');
       await mod.submitFeedback({ message: 'Great app' });
     } finally {
       delete global.fetch;
     }
 
-    assert.equal(calls.length, 4);
+    assert.equal(calls.length, 5);
     assert.match(calls[0].url, /\/auth\/google$/);
     assert.equal(calls[1].options.headers.Authorization, 'Bearer jwt-2');
     assert.match(calls[2].url, /\/planner\/me$/);
-    assert.match(calls[3].url, /\/feedback$/);
+    assert.match(calls[3].url, /\/planner\/public\?slug=asha-rohan-1$/);
+    assert.match(calls[4].url, /\/feedback$/);
   });
 });

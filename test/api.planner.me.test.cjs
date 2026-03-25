@@ -1,5 +1,6 @@
 const assert = require('node:assert/strict');
 const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
 
 const { createRes } = require('./helpers/testUtils.cjs');
 
@@ -29,6 +30,19 @@ function makePlannerDoc(overrides = {}) {
 }
 
 describe('api/planner/me.js', function () {
+  let originalMongooseConnect;
+
+  before(function () {
+    originalMongooseConnect = mongoose.connect;
+    mongoose.connect = async () => ({});
+    process.env.MONGODB_URI = 'mongodb://example.test/vivahgo';
+  });
+
+  after(function () {
+    mongoose.connect = originalMongooseConnect;
+    delete process.env.MONGODB_URI;
+  });
+
   // ── Preflight ────────────────────────────────────────────────────────────────
   it('handles OPTIONS preflight with 204', async function () {
     const req = { method: 'OPTIONS', headers: {} };
@@ -77,12 +91,14 @@ describe('api/planner/me.js', function () {
 
   describe('with mocked Planner model', function () {
     let Planner, User;
-    let origFindOne, origUserFindOne;
+    let origFindOneAndUpdate, origFind, origUserFindOne;
 
     before(function () {
       const { getPlannerModel, getUserModel } = require('../api/_lib/core');
       Planner = getPlannerModel();
-      origFindOne = Planner.findOneAndUpdate;
+      origFindOneAndUpdate = Planner.findOneAndUpdate;
+      origFind = Planner.find;
+      Planner.find = () => ({ lean: async () => [] });
 
       // Mock User.findOne so getSubscriptionTier returns immediately (no DB buffer timeout).
       // Returning null results in 'starter' tier; gate condition nextPlanCount > 1 is never
@@ -93,11 +109,13 @@ describe('api/planner/me.js', function () {
     });
 
     afterEach(function () {
-      Planner.findOneAndUpdate = origFindOne;
+      Planner.findOneAndUpdate = origFindOneAndUpdate;
+      Planner.find = () => ({ lean: async () => [] });
       User.findOne = () => ({ lean: async () => null });
     });
 
     after(function () {
+      Planner.find = origFind;
       User.findOne = origUserFindOne;
     });
 

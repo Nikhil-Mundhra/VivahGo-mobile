@@ -44,6 +44,11 @@ const plannerSchema = new mongoose.Schema(
           venue: String,
           budget: String,
           guests: String,
+          websiteSlug: String,
+          websiteSettings: {
+            type: mongoose.Schema.Types.Mixed,
+            default: () => ({}),
+          },
           template: String, // 'blank', 'traditional', 'modern', 'minimalist', 'adventure'
           collaborators: {
             type: [collaboratorSchema],

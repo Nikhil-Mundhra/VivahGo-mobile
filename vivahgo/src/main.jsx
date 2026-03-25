@@ -11,13 +11,19 @@ import VendorPortal from './VendorPortal.jsx'
 
 const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 const pathname = typeof window !== 'undefined' ? window.location.pathname : '/';
+const normalizedPathname = pathname.replace(/\/+$/, '') || '/';
 const isMarketingHomeRoute = /^\/home\/?$/.test(pathname);
 const isWeddingWebsiteRoute = /^\/wedding\/?$/.test(pathname);
 const isVendorRoute = /^\/vendor\/?$/.test(pathname);
+const publicWeddingSlugMatch = normalizedPathname.match(/^\/([^/.][^/]*)$/);
+const publicWeddingSlug = publicWeddingSlugMatch && !['home', 'vendor', 'wedding'].includes(publicWeddingSlugMatch[1].toLowerCase())
+  ? decodeURIComponent(publicWeddingSlugMatch[1])
+  : '';
 
 if (typeof document !== 'undefined') {
   document.body.dataset.route = isMarketingHomeRoute ? 'home'
     : isWeddingWebsiteRoute ? 'wedding'
+    : publicWeddingSlug ? 'wedding'
     : isVendorRoute ? 'vendor'
     : 'app';
 }
@@ -27,6 +33,7 @@ const app = (
     {isVendorRoute ? <VendorPortal />
       : isMarketingHomeRoute ? <MarketingHomePage />
       : isWeddingWebsiteRoute ? <WeddingWebsitePage />
+      : publicWeddingSlug ? <WeddingWebsitePage websiteSlug={publicWeddingSlug} />
       : <App />}
     <Analytics />
     <SpeedInsights />

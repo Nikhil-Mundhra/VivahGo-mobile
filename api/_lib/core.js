@@ -10,6 +10,12 @@ const emptyWedding = {
   budget: '',
 };
 
+const defaultWebsiteSettings = {
+  isActive: true,
+  showCountdown: true,
+  showCalendar: true,
+};
+
 const ROLE_LEVEL = {
   viewer: 1,
   editor: 2,
@@ -297,11 +303,91 @@ function sanitizeMarriages(value) {
       venue: marriage.venue || '',
       budget: marriage.budget || '',
       guests: marriage.guests || '',
+      websiteSlug: typeof marriage.websiteSlug === 'string' ? marriage.websiteSlug.trim() : '',
+      websiteSettings: {
+        ...defaultWebsiteSettings,
+        ...(isRecord(marriage.websiteSettings) ? marriage.websiteSettings : {}),
+      },
       template: marriage.template || 'blank',
       collaborators: sanitizeCollaborators(marriage.collaborators),
       createdAt: marriage.createdAt || new Date(),
     }))
     .filter(marriage => Boolean(marriage.id));
+}
+
+function slugifyWeddingNamePart(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .replace(/-{2,}/g, '-');
+}
+
+function buildWeddingWebsiteBaseSlug(plan = {}) {
+  const bride = slugifyWeddingNamePart(plan.bride);
+  const groom = slugifyWeddingNamePart(plan.groom);
+  const combined = [bride, groom].filter(Boolean).join('-');
+  return combined || 'our-wedding';
+}
+
+function escapeRegex(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function extractSlugCounter(slug, baseSlug) {
+  const match = String(slug || '').match(new RegExp(`^${escapeRegex(baseSlug)}-(\\d+)$`, 'i'));
+  return match ? Number(match[1]) : null;
+}
+
+async function assignWeddingWebsiteSlugs(planner, PlannerModel, ownerId = '') {
+  if (!planner || !Array.isArray(planner.marriages) || !PlannerModel) {
+    return planner;
+  }
+
+  const reservedCountersByBase = new Map();
+  const nextMarriages = [];
+
+  for (const marriage of planner.marriages) {
+    const baseSlug = buildWeddingWebsiteBaseSlug(marriage);
+    const reservedCounters = reservedCountersByBase.get(baseSlug) || new Set();
+    const matchingDocs = await PlannerModel.find({
+      'marriages.websiteSlug': { $regex: `^${escapeRegex(baseSlug)}-`, $options: 'i' },
+    }).lean();
+
+    const usedCounters = new Set(reservedCounters);
+    for (const doc of matchingDocs) {
+      for (const plan of Array.isArray(doc?.marriages) ? doc.marriages : []) {
+        if (doc?.googleId === ownerId && plan?.id === marriage.id) {
+          continue;
+        }
+        const counter = extractSlugCounter(plan?.websiteSlug, baseSlug);
+        if (counter) {
+          usedCounters.add(counter);
+        }
+      }
+    }
+
+    let preferredCounter = extractSlugCounter(marriage.websiteSlug, baseSlug);
+    if (!preferredCounter || usedCounters.has(preferredCounter)) {
+      preferredCounter = 1;
+      while (usedCounters.has(preferredCounter)) {
+        preferredCounter += 1;
+      }
+    }
+
+    usedCounters.add(preferredCounter);
+    reservedCountersByBase.set(baseSlug, usedCounters);
+    nextMarriages.push({
+      ...marriage,
+      websiteSlug: `${baseSlug}-${preferredCounter}`,
+    });
+  }
+
+  return {
+    ...planner,
+    marriages: nextMarriages,
+  };
 }
 
 function sanitizePlanScopedCollection(items, validPlanIds, activePlanId) {
@@ -336,6 +422,8 @@ function sanitizePlanner(payload = {}, options = {}) {
       venue: '',
       budget: '',
       guests: '',
+      websiteSlug: '',
+      websiteSettings: { ...defaultWebsiteSettings },
       template: 'blank',
       collaborators: sanitizeCollaborators([], ownerEmail, ownerId),
       createdAt: new Date(),
@@ -456,6 +544,8 @@ function verifySession(req) {
 }
 
 module.exports = {
+  assignWeddingWebsiteSlugs,
+  buildWeddingWebsiteBaseSlug,
   buildEmptyPlanner,
   connectDb,
   createSessionToken,

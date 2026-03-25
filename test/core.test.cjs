@@ -2,6 +2,8 @@ const assert = require('node:assert/strict');
 const jwt = require('jsonwebtoken');
 
 const {
+  assignWeddingWebsiteSlugs,
+  buildWeddingWebsiteBaseSlug,
   buildEmptyPlanner,
   createSessionToken,
   getPlannerModel,
@@ -110,6 +112,51 @@ describe('core helpers', function () {
       assert.equal(owners.length, 1);
       assert.equal(owners[0].email, 'owner@test.com');
       assert.equal(collaborators.find(item => item.email === 'other@test.com').role, 'viewer');
+    });
+
+    it('preserves websiteSlug on marriages', function () {
+      const result = sanitizePlanner({
+        marriages: [
+          { id: 'plan_site', bride: 'Asha', groom: 'Rohan', websiteSlug: 'asha-rohan-3', websiteSettings: { isActive: false, showCalendar: false } },
+        ],
+        activePlanId: 'plan_site',
+      });
+
+      assert.equal(result.marriages[0].websiteSlug, 'asha-rohan-3');
+      assert.equal(result.marriages[0].websiteSettings.isActive, false);
+      assert.equal(result.marriages[0].websiteSettings.showCalendar, false);
+      assert.equal(result.marriages[0].websiteSettings.showCountdown, true);
+    });
+  });
+
+  describe('wedding website slug helpers', function () {
+    it('builds a stable base slug from bride and groom names', function () {
+      assert.equal(buildWeddingWebsiteBaseSlug({ bride: 'Asha ', groom: 'Rohan Malhotra' }), 'asha-rohan-malhotra');
+      assert.equal(buildWeddingWebsiteBaseSlug({ bride: '', groom: '' }), 'our-wedding');
+    });
+
+    it('assigns unique slug counters while preserving a free existing slug', async function () {
+      const planner = {
+        marriages: [
+          { id: 'plan_a', bride: 'Asha', groom: 'Rohan', websiteSlug: 'asha-rohan-3' },
+          { id: 'plan_b', bride: 'Asha', groom: 'Rohan', websiteSlug: '' },
+        ],
+      };
+      const PlannerModel = {
+        find() {
+          return {
+            lean: async () => ([
+              { googleId: 'other-owner', marriages: [{ id: 'other-plan', websiteSlug: 'asha-rohan-1' }] },
+              { googleId: 'other-owner-2', marriages: [{ id: 'other-plan-2', websiteSlug: 'asha-rohan-2' }] },
+            ]),
+          };
+        },
+      };
+
+      const result = await assignWeddingWebsiteSlugs(planner, PlannerModel, 'owner-1');
+
+      assert.equal(result.marriages[0].websiteSlug, 'asha-rohan-3');
+      assert.equal(result.marriages[1].websiteSlug, 'asha-rohan-4');
     });
   });
 

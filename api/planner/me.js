@@ -1,4 +1,5 @@
 const {
+  assignWeddingWebsiteSlugs,
   buildEmptyPlanner,
   connectDb,
   getCollaboratorRoleForPlan,
@@ -97,7 +98,8 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    const nextPlanner = sanitizePlanner(req.body?.planner, { ownerEmail: findOwnerEmail(activePlan, email), ownerId });
+    const sanitizedPlanner = sanitizePlanner(req.body?.planner, { ownerEmail: findOwnerEmail(activePlan, email), ownerId });
+    const nextPlanner = await assignWeddingWebsiteSlugs(sanitizedPlanner, Planner, ownerId);
     const nextPlan = getPlanFromPlanner(nextPlanner, nextPlanner.activePlanId);
     const ownerFallback = !email && ownerId === auth.sub;
     if (!ownerFallback && !hasPlanRole(nextPlan, email, 'editor')) {

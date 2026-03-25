@@ -27,19 +27,41 @@ function buildTimeStr(timeH, timeM, timeP) {
   return timeH && timeM ? timeH + ":" + timeM + " " + timeP : "";
 }
 
-function EventsScreen({ events, setEvents, expenses, setExpenses, onOpenBudget, initialEditingEventId, planId }) {
+function ToggleRow({ label, description, checked, onChange }) {
+  return (
+    <label className="website-toggle-row">
+      <div style={{ flex: 1 }}>
+        <div className="website-toggle-label">{label}</div>
+        {description ? <div className="website-toggle-description">{description}</div> : null}
+      </div>
+      <input type="checkbox" checked={checked} onChange={onChange} className="website-toggle-input" />
+      <span className="website-toggle-switch" aria-hidden="true">
+        <span className="website-toggle-knob" />
+      </span>
+    </label>
+  );
+}
+
+function EventsScreen({ events, setEvents, expenses, setExpenses, onOpenBudget, initialEditingEventId, planId, websitePath = "/wedding", websiteSettings, onSaveWebsiteSettings }) {
   const [editing, setEditing] = useState(() => {
     const initialEvent = events.find(event => String(event.id) === String(initialEditingEventId));
-    return initialEvent ? { ...initialEvent, ...parseTimeParts(initialEvent.time) } : null;
+    return initialEvent ? { isPublicWebsiteVisible: true, ...initialEvent, ...parseTimeParts(initialEvent.time) } : null;
   });
   const [showAdd, setShowAdd] = useState(false);
+  const [showWebsiteModal, setShowWebsiteModal] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [form, setForm] = useState({ name: "", emoji: "✨", date: "", timeH: "", timeM: "", timeP: "AM", venue: "", status: "upcoming", note: "" });
+  const [form, setForm] = useState({ name: "", emoji: "✨", date: "", timeH: "", timeM: "", timeP: "AM", venue: "", status: "upcoming", note: "", isPublicWebsiteVisible: true });
+  const [websiteForm, setWebsiteForm] = useState(() => ({
+    isActive: websiteSettings?.isActive !== false,
+    showCountdown: websiteSettings?.showCountdown !== false,
+    showCalendar: websiteSettings?.showCalendar !== false,
+  }));
   const editingSwipe = useSwipeDown(() => { setEditing(null); setConfirmDelete(false); });
+  const websiteSwipe = useSwipeDown(() => setShowWebsiteModal(false));
 
   function resetAddForm() {
-    setForm({ name: "", emoji: "✨", date: "", timeH: "", timeM: "", timeP: "AM", venue: "", status: "upcoming", note: "" });
+    setForm({ name: "", emoji: "✨", date: "", timeH: "", timeM: "", timeP: "AM", venue: "", status: "upcoming", note: "", isPublicWebsiteVisible: true });
   }
 
   function closeAddModal() {
@@ -49,9 +71,33 @@ function EventsScreen({ events, setEvents, expenses, setExpenses, onOpenBudget, 
   }
 
   const addSwipe = useSwipeDown(() => closeAddModal());
+  function closeWebsiteModal() {
+    setShowWebsiteModal(false);
+    setWebsiteForm({
+      isActive: websiteSettings?.isActive !== false,
+      showCountdown: websiteSettings?.showCountdown !== false,
+      showCalendar: websiteSettings?.showCalendar !== false,
+    });
+  }
 
   useBackButtonClose(Boolean(editing), () => { setEditing(null); setConfirmDelete(false); });
   useBackButtonClose(showAdd, closeAddModal);
+  useBackButtonClose(showWebsiteModal, closeWebsiteModal);
+
+  function openWebsiteModal() {
+    setWebsiteForm({
+      isActive: websiteSettings?.isActive !== false,
+      showCountdown: websiteSettings?.showCountdown !== false,
+      showCalendar: websiteSettings?.showCalendar !== false,
+    });
+    setShowWebsiteModal(true);
+  }
+
+  function applyWebsiteSetting(nextPartial) {
+    const next = { ...websiteForm, ...nextPartial };
+    setWebsiteForm(next);
+    onSaveWebsiteSettings?.(next);
+  }
 
   const usedNames = new Set(events.map(e => e.name));
   const availablePresets = DEFAULT_EVENTS.filter(e => !usedNames.has(e.name));
@@ -123,10 +169,10 @@ function EventsScreen({ events, setEvents, expenses, setExpenses, onOpenBudget, 
     <div>
       <div className="section-head">
         <div className="section-title">Wedding Ceremonies</div>
-        <div style={{display:"flex",gap:8,alignItems:"center"}}>
-          <button className="section-action" onClick={onOpenBudget}>Budget</button>
-          <button className="section-action" style={{color:"var(--color-gold-dark)"}} onClick={() => window.open("/wedding", "_blank", "noopener,noreferrer")} title="Preview your wedding website">🌐 Website</button>
-          <button className="section-action guest-section-add" onClick={() => setShowAdd(true)}>+ Add</button>
+        <div className="event-section-actions">
+          <button className="section-action event-section-button event-section-button-budget" onClick={onOpenBudget}>Budget</button>
+          <button className="section-action event-section-button event-section-button-website" onClick={openWebsiteModal} title="Configure your public wedding website">Website</button>
+          <button className="section-action event-section-button event-section-button-add" onClick={() => setShowAdd(true)}>+ Add</button>
         </div>
       </div>
       {events.length === 0 ? (
@@ -145,7 +191,7 @@ function EventsScreen({ events, setEvents, expenses, setExpenses, onOpenBudget, 
             return (
             <div key={ev.id} className="event-card"
               style={{background:`linear-gradient(150deg, ${EVENT_COLORS[ev.colorIdx % EVENT_COLORS.length][0]}, ${EVENT_COLORS[ev.colorIdx % EVENT_COLORS.length][1]})`}}
-              onClick={()=>setEditing({...ev, ...parseTimeParts(ev.time)})}>  
+              onClick={()=>setEditing({isPublicWebsiteVisible:true, ...ev, ...parseTimeParts(ev.time)})}>  
               <div>
                 <div className="event-emoji">{ev.emoji}</div>
                 <div className="event-name">{ev.name}</div>
@@ -219,6 +265,15 @@ function EventsScreen({ events, setEvents, expenses, setExpenses, onOpenBudget, 
             <div className="input-group">
               <div className="input-label">Notes</div>
               <input className="input-field" value={editing.note} onChange={e=>setEditing({...editing,note:e.target.value})} placeholder="Any special notes..."/>
+            </div>
+            <div className="input-group">
+              <div className="input-label">Visibility</div>
+              <ToggleRow
+                label="Show on wedding website"
+                description="Only public ceremonies appear in the website calendar."
+                checked={editing.isPublicWebsiteVisible !== false}
+                onChange={e=>setEditing({...editing,isPublicWebsiteVisible:e.target.checked})}
+              />
             </div>
             <button className="btn-primary btn-gold" onClick={onOpenBudget}>View Linked Budget</button>
             <button className="btn-secondary" onClick={() => setEditing(null)}>Cancel</button>
@@ -363,10 +418,74 @@ function EventsScreen({ events, setEvents, expenses, setExpenses, onOpenBudget, 
                   <div className="input-label">Notes</div>
                   <input className="input-field" value={form.note} onChange={e => setForm({ ...form, note: e.target.value })} placeholder="Special notes" />
                 </div>
+                <div className="input-group">
+                  <div className="input-label">Visibility</div>
+                  <ToggleRow
+                    label="Show on wedding website"
+                    description="Public ceremonies appear in the website calendar."
+                    checked={form.isPublicWebsiteVisible !== false}
+                    onChange={e => setForm({ ...form, isPublicWebsiteVisible: e.target.checked })}
+                  />
+                </div>
                 <button className="btn-secondary" onClick={closeAddModal}>Cancel</button>
                 <button className="btn-primary" onClick={addEvent}>Add Ceremony</button>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {showWebsiteModal && (
+        <div className="modal-overlay" onClick={closeWebsiteModal}>
+          <div className="modal" {...websiteSwipe.modalProps} onClick={e => e.stopPropagation()}>
+            <div className="modal-handle"/>
+            <div className="modal-title">Wedding Website</div>
+            <div className="website-settings-card">
+              <div className="website-settings-path">{websitePath}</div>
+              <div className="website-settings-note">
+                {websiteForm.isActive
+                  ? "This public page can be opened by guests with or without login. Changes here autosave."
+                  : "This website is inactive and hidden from guests right now."}
+              </div>
+            </div>
+            <div className="input-group">
+              <div className="input-label">Status</div>
+              <div className="website-status-toggle" role="tablist" aria-label="Website status">
+                <button
+                  type="button"
+                  className={`website-status-option ${websiteForm.isActive ? "active" : ""}`}
+                  onClick={() => applyWebsiteSetting({ isActive: true })}
+                >
+                  Active
+                </button>
+                <button
+                  type="button"
+                  className={`website-status-option ${!websiteForm.isActive ? "active" : ""}`}
+                  onClick={() => applyWebsiteSetting({ isActive: false })}
+                >
+                  Inactive
+                </button>
+              </div>
+            </div>
+            <div className="input-group">
+              <div className="input-label">What to Show</div>
+              <ToggleRow
+                label="Countdown"
+                description="Show the days remaining until the wedding date."
+                checked={websiteForm.showCountdown}
+                onChange={e => applyWebsiteSetting({ showCountdown: e.target.checked })}
+              />
+              <ToggleRow
+                label="Wedding calendar"
+                description="Show only ceremonies marked public in your Events list."
+                checked={websiteForm.showCalendar}
+                onChange={e => applyWebsiteSetting({ showCalendar: e.target.checked })}
+              />
+            </div>
+            <button className="btn-secondary" onClick={closeWebsiteModal}>Cancel</button>
+            {websiteForm.isActive ? (
+              <button className="btn-primary" onClick={() => window.open(websitePath, "_blank", "noopener,noreferrer")}>Open</button>
+            ) : null}
           </div>
         </div>
       )}

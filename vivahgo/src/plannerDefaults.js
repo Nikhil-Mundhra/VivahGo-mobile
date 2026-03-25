@@ -9,6 +9,42 @@ export const EMPTY_WEDDING = {
   budget: '',
 };
 
+export const DEFAULT_WEBSITE_SETTINGS = {
+  isActive: true,
+  showCountdown: true,
+  showCalendar: true,
+};
+
+function slugifyWeddingNamePart(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .replace(/-{2,}/g, '-');
+}
+
+function buildWeddingWebsiteBaseSlug(plan = {}) {
+  const bride = slugifyWeddingNamePart(plan.bride);
+  const groom = slugifyWeddingNamePart(plan.groom);
+  const combined = [bride, groom].filter(Boolean).join('-');
+  return combined || '';
+}
+
+export function buildWeddingWebsitePath(plan = {}, wedding = EMPTY_WEDDING) {
+  const storedSlug = typeof plan?.websiteSlug === 'string' ? plan.websiteSlug.trim() : '';
+  if (storedSlug) {
+    return `/${storedSlug}`;
+  }
+
+  const baseSlug = buildWeddingWebsiteBaseSlug({
+    bride: plan?.bride || wedding?.bride || '',
+    groom: plan?.groom || wedding?.groom || '',
+  });
+
+  return baseSlug ? `/${baseSlug}-1` : '/wedding';
+}
+
 // Generate unique ID for marriage plans
 export function generatePlanId() {
   return `plan_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
@@ -353,6 +389,8 @@ export function createBlankMarriagePlan(planId = null) {
     venue: '',
     guests: '',
     budget: '',
+    websiteSlug: '',
+    websiteSettings: { ...DEFAULT_WEBSITE_SETTINGS },
     template: 'blank',
     collaborators: [],
     createdAt: new Date(),
@@ -370,6 +408,8 @@ export function createDemoMarriagePlan() {
     venue: 'Jaipur Palace Grounds',
     guests: '320',
     budget: '6500000',
+    websiteSlug: 'aarohi-kabir-1',
+    websiteSettings: { ...DEFAULT_WEBSITE_SETTINGS },
     template: 'punjabi',
     collaborators: [],
     createdAt: new Date(),
@@ -429,6 +469,11 @@ export function normalizePlanner(planner) {
       .filter(marriage => marriage && typeof marriage === 'object')
       .map(marriage => ({
         ...marriage,
+        websiteSlug: typeof marriage.websiteSlug === 'string' ? marriage.websiteSlug : '',
+        websiteSettings: {
+          ...DEFAULT_WEBSITE_SETTINGS,
+          ...(marriage.websiteSettings && typeof marriage.websiteSettings === 'object' ? marriage.websiteSettings : {}),
+        },
         collaborators: Array.isArray(marriage.collaborators)
           ? marriage.collaborators
             .filter(item => item && typeof item === 'object' && typeof item.email === 'string' && item.email.trim())
@@ -454,6 +499,8 @@ export function normalizePlanner(planner) {
       venue: planner.wedding.venue || '',
       guests: planner.wedding.guests || '',
       budget: planner.wedding.budget || '',
+      websiteSlug: '',
+      websiteSettings: { ...DEFAULT_WEBSITE_SETTINGS },
       template: 'blank',
       collaborators: [],
       createdAt: new Date(),
@@ -487,6 +534,10 @@ export function normalizePlanner(planner) {
   };
 
   const normalizedEvents = normalizePlanScopedItems(planner.events, activePlanId, validPlanIds);
+  const normalizedEventsWithVisibility = normalizedEvents.map(event => ({
+    ...event,
+    isPublicWebsiteVisible: event?.isPublicWebsiteVisible !== false,
+  }));
   const normalizedExpenses = normalizePlanScopedItems(planner.expenses, activePlanId, validPlanIds)
     .map(e => normalizeExpense(e, activePlanId));
   const normalizedGuests = normalizePlanScopedItems(planner.guests, activePlanId, validPlanIds);
@@ -498,7 +549,7 @@ export function normalizePlanner(planner) {
     marriages,
     activePlanId,
     wedding,
-    events: normalizedEvents,
+    events: normalizedEventsWithVisibility,
     expenses: normalizedExpenses,
     guests: normalizedGuests,
     vendors: normalizedVendors,

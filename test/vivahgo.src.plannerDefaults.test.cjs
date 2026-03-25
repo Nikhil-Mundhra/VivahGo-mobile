@@ -24,6 +24,14 @@ describe('VivahGo/src/plannerDefaults.js', function () {
     assert.deepEqual(planner.tasks, []);
   });
 
+  it('buildWeddingWebsitePath uses stored slug, derived names, and preview fallback', async function () {
+    const mod = await loadModule();
+
+    assert.equal(mod.buildWeddingWebsitePath({ websiteSlug: 'isha-veer-2' }), '/isha-veer-2');
+    assert.equal(mod.buildWeddingWebsitePath({ bride: 'Isha', groom: 'Veer' }), '/isha-veer-1');
+    assert.equal(mod.buildWeddingWebsitePath({}, mod.EMPTY_WEDDING), '/wedding');
+  });
+
   it('createDemoPlanner returns seeded planner with cloned collections and multi-marriage support', async function () {
     const mod = await loadModule();
     const demoA = mod.createDemoPlanner();
@@ -69,6 +77,7 @@ describe('VivahGo/src/plannerDefaults.js', function () {
     assert.equal(normalized.events.length, 1);
     assert.equal(normalized.events[0].id, 1);
     assert.ok(normalized.events[0].planId, 'events should have planId after migration');
+    assert.equal(normalized.events[0].isPublicWebsiteVisible, true);
 
     assert.equal(normalized.expenses.length, 2);
     assert.equal(normalized.expenses[0].amount, 5000);
@@ -84,6 +93,21 @@ describe('VivahGo/src/plannerDefaults.js', function () {
     assert.equal(normalized.vendors.length, 1);
     assert.equal(normalized.vendors[0].id, 1);
     assert.ok(normalized.vendors[0].planId, 'vendors should have planId after migration');
+  });
+
+  it('normalizes website settings on marriages', async function () {
+    const mod = await loadModule();
+
+    const normalized = mod.normalizePlanner({
+      marriages: [
+        { id: 'plan_site', bride: 'Asha', groom: 'Rohan', websiteSettings: { isActive: false, showCountdown: false } },
+      ],
+      activePlanId: 'plan_site',
+    });
+
+    assert.equal(normalized.marriages[0].websiteSettings.isActive, false);
+    assert.equal(normalized.marriages[0].websiteSettings.showCountdown, false);
+    assert.equal(normalized.marriages[0].websiteSettings.showCalendar, true);
   });
 
   it('normalizePlanner migrates missing planId records to the active plan once', async function () {
