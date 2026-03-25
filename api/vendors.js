@@ -1,4 +1,5 @@
 const { connectDb, handlePreflight, setCorsHeaders, getVendorModel } = require('./_lib/core');
+const { normalizeMediaList } = require('./_lib/r2');
 
 module.exports = async function handler(req, res) {
   if (handlePreflight(req, res)) { return; }
@@ -30,7 +31,7 @@ module.exports = async function handler(req, res) {
       rating: 0,
       priceLevel: null,
       booked: false,
-      media: v.media || [],
+      media: normalizeMediaList(v.media),
     }));
 
     return res.status(200).json({ vendors });

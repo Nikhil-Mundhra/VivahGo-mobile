@@ -1,4 +1,5 @@
 const { connectDb, handlePreflight, setCorsHeaders, verifySession, getUserModel, getVendorModel } = require('../_lib/core');
+const { normalizeMediaList } = require('../_lib/r2');
 
 const VENDOR_TYPES = ['Venue', 'Photography', 'Catering', 'Decoration', 'Music', 'Pandit'];
 const ALLOWED_UPDATE_FIELDS = ['businessName', 'type', 'description', 'city', 'phone', 'website'];
@@ -22,7 +23,12 @@ module.exports = async function handler(req, res) {
       if (!vendor) {
         return res.status(404).json({ error: 'No vendor profile found.' });
       }
-      return res.status(200).json({ vendor });
+      return res.status(200).json({
+        vendor: {
+          ...vendor,
+          media: normalizeMediaList(vendor.media),
+        },
+      });
     }
 
     if (req.method === 'POST') {
@@ -55,7 +61,12 @@ module.exports = async function handler(req, res) {
         { $set: { isVendor: true, vendorId: vendor._id } }
       );
 
-      return res.status(201).json({ vendor });
+      return res.status(201).json({
+        vendor: {
+          ...vendor.toObject(),
+          media: normalizeMediaList(vendor.media),
+        },
+      });
     }
 
     if (req.method === 'PATCH') {
@@ -81,7 +92,12 @@ module.exports = async function handler(req, res) {
       if (!vendor) {
         return res.status(404).json({ error: 'No vendor profile found.' });
       }
-      return res.status(200).json({ vendor });
+      return res.status(200).json({
+        vendor: {
+          ...vendor.toObject(),
+          media: normalizeMediaList(vendor.media),
+        },
+      });
     }
 
     res.setHeader('Allow', 'GET, POST, PATCH, OPTIONS');

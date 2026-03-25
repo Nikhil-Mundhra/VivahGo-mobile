@@ -40,20 +40,99 @@ async function createPresignedPutUrl(key, contentType, expiresIn = 3600) {
   return getSignedUrl(client, command, { expiresIn });
 }
 
-function createPublicObjectUrl(key) {
+function getPublicBaseUrl() {
   const publicBase = (process.env.R2_PUBLIC_URL || '').trim();
   if (!publicBase) {
     throw new Error('R2_PUBLIC_URL is not configured.');
   }
 
-  let baseUrl;
   try {
-    baseUrl = new URL(publicBase.endsWith('/') ? publicBase : `${publicBase}/`);
+    return new URL(publicBase.endsWith('/') ? publicBase : `${publicBase}/`);
   } catch {
     throw new Error('R2_PUBLIC_URL must be a valid absolute URL.');
   }
-
-  return new URL(key, baseUrl).toString();
 }
 
-module.exports = { createPresignedPutUrl, createPublicObjectUrl };
+function normalizeObjectKey(key) {
+  if (!key || typeof key !== 'string') {
+    throw new Error('Object key must be a non-empty string.');
+  }
+
+  return key.replace(/^\/+/, '');
+}
+
+function createPublicObjectUrl(key) {
+  const baseUrl = getPublicBaseUrl();
+  return new URL(normalizeObjectKey(key), baseUrl).toString();
+}
+
+function extractObjectKeyFromUrl(url) {
+  if (!url || typeof url !== 'string') {
+    return '';
+  }
+
+  let objectUrl;
+  try {
+    objectUrl = new URL(url);
+  } catch {
+    return '';
+  }
+
+  let baseUrl;
+  try {
+    baseUrl = getPublicBaseUrl();
+  } catch {
+    return '';
+  }
+  if (objectUrl.origin !== baseUrl.origin) {
+    return '';
+  }
+
+  const basePath = baseUrl.pathname.endsWith('/') ? baseUrl.pathname : `${baseUrl.pathname}/`;
+  if (!objectUrl.pathname.startsWith(basePath)) {
+    return '';
+  }
+
+  return decodeURIComponent(objectUrl.pathname.slice(basePath.length));
+}
+
+function normalizeMediaItem(item) {
+  if (!item || typeof item !== 'object') {
+    return item;
+  }
+
+  const key = typeof item.key === 'string' && item.key
+    ? item.key
+    : extractObjectKeyFromUrl(item.url);
+
+  let publicUrl = item.url;
+  if (key) {
+    try {
+      publicUrl = createPublicObjectUrl(key);
+    } catch {
+      publicUrl = item.url;
+    }
+  }
+
+  return {
+    ...item,
+    key,
+    url: publicUrl,
+  };
+}
+
+function normalizeMediaList(media) {
+  if (!Array.isArray(media)) {
+    return [];
+  }
+
+  return media.map(normalizeMediaItem);
+}
+
+module.exports = {
+  createPresignedPutUrl,
+  createPublicObjectUrl,
+  extractObjectKeyFromUrl,
+  normalizeMediaItem,
+  normalizeMediaList,
+};

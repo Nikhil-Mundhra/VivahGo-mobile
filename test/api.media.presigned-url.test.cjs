@@ -85,4 +85,15 @@ describe('api/media/presigned-url.js', function () {
     assert.match(res.body.key, /^vendors\/vendor-123\/.+\.jpg$/);
     assert.equal(res.body.publicUrl, `https://cdn.vivahgo.com/media/${res.body.key}`);
   });
+
+  it('preserves path prefixes when the public base URL includes a folder', function () {
+    process.env.R2_PUBLIC_URL = 'https://media.vivahgo.com/portfolio';
+
+    const { createPublicObjectUrl, extractObjectKeyFromUrl } = require(r2Path);
+    const key = 'vendors/Vendor-ABC/Photo.JPG';
+    const publicUrl = createPublicObjectUrl(key);
+
+    assert.equal(publicUrl, 'https://media.vivahgo.com/portfolio/vendors/Vendor-ABC/Photo.JPG');
+    assert.equal(extractObjectKeyFromUrl(publicUrl), key);
+  });
 });
