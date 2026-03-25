@@ -32,5 +32,9 @@ describe('VivahGo/src/data.js', function () {
     const vendorTypes = new Set(mod.DEFAULT_VENDORS.map(v => v.type));
     assert.ok(vendorTypes.has('Photography'));
     assert.ok(vendorTypes.has('Venue'));
+    assert.ok(vendorTypes.has('Bartender'));
+    assert.ok(vendorTypes.has('Makeup Artist'));
+    assert.ok(vendorTypes.has('Wedding Cards'));
+    assert.ok(mod.DEFAULT_VENDORS.every(v => v.name.startsWith("VivahGo's Choice ")));
   });
 });

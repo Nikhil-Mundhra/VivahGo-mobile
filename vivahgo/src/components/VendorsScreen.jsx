@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { VENDOR_TYPES } from "../constants";
 import { DEFAULT_VENDORS } from "../data";
-import { formatVendorPriceTier, getVendorQuickFacts } from "../utils";
+import { formatVendorBudgetRange, formatVendorPriceTier, getVendorQuickFacts } from "../utils";
 import VendorDetailScreen from "./VendorDetailScreen";
 import { fetchApprovedVendors } from "../api";
 
@@ -9,8 +9,11 @@ function VendorsScreen({ vendors }) {
   const [activeTab, setActiveTab] = useState("All");
   const [locationFilter, setLocationFilter] = useState("all");
   const [ratingFilter, setRatingFilter] = useState("all");
+  const [budgetFilter, setBudgetFilter] = useState("all");
   const [priceSort, setPriceSort] = useState("none");
-  const [selectedVendor, setSelectedVendor] = useState(null);
+  const [selectedVendorId, setSelectedVendorId] = useState(null);
+  const [wishlistIds, setWishlistIds] = useState([]);
+  const [vendorReviews, setVendorReviews] = useState({});
   const [dbVendors, setDbVendors] = useState([]);
 
   useEffect(() => {
@@ -34,28 +37,84 @@ function VendorsScreen({ vendors }) {
     return [...staticWithBooked, ...dbVendors];
   }, [bookedById, dbVendors]);
 
+  const hydratedVendors = useMemo(() => {
+    return universalVendors.map(vendor => {
+      const localReviews = vendorReviews[vendor.id] || [];
+      const wishlist = wishlistIds.includes(vendor.id);
+
+      return {
+        ...vendor,
+        wishlist,
+        reviews: [
+          ...(Array.isArray(vendor.reviews) ? vendor.reviews : []),
+          ...localReviews,
+        ],
+        reviewCount: Number(vendor.reviewCount || 0) + localReviews.length,
+      };
+    });
+  }, [universalVendors, vendorReviews, wishlistIds]);
+
   const availableCities = useMemo(
-    () => Array.from(new Set(universalVendors.map(v => v.city).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
-    [universalVendors]
+    () => Array.from(new Set(hydratedVendors.map(v => v.city).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+    [hydratedVendors]
   );
 
-  const filtered = universalVendors
+  const filtered = hydratedVendors
     .filter(v => activeTab === "All" ? true : v.type === activeTab)
     .filter(v => locationFilter === "all" ? true : v.city === locationFilter)
     .filter(v => ratingFilter === "all" ? true : Number(v.rating) >= Number(ratingFilter))
+    .filter(v => {
+      if (budgetFilter === "all") return true;
+      const maxBudget = Number(v?.budgetRange?.max || 0);
+      if (!maxBudget) return budgetFilter === "luxury";
+      if (budgetFilter === "budget") return maxBudget <= 100000;
+      if (budgetFilter === "mid") return maxBudget > 100000 && maxBudget <= 350000;
+      return maxBudget > 350000;
+    })
     .sort((a, b) => {
-      if (priceSort !== "low-high") {
-        return 0;
+      if (priceSort === "low-high") {
+        return (a.priceLevel ?? 99) - (b.priceLevel ?? 99);
       }
-      return (a.priceLevel ?? 99) - (b.priceLevel ?? 99);
+      if (priceSort === "high-low") {
+        return (b.priceLevel ?? 0) - (a.priceLevel ?? 0);
+      }
+      if (priceSort === "rating") {
+        return (b.rating ?? 0) - (a.rating ?? 0);
+      }
+      if (Boolean(b.featured) !== Boolean(a.featured)) {
+        return Number(Boolean(b.featured)) - Number(Boolean(a.featured));
+      }
+      return (b.rating ?? 0) - (a.rating ?? 0);
     });
+
+  const selectedVendor = useMemo(
+    () => filtered.find(v => v.id === selectedVendorId) || hydratedVendors.find(v => v.id === selectedVendorId) || null,
+    [filtered, hydratedVendors, selectedVendorId]
+  );
+
+  function toggleWishlist(vendorId) {
+    setWishlistIds(current => (
+      current.includes(vendorId)
+        ? current.filter(id => id !== vendorId)
+        : [...current, vendorId]
+    ));
+  }
+
+  function handleAddReview(vendorId, review) {
+    setVendorReviews(current => ({
+      ...current,
+      [vendorId]: [...(current[vendorId] || []), review],
+    }));
+  }
 
   return (
     <div>
       {selectedVendor && (
         <VendorDetailScreen
           vendor={selectedVendor}
-          onBack={() => setSelectedVendor(null)}
+          onBack={() => setSelectedVendorId(null)}
+          onToggleWishlist={() => toggleWishlist(selectedVendor.id)}
+          onAddReview={review => handleAddReview(selectedVendor.id, review)}
         />
       )}
       {!selectedVendor && (
@@ -69,21 +128,35 @@ function VendorsScreen({ vendors }) {
           <div key={t} className={`vendor-tab${activeTab===t?" active":""}`} onClick={()=>setActiveTab(t)}>{t}</div>
         ))}
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,padding:"0 16px 12px"}}>
-        <select className="select-field" value={locationFilter} onChange={e=>setLocationFilter(e.target.value)}>
+      <div className="vendor-filter-grid vendor-filter-grid-primary">
+        <select className="select-field vendor-filter-select" value={locationFilter} onChange={e=>setLocationFilter(e.target.value)}>
           <option value="all">All Locations</option>
           {availableCities.map(city => <option key={city} value={city}>{city}</option>)}
         </select>
-        <select className="select-field" value={ratingFilter} onChange={e=>setRatingFilter(e.target.value)}>
+        <select className="select-field vendor-filter-select" value={ratingFilter} onChange={e=>setRatingFilter(e.target.value)}>
           <option value="all">Any Rating</option>
           <option value="5">5★ & up</option>
           <option value="4">4★ & up</option>
           <option value="3">3★ & up</option>
         </select>
-        <select className="select-field" value={priceSort} onChange={e=>setPriceSort(e.target.value)}>
+        <select className="select-field vendor-filter-select" value={priceSort} onChange={e=>setPriceSort(e.target.value)}>
           <option value="none">Default Order</option>
           <option value="low-high">INR tiers: low to high</option>
+          <option value="high-low">INR tiers: high to low</option>
+          <option value="rating">Top rated first</option>
         </select>
+      </div>
+      <div className="vendor-filter-grid vendor-filter-grid-secondary">
+        <select className="select-field vendor-filter-select" value={budgetFilter} onChange={e=>setBudgetFilter(e.target.value)}>
+          <option value="all">All Budgets</option>
+          <option value="budget">Budget friendly</option>
+          <option value="mid">Mid range</option>
+          <option value="luxury">Luxury</option>
+        </select>
+        <div className="vendor-filter-summary">
+          <span>{wishlistIds.length} wishlisted</span>
+          <span>{filtered.length} vendors shown</span>
+        </div>
       </div>
       {filtered.length === 0 && (
         <div style={{textAlign:"center",padding:"8px 16px 14px",color:"var(--color-light-text)",fontSize:13}}>
@@ -94,7 +167,7 @@ function VendorsScreen({ vendors }) {
         const quickFacts = getVendorQuickFacts(v);
 
         return (
-        <div className="vendor-card vendor-card-clickable" key={v.id} onClick={()=>setSelectedVendor(v)}>
+        <div className="vendor-card vendor-card-clickable" key={v.id} onClick={()=>setSelectedVendorId(v.id)}>
           <div className="vendor-top">
             {v.coverImageUrl ? (
               <img
@@ -108,18 +181,33 @@ function VendorsScreen({ vendors }) {
             <div className="vendor-info">
               <div className="vendor-name">{v.name}</div>
               <div className="vendor-type">{v.type} · {v.city}</div>
+              {v.featuredLabel && <div className="vendor-featured-chip">{v.featuredLabel}</div>}
               {quickFacts.length > 0 && (
                 <div className="vendor-facts-row">
                   <div className="vendor-facts-inline">{quickFacts.join(" · ")}</div>
                 </div>
               )}
-              <div className="vendor-stars">{"★".repeat(v.rating || 0)}{"☆".repeat(5-(v.rating || 0))} <span style={{color:"var(--color-light-text)",fontSize:11}}>{v.rating ? `${v.rating}.0` : 'No rating'}</span></div>
+              <div className="vendor-stars">{"★".repeat(v.rating || 0)}{"☆".repeat(5-(v.rating || 0))} <span style={{color:"var(--color-light-text)",fontSize:11}}>{v.rating ? `${v.rating}.0` : 'No rating'}</span> <span style={{color:"var(--color-light-text)",fontSize:11}}>({v.reviewCount || 0} reviews)</span></div>
             </div>
+            <button
+              type="button"
+              className={`vendor-wishlist-btn${v.wishlist ? " active" : ""}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                toggleWishlist(v.id);
+              }}
+              aria-label={v.wishlist ? "Remove from wishlist" : "Add to wishlist"}
+            >
+              {v.wishlist ? "♥" : "♡"}
+            </button>
             {v.booked && <div style={{background:"#E8F5E9",color:"#2E7D32",padding:"3px 10px",borderRadius:10,fontSize:11,fontWeight:600,alignSelf:"flex-start"}}>Booked ✓</div>}
           </div>
           <div className="vendor-bottom">
             <div className="vendor-price-wrap">
               <div className="vendor-price">{formatVendorPriceTier(v.priceLevel)}</div>
+              <div style={{fontSize:11,color:"var(--color-light-text)",marginTop:2}}>
+                {v.pricePerPlate ? `${v.pricePerPlate.toLocaleString("en-IN")}/plate` : formatVendorBudgetRange(v) || "Budget on request"}
+              </div>
             </div>
             <div className="vendor-view-arrow">View Details →</div>
           </div>

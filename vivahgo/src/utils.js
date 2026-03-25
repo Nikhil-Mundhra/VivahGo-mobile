@@ -21,6 +21,15 @@ export function formatVendorPriceTier(priceLevel = 1) {
   return `${"₹".repeat(normalizedLevel)}`;
 }
 
+export function formatVendorCurrency(value) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return "";
+  }
+
+  return `₹${amount.toLocaleString("en-IN")}`;
+}
+
 export function formatVendorGuestRange(vendor) {
   const minGuests = vendor?.guestRange?.min;
   const maxGuests = vendor?.guestRange?.max;
@@ -32,8 +41,35 @@ export function formatVendorGuestRange(vendor) {
   return `${minGuests}-${maxGuests} guests`;
 }
 
+export function formatVendorBudgetRange(vendor) {
+  const minBudget = Number(vendor?.budgetRange?.min);
+  const maxBudget = Number(vendor?.budgetRange?.max);
+
+  if (!Number.isFinite(minBudget) || !Number.isFinite(maxBudget)) {
+    return "";
+  }
+
+  return `${formatVendorCurrency(minBudget)}-${formatVendorCurrency(maxBudget)}`;
+}
+
+export function formatVendorPricePerPlate(vendor) {
+  const perPlate = Number(vendor?.pricePerPlate);
+
+  if (!Number.isFinite(perPlate) || perPlate <= 0) {
+    return "";
+  }
+
+  return `${formatVendorCurrency(perPlate)}/plate`;
+}
+
 export function getVendorQuickFacts(vendor) {
-  return [formatVendorGuestRange(vendor), vendor?.typicalTiming].filter(Boolean);
+  return [
+    vendor?.featuredLabel,
+    formatVendorPricePerPlate(vendor),
+    formatVendorGuestRange(vendor),
+    vendor?.serviceMode,
+    vendor?.typicalTiming,
+  ].filter(Boolean);
 }
 
 const PRIMARY_VENDOR_MEDIA_BASE = new URL("https://media.vivahgo.com/portfolio/");

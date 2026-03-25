@@ -32,7 +32,22 @@ export const EVENT_COLORS = [
   ["#D84315","#BF360C"],  // 14 Griha Pravesh – terracotta
 ];
 
-export const VENDOR_TYPES = ["All","Venue","Photography","Catering","Decoration","Music","Pandit"];
+export const VENDOR_TYPES = [
+  "All",
+  "Venue",
+  "Photography",
+  "Catering",
+  "Bartender",
+  "Decoration",
+  "Makeup Artist",
+  "Jewellery",
+  "Rent & Buy",
+  "Mehndi",
+  "Wedding Cards",
+  "Choreographer",
+  "Music",
+  "Pandit",
+];
 
 // WhatsApp customer support number (country code + number, no + or spaces)
 export const WHATSAPP_SUPPORT_NUMBER = "917060410033";
