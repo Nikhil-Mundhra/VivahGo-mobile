@@ -4,6 +4,13 @@ import { BUNDLED_SERVICE_OPTIONS, VENDOR_SUBTYPE_OPTIONS, VENDOR_TYPES } from '.
 import { formatCoverageLocation, getLocationCities, getLocationCountries, getLocationStates } from '../locationOptions';
 
 const REGISTRATION_VENDOR_TYPES = VENDOR_TYPES.filter(type => type !== 'All');
+const MIN_BUDGET_LIMIT = 10000;
+const MAX_BUDGET_LIMIT = 5000000;
+const BUDGET_STEP = 10000;
+
+function formatInr(value) {
+  return `₹${Number(value || 0).toLocaleString('en-IN')}`;
+}
 
 export default function VendorRegistrationForm({ token, onRegistered }) {
   const [form, setForm] = useState({
@@ -18,6 +25,10 @@ export default function VendorRegistrationForm({ token, onRegistered }) {
     coverageAreas: [],
     phone: '',
     website: '',
+    budgetRange: {
+      min: 100000,
+      max: 300000,
+    },
   });
   const [coverageDraft, setCoverageDraft] = useState({ country: '', state: '', city: '' });
   const [loading, setLoading] = useState(false);
@@ -115,6 +126,35 @@ export default function VendorRegistrationForm({ token, onRegistered }) {
     }));
   }
 
+  function updateBudgetRange(field, rawValue) {
+    const value = Number(rawValue);
+    if (!Number.isFinite(value)) {
+      return;
+    }
+
+    setForm(prev => {
+      if (field === 'min') {
+        const nextMin = Math.min(value, prev.budgetRange.max);
+        return {
+          ...prev,
+          budgetRange: {
+            min: nextMin,
+            max: Math.max(prev.budgetRange.max, nextMin),
+          },
+        };
+      }
+
+      const nextMax = Math.max(value, prev.budgetRange.min);
+      return {
+        ...prev,
+        budgetRange: {
+          min: Math.min(prev.budgetRange.min, nextMax),
+          max: nextMax,
+        },
+      };
+    });
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
@@ -210,6 +250,47 @@ export default function VendorRegistrationForm({ token, onRegistered }) {
             rows={3}
             className={`${fieldClassName} vendor-registration-textarea`}
           />
+        </div>
+
+        <div className="vendor-registration-location-block">
+          <div className="vendor-registration-section-title">Pricing Structure</div>
+          <p className="text-xs text-gray-500">Set your service budget range so couples can find your business in budget filters.</p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-xl border border-gray-200 bg-white px-3 py-2">
+              <div className="text-[11px] uppercase tracking-[0.15em] text-gray-500">Minimum</div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">{formatInr(form.budgetRange.min)}</div>
+            </div>
+            <div className="rounded-xl border border-gray-200 bg-white px-3 py-2">
+              <div className="text-[11px] uppercase tracking-[0.15em] text-gray-500">Maximum</div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">{formatInr(form.budgetRange.max)}</div>
+            </div>
+          </div>
+          <div className="mt-4 space-y-3">
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium text-gray-600">Min Budget</span>
+              <input
+                type="range"
+                min={MIN_BUDGET_LIMIT}
+                max={MAX_BUDGET_LIMIT}
+                step={BUDGET_STEP}
+                value={form.budgetRange.min}
+                onChange={event => updateBudgetRange('min', event.target.value)}
+                className="w-full"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium text-gray-600">Max Budget</span>
+              <input
+                type="range"
+                min={MIN_BUDGET_LIMIT}
+                max={MAX_BUDGET_LIMIT}
+                step={BUDGET_STEP}
+                value={form.budgetRange.max}
+                onChange={event => updateBudgetRange('max', event.target.value)}
+                className="w-full"
+              />
+            </label>
+          </div>
         </div>
 
         <div className="vendor-registration-location-block">

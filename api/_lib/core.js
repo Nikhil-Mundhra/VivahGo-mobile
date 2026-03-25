@@ -133,6 +133,10 @@ function getVendorModel() {
       description: { type: String, default: '', trim: true },
       city: { type: String, default: '', trim: true },
       coverageAreas: { type: [coverageAreaSchema], default: [] },
+      budgetRange: {
+        min: { type: Number },
+        max: { type: Number },
+      },
       phone: { type: String, default: '', trim: true },
       website: { type: String, default: '', trim: true },
       isApproved: { type: Boolean, default: false },

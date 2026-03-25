@@ -4,8 +4,30 @@ import { BUNDLED_SERVICE_OPTIONS, VENDOR_SUBTYPE_OPTIONS, VENDOR_TYPES } from '.
 import { formatCoverageLocation, getLocationCities, getLocationCountries, getLocationStates } from '../locationOptions';
 
 const REGISTRATION_VENDOR_TYPES = VENDOR_TYPES.filter(type => type !== 'All');
+const MIN_BUDGET_LIMIT = 10000;
+const MAX_BUDGET_LIMIT = 5000000;
+const BUDGET_STEP = 10000;
+
+function normalizeBudgetRange(range) {
+  const min = Number(range?.min);
+  const max = Number(range?.max);
+
+  if (!Number.isFinite(min) || !Number.isFinite(max)) {
+    return { min: MIN_BUDGET_LIMIT, max: 300000 };
+  }
+
+  const safeMin = Math.max(MIN_BUDGET_LIMIT, Math.min(Math.round(min / BUDGET_STEP) * BUDGET_STEP, MAX_BUDGET_LIMIT));
+  const safeMax = Math.max(safeMin, Math.min(Math.round(max / BUDGET_STEP) * BUDGET_STEP, MAX_BUDGET_LIMIT));
+  return { min: safeMin, max: safeMax };
+}
+
+function formatInr(value) {
+  return `₹${Number(value || 0).toLocaleString('en-IN')}`;
+}
 
 function buildInitialForm(vendor) {
+  const budgetRange = normalizeBudgetRange(vendor?.budgetRange);
+
   return {
     businessName: vendor?.businessName || '',
     type: vendor?.type || REGISTRATION_VENDOR_TYPES[0],
@@ -18,6 +40,7 @@ function buildInitialForm(vendor) {
     coverageAreas: Array.isArray(vendor?.coverageAreas) ? vendor.coverageAreas : [],
     phone: vendor?.phone || '',
     website: vendor?.website || '',
+    budgetRange,
   };
 }
 
@@ -118,6 +141,37 @@ export default function VendorBusinessProfileEditor({ token, vendor, onVendorUpd
     }));
   }
 
+  function updateBudgetRange(field, rawValue) {
+    const value = Number(rawValue);
+    if (!Number.isFinite(value)) {
+      return;
+    }
+
+    setForm(current => {
+      const currentRange = normalizeBudgetRange(current.budgetRange);
+
+      if (field === 'min') {
+        const nextMin = Math.min(value, currentRange.max);
+        return {
+          ...current,
+          budgetRange: {
+            min: nextMin,
+            max: Math.max(currentRange.max, nextMin),
+          },
+        };
+      }
+
+      const nextMax = Math.max(value, currentRange.min);
+      return {
+        ...current,
+        budgetRange: {
+          min: Math.min(currentRange.min, nextMax),
+          max: nextMax,
+        },
+      };
+    });
+  }
+
   async function handleSave(event) {
     event.preventDefault();
     setSaving(true);
@@ -165,6 +219,47 @@ export default function VendorBusinessProfileEditor({ token, vendor, onVendorUpd
       <div>
         <label className="vendor-registration-label" htmlFor="description">Description</label>
         <textarea id="description" value={form.description} onChange={event => updateForm('description', event.target.value)} className="vendor-registration-field vendor-registration-textarea" rows={4} />
+      </div>
+
+      <div className="vendor-registration-location-block">
+        <div className="vendor-registration-section-title">Pricing Structure</div>
+        <p className="text-xs text-gray-500">Set your service budget range so couples can filter and compare accurately.</p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div className="rounded-xl border border-gray-200 bg-white px-3 py-2">
+            <div className="text-[11px] uppercase tracking-[0.15em] text-gray-500">Minimum</div>
+            <div className="mt-1 text-sm font-semibold text-gray-900">{formatInr(form.budgetRange.min)}</div>
+          </div>
+          <div className="rounded-xl border border-gray-200 bg-white px-3 py-2">
+            <div className="text-[11px] uppercase tracking-[0.15em] text-gray-500">Maximum</div>
+            <div className="mt-1 text-sm font-semibold text-gray-900">{formatInr(form.budgetRange.max)}</div>
+          </div>
+        </div>
+        <div className="mt-4 space-y-3">
+          <label className="block">
+            <span className="mb-1 block text-xs font-medium text-gray-600">Min Budget</span>
+            <input
+              type="range"
+              min={MIN_BUDGET_LIMIT}
+              max={MAX_BUDGET_LIMIT}
+              step={BUDGET_STEP}
+              value={form.budgetRange.min}
+              onChange={event => updateBudgetRange('min', event.target.value)}
+              className="w-full"
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-xs font-medium text-gray-600">Max Budget</span>
+            <input
+              type="range"
+              min={MIN_BUDGET_LIMIT}
+              max={MAX_BUDGET_LIMIT}
+              step={BUDGET_STEP}
+              value={form.budgetRange.max}
+              onChange={event => updateBudgetRange('max', event.target.value)}
+              className="w-full"
+            />
+          </label>
+        </div>
       </div>
 
       <div className="vendor-registration-location-block">

@@ -25,6 +25,8 @@ const VENDOR_SUBTYPE_OPTIONS = {
   Groom: ['Sherwani'],
 };
 const ALLOWED_UPDATE_FIELDS = ['businessName', 'type', 'subType', 'description', 'country', 'state', 'city', 'phone', 'website'];
+const MIN_BUDGET_LIMIT = 10000;
+const MAX_BUDGET_LIMIT = 5000000;
 
 function normalizeVendorSubtype(type, subType) {
   const allowedSubtypes = VENDOR_SUBTYPE_OPTIONS[type] || [];
@@ -69,6 +71,24 @@ function normalizeBundledServices(type, value) {
   ));
 }
 
+function normalizeBudgetRange(value) {
+  if (!value || typeof value !== 'object') {
+    return { min: 100000, max: 300000 };
+  }
+
+  const min = Number(value.min);
+  const max = Number(value.max);
+
+  if (!Number.isFinite(min) || !Number.isFinite(max)) {
+    throw new Error('budgetRange.min and budgetRange.max must be numbers.');
+  }
+
+  const safeMin = Math.max(MIN_BUDGET_LIMIT, Math.min(Math.round(min), MAX_BUDGET_LIMIT));
+  const safeMax = Math.max(safeMin, Math.min(Math.round(max), MAX_BUDGET_LIMIT));
+
+  return { min: safeMin, max: safeMax };
+}
+
 module.exports = async function handler(req, res) {
   if (handlePreflight(req, res)) { return; }
   setCorsHeaders(req, res);
@@ -97,7 +117,7 @@ module.exports = async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
-      const { businessName, type, subType, description, country, state, city, phone, website, coverageAreas, bundledServices } = req.body || {};
+      const { businessName, type, subType, description, country, state, city, phone, website, coverageAreas, bundledServices, budgetRange } = req.body || {};
 
       if (!businessName || typeof businessName !== 'string' || !businessName.trim()) {
         return res.status(400).json({ error: 'businessName is required.' });
@@ -118,6 +138,13 @@ module.exports = async function handler(req, res) {
         return res.status(409).json({ error: 'Vendor profile already exists. Use PATCH to update.' });
       }
 
+      let normalizedBudgetRange;
+      try {
+        normalizedBudgetRange = normalizeBudgetRange(budgetRange || {});
+      } catch (error) {
+        return res.status(400).json({ error: error.message });
+      }
+
       const vendor = await Vendor.create({
         googleId: auth.sub,
         businessName: businessName.trim(),
@@ -131,6 +158,7 @@ module.exports = async function handler(req, res) {
         coverageAreas: normalizeCoverageAreas(coverageAreas),
         phone: (phone || '').trim(),
         website: (website || '').trim(),
+        budgetRange: normalizedBudgetRange,
       });
 
       await User.findOneAndUpdate(
@@ -167,6 +195,14 @@ module.exports = async function handler(req, res) {
 
       if (Array.isArray(body.bundledServices)) {
         updates.bundledServices = normalizeBundledServices(updates.type || existingVendor.type, body.bundledServices);
+      }
+
+      if (body.budgetRange && typeof body.budgetRange === 'object') {
+        try {
+          updates.budgetRange = normalizeBudgetRange(body.budgetRange);
+        } catch (error) {
+          return res.status(400).json({ error: error.message });
+        }
       }
 
       if (updates.type && !VENDOR_TYPES.includes(updates.type)) {

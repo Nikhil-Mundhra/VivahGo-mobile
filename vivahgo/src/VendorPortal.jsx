@@ -262,7 +262,7 @@ export default function VendorPortal() {
             </div>
 
             {/* Portfolio section */}
-            <div className="grid gap-6 lg:grid-cols-[1.3fr_0.9fr]">
+            <div className="space-y-6">
               <div className="bg-white rounded-2xl shadow-sm p-4 sm:p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-1">Portfolio Manager</h2>
                 <p className="text-sm text-gray-500 mb-4">Upload, organize, and fine-tune what couples see first.</p>
