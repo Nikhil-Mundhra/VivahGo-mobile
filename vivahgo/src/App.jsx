@@ -770,7 +770,7 @@ export default function VivahGoApp() {
   function handleOnboardComplete(answers) {
     const selectedTemplate = answers?.template || "blank";
     const seededCollections = createTemplatePlanCollections(selectedTemplate, activePlanId);
-    const { template, ...answerFields } = answers || {};
+    const { template: _template, ...answerFields } = answers || {};
     const nextWedding = {
       ...EMPTY_WEDDING,
       ...answerFields,
