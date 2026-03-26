@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import PlannerPage from "./pages/PlannerPage.jsx";
 import MarketingHomePage from "./pages/MarketingHomePage.jsx";
 import CareersPage from "./pages/CareersPage.jsx";
@@ -10,9 +11,11 @@ export default function App() {
   const pathname = typeof window !== "undefined" ? window.location.pathname : "/";
   const routeInfo = getRouteInfo(pathname);
 
-  if (typeof document !== "undefined") {
-    document.body.dataset.route = routeInfo.bodyRoute;
-  }
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      document.body.dataset.route = routeInfo.bodyRoute;
+    }
+  }, [routeInfo.bodyRoute]);
 
   if (routeInfo.isVendorRoute) {
     return <VendorPortalPage />;
