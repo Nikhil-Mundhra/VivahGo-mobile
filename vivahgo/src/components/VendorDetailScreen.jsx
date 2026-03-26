@@ -7,6 +7,7 @@ function VendorDetailScreen({ vendor, onBack, onToggleWishlist, onAddReview }) {
   const initialVisibleTestimonials = 2;
   const quickFacts = getVendorQuickFacts(vendor);
   const media = Array.isArray(vendor.media) ? vendor.media : [];
+  const canReviewVendor = Boolean(vendor.booked);
   const coverItem = media.find(item => item?.isCover) || media[0] || null;
   const testimonials = useMemo(() => {
     const seeded = Array.isArray(vendor.testimonials) ? vendor.testimonials : [];
@@ -29,6 +30,9 @@ function VendorDetailScreen({ vendor, onBack, onToggleWishlist, onAddReview }) {
 
   function submitReview(event) {
     event.preventDefault();
+    if (!canReviewVendor) {
+      return;
+    }
     const trimmedName = reviewForm.name.trim();
     const trimmedText = reviewForm.text.trim();
     if (!trimmedName || !trimmedText) {
@@ -241,40 +245,48 @@ function VendorDetailScreen({ vendor, onBack, onToggleWishlist, onAddReview }) {
       </div>
 
       <div className="vendor-detail-section">
-        <div className="vendor-detail-section-title">Review This Vendor</div>
-        <form className="vendor-detail-review-form" onSubmit={submitReview}>
-          <input
-            className="input-field"
-            value={reviewForm.name}
-            onChange={event => setReviewForm(current => ({ ...current, name: event.target.value }))}
-            placeholder="Your name"
-          />
-          <div className="vendor-detail-star-picker" aria-label="Select rating">
-            {[1, 2, 3, 4, 5].map(star => {
-              const isActive = star <= Number(reviewForm.rating);
-              return (
-                <button
-                  key={star}
-                  type="button"
-                  className={`vendor-detail-star-button${isActive ? " active" : ""}`}
-                  onClick={() => setReviewForm(current => ({ ...current, rating: String(star) }))}
-                  aria-label={`${star} star${star === 1 ? "" : "s"}`}
-                  aria-pressed={isActive}
-                >
-                  ★
-                </button>
-              );
-            })}
+        {canReviewVendor ? (
+          <>
+            <div className="vendor-detail-section-title">Review This Vendor</div>
+            <form className="vendor-detail-review-form" onSubmit={submitReview}>
+              <input
+                className="input-field"
+                value={reviewForm.name}
+                onChange={event => setReviewForm(current => ({ ...current, name: event.target.value }))}
+                placeholder="Your name"
+              />
+              <div className="vendor-detail-star-picker" aria-label="Select rating">
+                {[1, 2, 3, 4, 5].map(star => {
+                  const isActive = star <= Number(reviewForm.rating);
+                  return (
+                    <button
+                      key={star}
+                      type="button"
+                      className={`vendor-detail-star-button${isActive ? " active" : ""}`}
+                      onClick={() => setReviewForm(current => ({ ...current, rating: String(star) }))}
+                      aria-label={`${star} star${star === 1 ? "" : "s"}`}
+                      aria-pressed={isActive}
+                    >
+                      ★
+                    </button>
+                  );
+                })}
+              </div>
+              <textarea
+                className="textarea-field"
+                value={reviewForm.text}
+                onChange={event => setReviewForm(current => ({ ...current, text: event.target.value }))}
+                placeholder={vendor.reviewPrompt || "Share your review"}
+                rows={4}
+              />
+              <button type="submit" className="vendor-secondary-btn">Submit Review</button>
+            </form>
+          </>
+        ) : (
+          <div className="vendor-detail-locked-note">
+            Book this vendor to unlock the review form.
           </div>
-          <textarea
-            className="textarea-field"
-            value={reviewForm.text}
-            onChange={event => setReviewForm(current => ({ ...current, text: event.target.value }))}
-            placeholder={vendor.reviewPrompt || "Share your review"}
-            rows={4}
-          />
-          <button type="submit" className="vendor-secondary-btn">Submit Review</button>
-        </form>
+        )}
       </div>
     </div>
   );
