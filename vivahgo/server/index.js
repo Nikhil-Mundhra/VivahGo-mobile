@@ -14,6 +14,8 @@ import Razorpay from 'razorpay';
 import Planner from './models/Planner.js';
 import User from './models/User.js';
 import Vendor from './models/Vendor.js';
+import CareerApplication from './models/CareerApplication.js';
+import googleDriveHelpers from '../../api/_lib/googleDrive.js';
 
 const port = Number(process.env.PORT || 4000);
 const mongoUri = process.env.MONGODB_URI;
@@ -80,6 +82,9 @@ const DEFAULT_SUBSCRIPTION_AMOUNT_MAP = {
 };
 
 const COUPON_FILE_PATH = new URL('../../config/subscription-coupons.json', import.meta.url);
+const CAREERS_FILE_PATH = new URL('../../config/careers.json', import.meta.url);
+const { uploadPdfToDrive } = googleDriveHelpers;
+const MAX_CAREER_RESUME_SIZE_BYTES = 2 * 1024 * 1024;
 
 function resolveSubscriptionAmount(plan, billingCycle) {
   const cycle = billingCycle === 'yearly' ? 'yearly' : 'monthly';
@@ -95,6 +100,14 @@ function resolveSubscriptionAmount(plan, billingCycle) {
 function readCouponCatalog() {
   try {
     return JSON.parse(fs.readFileSync(COUPON_FILE_PATH, 'utf8'));
+  } catch {
+    return [];
+  }
+}
+
+function readCareerCatalog() {
+  try {
+    return JSON.parse(fs.readFileSync(CAREERS_FILE_PATH, 'utf8'));
   } catch {
     return [];
   }
@@ -134,6 +147,83 @@ function applyCouponDiscount(amount, coupon) {
   }
 
   return Math.round(amount * (100 - coupon.discountPercent) / 100);
+}
+
+function sanitizeText(value, maxLength) {
+  return typeof value === 'string' ? value.trim().slice(0, maxLength) : '';
+}
+
+function isLikelyHttpUrl(value) {
+  if (!value) {
+    return true;
+  }
+
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+function decodeCareerResume(base64) {
+  if (!base64 || typeof base64 !== 'string') {
+    throw new Error('Resume PDF is required.');
+  }
+
+  const cleaned = base64.includes(',') ? base64.split(',').pop() : base64;
+  const buffer = Buffer.from(cleaned, 'base64');
+
+  if (!buffer.length) {
+    throw new Error('Resume PDF is empty.');
+  }
+  if (buffer.length > MAX_CAREER_RESUME_SIZE_BYTES) {
+    throw new Error('Resume PDF exceeds the 2 MB size limit.');
+  }
+  if (buffer.slice(0, 4).toString() !== '%PDF') {
+    throw new Error('Resume must be a valid PDF file.');
+  }
+
+  return buffer;
+}
+
+function serializeCareer(job = {}) {
+  return {
+    id: job.id || '',
+    title: job.title || '',
+    team: job.team || '',
+    location: job.location || '',
+    type: job.type || '',
+    summary: job.summary || '',
+    highlights: Array.isArray(job.highlights) ? job.highlights : [],
+  };
+}
+
+function serializeCareerApplication(application = {}) {
+  const plain = typeof application?.toObject === 'function' ? application.toObject() : application;
+  return {
+    id: String(plain._id || ''),
+    fullName: plain.fullName || '',
+    email: plain.email || '',
+    phone: plain.phone || '',
+    location: plain.location || '',
+    linkedInUrl: plain.linkedInUrl || '',
+    portfolioUrl: plain.portfolioUrl || '',
+    coverLetter: plain.coverLetter || '',
+    jobId: plain.jobId || '',
+    jobTitle: plain.jobTitle || '',
+    resumeDriveFileId: plain.resumeDriveFileId || '',
+    resumeDriveFileName: plain.resumeDriveFileName || '',
+    resumeDriveViewUrl: plain.resumeDriveViewUrl || '',
+    resumeDriveDownloadUrl: plain.resumeDriveDownloadUrl || '',
+    resumeOriginalFileName: plain.resumeOriginalFileName || '',
+    resumeMimeType: plain.resumeMimeType || '',
+    resumeSize: plain.resumeSize || 0,
+    source: plain.source || '',
+    status: plain.status || 'new',
+    createdAt: plain.createdAt || null,
+    updatedAt: plain.updatedAt || null,
+  };
 }
 
 function buildSubscriptionPeriodEnd(billingCycle, startDate = new Date()) {
@@ -821,6 +911,8 @@ export function createApp(options = {}) {
     PlannerModel = Planner,
     UserModel = User,
     VendorModel = Vendor,
+    CareerApplicationModel = CareerApplication,
+    uploadCareerResume = uploadPdfToDrive,
   } = options;
 
   const oauthClient =
@@ -831,16 +923,120 @@ export function createApp(options = {}) {
         : null;
 
   const app = express();
+  const originalListen = app.listen.bind(app);
+
+  app.listen = (...args) => {
+    if (args.length === 0) {
+      return originalListen(0, '127.0.0.1');
+    }
+    if (typeof args[0] === 'number' && args.length === 1) {
+      return originalListen(args[0], '127.0.0.1');
+    }
+    if (typeof args[0] === 'number' && typeof args[1] === 'function') {
+      return originalListen(args[0], '127.0.0.1', args[1]);
+    }
+    return originalListen(...args);
+  };
 
   app.use(
     cors({
       origin: getClientOrigins(),
     })
   );
-  app.use(express.json({ limit: '1mb' }));
+  app.use(express.json({ limit: '5mb' }));
 
   app.get('/api/health', (_req, res) => {
     res.json({ ok: true });
+  });
+
+  app.get('/api/careers', (_req, res) => {
+    return res.json({
+      careers: readCareerCatalog().map(serializeCareer),
+      limits: {
+        resumeMimeType: 'application/pdf',
+        resumeMaxSizeBytes: MAX_CAREER_RESUME_SIZE_BYTES,
+      },
+    });
+  });
+
+  app.post('/api/careers', async (req, res) => {
+    const body = req.body || {};
+    const careers = readCareerCatalog();
+    const fullName = sanitizeText(body.fullName, 120);
+    const email = normalizeEmail(body.email);
+    const phone = sanitizeText(body.phone, 40);
+    const location = sanitizeText(body.location, 120);
+    const linkedInUrl = sanitizeText(body.linkedInUrl, 300);
+    const portfolioUrl = sanitizeText(body.portfolioUrl, 300);
+    const coverLetter = sanitizeText(body.coverLetter, 4000);
+    const jobId = sanitizeText(body.jobId, 120);
+    const resumeFilename = sanitizeText(body.resumeFilename, 255) || 'resume.pdf';
+    const resumeMimeType = sanitizeText(body.resumeMimeType, 80) || 'application/pdf';
+
+    if (!fullName) {
+      return res.status(400).json({ error: 'fullName is required.' });
+    }
+    if (!email || !email.includes('@')) {
+      return res.status(400).json({ error: 'A valid email is required.' });
+    }
+    if (!jobId) {
+      return res.status(400).json({ error: 'jobId is required.' });
+    }
+    if (resumeMimeType !== 'application/pdf') {
+      return res.status(400).json({ error: 'Resume must be uploaded as a PDF.' });
+    }
+    if (!isLikelyHttpUrl(linkedInUrl) || !isLikelyHttpUrl(portfolioUrl)) {
+      return res.status(400).json({ error: 'Profile links must start with http:// or https://.' });
+    }
+
+    const job = careers.find((item) => item.id === jobId);
+    if (!job) {
+      return res.status(400).json({ error: 'Selected role is not available.' });
+    }
+
+    let resumeBuffer;
+    try {
+      resumeBuffer = decodeCareerResume(body.resumeBase64);
+    } catch (error) {
+      return res.status(400).json({ error: error.message });
+    }
+
+    try {
+      const driveFile = await uploadCareerResume({
+        buffer: resumeBuffer,
+        filename: resumeFilename,
+        fullName,
+        jobId,
+      });
+
+      const created = await CareerApplicationModel.create({
+        fullName,
+        email,
+        phone,
+        location,
+        linkedInUrl,
+        portfolioUrl,
+        coverLetter,
+        jobId: job.id,
+        jobTitle: job.title,
+        resumeDriveFileId: driveFile.id,
+        resumeDriveFileName: driveFile.name,
+        resumeDriveViewUrl: driveFile.webViewLink,
+        resumeDriveDownloadUrl: driveFile.webContentLink,
+        resumeOriginalFileName: resumeFilename,
+        resumeMimeType,
+        resumeSize: resumeBuffer.length,
+        source: 'careers-page',
+      });
+
+      return res.status(201).json({
+        ok: true,
+        application: serializeCareerApplication(created),
+      });
+    } catch (error) {
+      console.error('POST /api/careers error:', error);
+      return res.status(500).json({ error: error.message || 'Could not submit application.' });
+    }
   });
 
   app.post('/api/auth/google', async (req, res) => {
@@ -1359,6 +1555,27 @@ export function createApp(options = {}) {
     } catch (error) {
       console.error('Admin staff revoke failed:', error);
       return res.status(500).json({ error: 'Could not manage staff.' });
+    }
+  });
+
+  app.get('/api/admin/applications', (req, res, next) => authMiddleware(req, res, next, injectedJwtSecret), async (req, res) => {
+    try {
+      const session = await resolveAdminSession(UserModel, req.auth, 'viewer');
+      if (session.error) {
+        return res.status(session.status).json({ error: session.error });
+      }
+
+      const applications = await CareerApplicationModel.find({})
+        .select('-__v')
+        .sort({ createdAt: -1 })
+        .lean();
+
+      return res.json({
+        applications: applications.map(serializeCareerApplication),
+      });
+    } catch (error) {
+      console.error('Admin applications fetch failed:', error);
+      return res.status(500).json({ error: 'Could not load applications.' });
     }
   });
 
@@ -1986,7 +2203,7 @@ export async function start() {
   }
 
   await mongoose.connect(mongoUri);
-  app.listen(port, () => {
+  app.listen(port, '0.0.0.0', () => {
     console.log(`VivahGo API listening on http://localhost:${port}`);
   });
 }

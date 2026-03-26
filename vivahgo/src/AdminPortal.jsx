@@ -3,6 +3,7 @@ import './styles.css';
 import GoogleLoginButton from './components/GoogleLoginButton';
 import {
   addAdminStaff,
+  fetchAdminApplications,
   fetchAdminSession,
   fetchAdminStaff,
   fetchAdminVendors,
@@ -48,14 +49,24 @@ function rolePillClass(role) {
   return 'bg-stone-200 text-stone-700';
 }
 
+function formatFileSize(value) {
+  if (!value) {
+    return '0 MB';
+  }
+
+  return `${(value / 1024 / 1024).toFixed(1)} MB`;
+}
+
 export default function AdminPortal() {
   const [session, setSession] = useState(() => readSession());
   const [adminUser, setAdminUser] = useState(null);
   const [access, setAccess] = useState(null);
   const [vendors, setVendors] = useState([]);
+  const [applications, setApplications] = useState([]);
   const [staff, setStaff] = useState([]);
   const [loading, setLoading] = useState(Boolean(readSession()?.token));
   const [vendorsLoading, setVendorsLoading] = useState(false);
+  const [applicationsLoading, setApplicationsLoading] = useState(false);
   const [staffLoading, setStaffLoading] = useState(false);
   const [error, setError] = useState('');
   const [staffEmail, setStaffEmail] = useState('');
@@ -74,6 +85,7 @@ export default function AdminPortal() {
       setAdminUser(null);
       setAccess(null);
       setVendors([]);
+      setApplications([]);
       setStaff([]);
       return;
     }
@@ -104,6 +116,19 @@ export default function AdminPortal() {
             }
           });
 
+        setApplicationsLoading(true);
+        const applicationsPromise = fetchAdminApplications(session.token)
+          .then(result => {
+            if (!cancelled) {
+              setApplications(Array.isArray(result?.applications) ? result.applications : []);
+            }
+          })
+          .finally(() => {
+            if (!cancelled) {
+              setApplicationsLoading(false);
+            }
+          });
+
         const staffPromise = data.access?.canManageStaff
           ? fetchAdminStaff(session.token)
             .then(result => {
@@ -124,7 +149,7 @@ export default function AdminPortal() {
           setStaff([]);
         }
 
-        await Promise.all([vendorsPromise, staffPromise]);
+        await Promise.all([vendorsPromise, applicationsPromise, staffPromise]);
       })
       .catch((nextError) => {
         if (cancelled) {
@@ -150,6 +175,11 @@ export default function AdminPortal() {
     pending: vendors.filter(vendor => !vendor.isApproved).length,
     approved: vendors.filter(vendor => vendor.isApproved).length,
   }), [vendors]);
+
+  const applicationCounts = useMemo(() => ({
+    total: applications.length,
+    new: applications.filter(item => item.status === 'new').length,
+  }), [applications]);
 
   async function handleLoginSuccess(credentialResponse) {
     try {
@@ -357,6 +387,21 @@ export default function AdminPortal() {
           </div>
         </section>
 
+        <section className="grid gap-4 md:grid-cols-3">
+          <div className="bg-white rounded-3xl border border-stone-200 p-5 shadow-sm">
+            <p className="text-sm text-stone-500">Applications</p>
+            <p className="mt-2 text-3xl font-bold text-stone-900">{applicationCounts.total}</p>
+          </div>
+          <div className="bg-white rounded-3xl border border-rose-200 p-5 shadow-sm">
+            <p className="text-sm text-rose-700">New resumes</p>
+            <p className="mt-2 text-3xl font-bold text-rose-900">{applicationCounts.new}</p>
+          </div>
+          <div className="bg-white rounded-3xl border border-stone-200 p-5 shadow-sm">
+            <p className="text-sm text-stone-500">Latest applicant</p>
+            <p className="mt-2 text-lg font-semibold text-stone-900">{applications[0]?.fullName || 'No applications yet'}</p>
+          </div>
+        </section>
+
         <section className="bg-white rounded-3xl border border-stone-200 shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b border-stone-200">
             <h2 className="text-lg font-semibold text-stone-900">Vendor approvals</h2>
@@ -411,6 +456,55 @@ export default function AdminPortal() {
                   >
                     {savingVendorId === vendor.id && vendor.isApproved ? 'Saving...' : 'Move to Pending'}
                   </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="bg-white rounded-3xl border border-stone-200 shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-stone-200">
+            <h2 className="text-lg font-semibold text-stone-900">Career applications</h2>
+            <p className="text-sm text-stone-500">Resumes are stored in Google Drive and linked here for staff review.</p>
+          </div>
+          <div className="divide-y divide-stone-100">
+            {applicationsLoading && (
+              <div className="px-5 py-10 text-sm text-stone-500">Loading applications...</div>
+            )}
+            {!applicationsLoading && applications.length === 0 && (
+              <div className="px-5 py-10 text-sm text-stone-500">No applications submitted yet.</div>
+            )}
+            {!applicationsLoading && applications.map(application => (
+              <div key={application.id} className="px-5 py-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-base font-semibold text-stone-900">{application.fullName}</h3>
+                    <span className="inline-flex items-center rounded-full bg-stone-100 text-stone-700 px-2.5 py-1 text-xs font-medium">
+                      {application.jobTitle}
+                    </span>
+                    <span className="inline-flex items-center rounded-full bg-rose-100 text-rose-700 px-2.5 py-1 text-xs font-semibold">
+                      {application.status}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-sm text-stone-500">{application.email}{application.phone ? ` | ${application.phone}` : ''}</p>
+                  <div className="mt-3 flex flex-wrap gap-4 text-xs text-stone-500">
+                    <span>Applied: {formatDate(application.createdAt)}</span>
+                    {application.location && <span>Location: {application.location}</span>}
+                    <span>Resume: {formatFileSize(application.resumeSize)}</span>
+                  </div>
+                  {application.coverLetter && (
+                    <p className="mt-3 text-sm text-stone-700 whitespace-pre-line">{application.coverLetter}</p>
+                  )}
+                  <div className="mt-3 flex flex-wrap gap-3 text-sm">
+                    {application.linkedInUrl && <a href={application.linkedInUrl} target="_blank" rel="noreferrer" className="text-rose-600 hover:underline">LinkedIn</a>}
+                    {application.portfolioUrl && <a href={application.portfolioUrl} target="_blank" rel="noreferrer" className="text-rose-600 hover:underline">Portfolio</a>}
+                    {application.resumeDriveViewUrl && <a href={application.resumeDriveViewUrl} target="_blank" rel="noreferrer" className="text-rose-600 hover:underline">Open resume</a>}
+                    {application.resumeDriveDownloadUrl && <a href={application.resumeDriveDownloadUrl} target="_blank" rel="noreferrer" className="text-rose-600 hover:underline">Download PDF</a>}
+                  </div>
+                </div>
+                <div className="text-xs text-stone-400 lg:text-right">
+                  <p>Drive file</p>
+                  <p className="mt-1 break-all">{application.resumeDriveFileName || application.resumeOriginalFileName || 'Resume PDF'}</p>
                 </div>
               </div>
             ))}

@@ -1,0 +1,41 @@
+[
+  {
+    "id": "founding-product-designer",
+    "title": "Founding Product Designer",
+    "team": "Design",
+    "location": "Remote / India",
+    "type": "Full-time",
+    "summary": "Shape the end-to-end VivahGo experience across marketing, couple workflows, and internal tools.",
+    "highlights": [
+      "Own UX and visual direction across web and mobile surfaces",
+      "Turn messy planning workflows into calm, practical interfaces",
+      "Work closely with founders on product strategy and launches"
+    ]
+  },
+  {
+    "id": "full-stack-engineer",
+    "title": "Full Stack Engineer",
+    "team": "Engineering",
+    "location": "Remote / India",
+    "type": "Full-time",
+    "summary": "Build product features across the React frontend, APIs, admin tooling, and infrastructure integrations.",
+    "highlights": [
+      "Ship fast across React, Node, MongoDB, and integrations",
+      "Improve reliability, performance, and developer ergonomics",
+      "Work directly on customer-facing workflows with visible impact"
+    ]
+  },
+  {
+    "id": "vendor-growth-operations",
+    "title": "Vendor Growth & Operations",
+    "team": "Operations",
+    "location": "Jaipur / Hybrid",
+    "type": "Full-time",
+    "summary": "Help onboard, support, and grow the vendor side of the VivahGo marketplace.",
+    "highlights": [
+      "Coordinate onboarding for venue, decor, and planning partners",
+      "Improve vendor profile quality and marketplace readiness",
+      "Translate field feedback into product and operations improvements"
+    ]
+  }
+]

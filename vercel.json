@@ -8,6 +8,8 @@
     { "source": "/api/admin/me", "destination": "/api/admin?route=me" },
     { "source": "/api/admin/vendors", "destination": "/api/admin?route=vendors" },
     { "source": "/api/admin/staff", "destination": "/api/admin?route=staff" },
+    { "source": "/api/admin/applications", "destination": "/api/admin?route=applications" },
+    { "source": "/api/careers", "destination": "/api/careers" },
     { "source": "/api/vendors", "destination": "/api/vendor?route=list" },
     { "source": "/api/vendor/me", "destination": "/api/vendor?route=me" },
     { "source": "/api/vendor/media", "destination": "/api/vendor?route=media" },

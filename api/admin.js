@@ -1,6 +1,7 @@
 const { getVendorModel, handlePreflight, normalizeEmail, normalizeStaffRole, setCorsHeaders } = require('./_lib/core');
 const { requireAdminSession, sanitizeStaffUser } = require('./_lib/admin');
 const { normalizeMediaList } = require('./_lib/r2');
+const { serializeApplication } = require('./careers');
 
 /******************************************************************************
  * Shared Helpers
@@ -249,6 +250,38 @@ async function handleAdminStaff(req, res) {
 }
 
 /******************************************************************************
+ * /api/admin/applications
+ ******************************************************************************/
+
+async function handleAdminApplications(req, res) {
+  try {
+    if (req.method !== 'GET') {
+      res.setHeader('Allow', 'GET, OPTIONS');
+      return res.status(405).json({ error: 'Method not allowed.' });
+    }
+
+    const session = await requireAdminSession(req, 'viewer');
+    if (session.error) {
+      return res.status(session.status).json({ error: session.error });
+    }
+
+    const { getCareerApplicationModel } = require('./_lib/core');
+    const CareerApplication = getCareerApplicationModel();
+    const applications = await CareerApplication.find({})
+      .select('-__v')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return res.status(200).json({
+      applications: applications.map(serializeApplication),
+    });
+  } catch (error) {
+    console.error('Admin application management failed:', error);
+    return res.status(500).json({ error: 'Could not load applications.' });
+  }
+}
+
+/******************************************************************************
  * Main Entrypoint
  ******************************************************************************/
 
@@ -272,6 +305,10 @@ async function handler(req, res) {
     return handleAdminStaff(req, res);
   }
 
+  if (route === 'applications') {
+    return handleAdminApplications(req, res);
+  }
+
   res.setHeader('Allow', 'OPTIONS');
   return res.status(404).json({ error: 'Admin route not found.' });
 }
@@ -280,3 +317,4 @@ module.exports = handler;
 module.exports.handleAdminMe = handleAdminMe;
 module.exports.handleAdminStaff = handleAdminStaff;
 module.exports.handleAdminVendors = handleAdminVendors;
+module.exports.handleAdminApplications = handleAdminApplications;

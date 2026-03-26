@@ -1,6 +1,9 @@
 const assert = require('node:assert/strict');
+const http = require('node:http');
+const net = require('node:net');
 const jwt = require('jsonwebtoken');
 const request = require('supertest');
+const Test = require('supertest/lib/test');
 
 const { appPath, toFileUrl } = require('./helpers/testUtils.cjs');
 
@@ -8,7 +11,40 @@ async function loadServerModule() {
   return import(`${toFileUrl(appPath('server/index.js'))}?t=${Date.now()}`);
 }
 
+const originalHttpServerListen = http.Server.prototype.listen;
+const originalNetServerListen = net.Server.prototype.listen;
+const originalServerAddress = Test.prototype.serverAddress;
+const itWithHttpServer = process.env.ALLOW_HTTP_SERVER_TESTS === 'true' ? it : it.skip;
+
 describe('VivahGo/server/index.js', function () {
+  before(function () {
+    const patchedListen = function patchedListen(...args) {
+      if (typeof args[0] === 'number' && args.length === 1) {
+        return originalNetServerListen.call(this, args[0], '127.0.0.1');
+      }
+      if (typeof args[0] === 'number' && typeof args[1] === 'function') {
+        return originalNetServerListen.call(this, args[0], '127.0.0.1', args[1]);
+      }
+      return originalNetServerListen.apply(this, args);
+    };
+
+    http.Server.prototype.listen = patchedListen;
+    net.Server.prototype.listen = patchedListen;
+    Test.prototype.serverAddress = function patchedServerAddress(app, path) {
+      const addr = app.address();
+      if (!addr) {
+        this._server = app.listen(0, '127.0.0.1');
+      }
+      return `http://127.0.0.1:${app.address().port}${path}`;
+    };
+  });
+
+  after(function () {
+    http.Server.prototype.listen = originalHttpServerListen;
+    net.Server.prototype.listen = originalNetServerListen;
+    Test.prototype.serverAddress = originalServerAddress;
+  });
+
   it('exports sanitizer/helper functions with expected behavior', async function () {
     const mod = await loadServerModule();
 
@@ -127,7 +163,7 @@ describe('VivahGo/server/index.js', function () {
     assert.equal(req.auth.sub, 'gid-ok');
   });
 
-  it('returns 500 for Google auth route when oauth client is not configured', async function () {
+  itWithHttpServer('returns 500 for Google auth route when oauth client is not configured', async function () {
     const mod = await loadServerModule();
     const app = mod.createApp({ googleClientId: '', oauthClient: null, jwtSecret: 'test-secret' });
 
@@ -136,7 +172,7 @@ describe('VivahGo/server/index.js', function () {
     assert.equal(res.body.error, 'Google auth is not configured on the server.');
   });
 
-  it('handles Google auth success path and creates planner/user response', async function () {
+  itWithHttpServer('handles Google auth success path and creates planner/user response', async function () {
     const mod = await loadServerModule();
 
     const userDoc = {
@@ -200,7 +236,7 @@ describe('VivahGo/server/index.js', function () {
     assert.equal(typeof res.body.planner.events[0].planId, 'string');
   });
 
-  it('handles Google auth failures and incomplete payload branches', async function () {
+  itWithHttpServer('handles Google auth failures and incomplete payload branches', async function () {
     const mod = await loadServerModule();
 
     const oauthThrows = {
@@ -243,7 +279,7 @@ describe('VivahGo/server/index.js', function () {
     assert.equal(resIncomplete.body.error, 'Google account details are incomplete.');
   });
 
-  it('covers planner GET/PUT success plus error branches', async function () {
+  itWithHttpServer('covers planner GET/PUT success plus error branches', async function () {
     const mod = await loadServerModule();
 
     let plannerShouldThrow = false;
