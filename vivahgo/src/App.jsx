@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import PlannerPage from "./pages/PlannerPage.jsx";
 import MarketingHomePage from "./pages/MarketingHomePage.jsx";
 import CareersPage from "./pages/CareersPage.jsx";
+import GuestRsvpPage from "./pages/GuestRsvpPage.jsx";
 import WeddingWebsitePage from "./pages/WeddingWebsitePage.jsx";
 import VendorPortalPage from "./pages/VendorPortalPage.jsx";
 import AdminPortalPage from "./pages/AdminPortalPage.jsx";
@@ -39,6 +40,10 @@ export default function App() {
 
   if (routeInfo.isWeddingWebsiteRoute) {
     return <WeddingWebsitePage />;
+  }
+
+  if (routeInfo.rsvpToken) {
+    return <GuestRsvpPage rsvpToken={routeInfo.rsvpToken} />;
   }
 
   if (routeInfo.publicWeddingSlug) {

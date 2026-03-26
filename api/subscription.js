@@ -16,7 +16,7 @@ const DEFAULT_SUBSCRIPTION_AMOUNT_MAP = {
   studio: { monthly: 500000, yearly: 4800000 },
 };
 
-const COUPON_FILE_PATH = path.join(__dirname, '..', 'config', 'subscription-coupons.json');
+const COUPON_SECRET_FILE_PATH = path.join(__dirname, '..', 'config', 'subscription-coupons.local.json');
 
 function resolveSubscriptionAmount(plan, billingCycle) {
   const cycle = billingCycle === 'yearly' ? 'yearly' : 'monthly';
@@ -27,8 +27,17 @@ function resolveSubscriptionAmount(plan, billingCycle) {
 }
 
 function readCouponCatalog() {
+  const rawCatalog = process.env.SUBSCRIPTION_COUPONS_JSON;
+  if (rawCatalog) {
+    try {
+      return JSON.parse(rawCatalog);
+    } catch {
+      return [];
+    }
+  }
+
   try {
-    return JSON.parse(fs.readFileSync(COUPON_FILE_PATH, 'utf8'));
+    return JSON.parse(fs.readFileSync(COUPON_SECRET_FILE_PATH, 'utf8'));
   } catch {
     return [];
   }

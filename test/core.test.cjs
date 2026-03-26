@@ -5,6 +5,7 @@ const {
   assignWeddingWebsiteSlugs,
   buildWeddingWebsiteBaseSlug,
   buildEmptyPlanner,
+  createGuestRsvpToken,
   createSessionToken,
   getPlannerModel,
   getBillingReceiptModel,
@@ -12,6 +13,7 @@ const {
   handlePreflight,
   sanitizePlanner,
   setCorsHeaders,
+  verifyGuestRsvpToken,
   verifySession,
 } = require('../api/_lib/core');
 
@@ -19,6 +21,7 @@ describe('core helpers', function () {
   afterEach(function () {
     delete process.env.CLIENT_ORIGIN;
     delete process.env.JWT_SECRET;
+    delete process.env.RSVP_TOKEN_SECRET;
   });
 
   describe('sanitizePlanner', function () {
@@ -336,6 +339,41 @@ describe('core helpers', function () {
       a.events.push({ id: 1 });
 
       assert.equal(b.events.length, 0);
+    });
+  });
+
+  describe('guest RSVP tokens', function () {
+    it('creates and verifies a valid guest RSVP token', function () {
+      process.env.RSVP_TOKEN_SECRET = 'rsvp-unit-secret';
+
+      const token = createGuestRsvpToken({
+        ownerId: 'owner-1',
+        planId: 'plan-1',
+        guestId: 'guest-1',
+        version: 2,
+        expiresInDays: 30,
+      });
+      const payload = verifyGuestRsvpToken(token);
+
+      assert.equal(payload.ownerId, 'owner-1');
+      assert.equal(payload.planId, 'plan-1');
+      assert.equal(payload.guestId, 'guest-1');
+      assert.equal(payload.version, 2);
+      assert.ok(payload.exp > Date.now());
+    });
+
+    it('rejects tampered guest RSVP tokens', function () {
+      process.env.RSVP_TOKEN_SECRET = 'rsvp-unit-secret';
+
+      const token = createGuestRsvpToken({
+        ownerId: 'owner-1',
+        planId: 'plan-1',
+        guestId: 'guest-1',
+      });
+      const [payload, signature] = token.split('.');
+      const tamperedToken = `${payload}x.${signature}`;
+
+      assert.throws(() => verifyGuestRsvpToken(tamperedToken), /Invalid RSVP token/);
     });
   });
 

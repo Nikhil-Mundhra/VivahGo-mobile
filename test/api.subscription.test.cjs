@@ -28,6 +28,14 @@ describe('api/subscription.js', function () {
     originalConnect = mongoose.connect;
     mongoose.connect = async () => ({});
     process.env.MONGODB_URI = 'mongodb://example.test/vivahgo';
+    process.env.SUBSCRIPTION_COUPONS_JSON = JSON.stringify([
+      {
+        code: 'VIVAHGO100',
+        expiresAt: '2099-09-26T23:59:59.000Z',
+        discountPercent: 100,
+        applicablePlans: ['premium', 'studio'],
+      },
+    ]);
     User = getUserModel();
     BillingReceipt = getBillingReceiptModel();
     originalUserFindOne = User.findOne;
@@ -50,6 +58,7 @@ describe('api/subscription.js', function () {
   after(function () {
     mongoose.connect = originalConnect;
     delete process.env.MONGODB_URI;
+    delete process.env.SUBSCRIPTION_COUPONS_JSON;
   });
 
   it('returns a zero-amount quote for the 100% coupon', async function () {

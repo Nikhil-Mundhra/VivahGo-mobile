@@ -17,6 +17,7 @@ import Vendor from './models/Vendor.js';
 import CareerApplication from './models/CareerApplication.js';
 import BillingReceipt from './models/BillingReceipt.js';
 import googleDriveHelpers from '../../api/_lib/googleDrive.js';
+import r2Helpers from '../../api/_lib/r2.js';
 
 const port = Number(process.env.PORT || 4000);
 const mongoUri = process.env.MONGODB_URI;
@@ -86,10 +87,14 @@ const DEFAULT_SUBSCRIPTION_AMOUNT_MAP = {
   studio: { monthly: 500000, yearly: 4800000 },
 };
 
-const COUPON_FILE_PATH = new URL('../../config/subscription-coupons.json', import.meta.url);
+const COUPON_SECRET_FILE_PATH = new URL('../../config/subscription-coupons.local.json', import.meta.url);
 const CAREERS_FILE_PATH = new URL('../../config/careers.json', import.meta.url);
 const { uploadPdfToDrive } = googleDriveHelpers;
+const { createPresignedGetUrl, createPresignedPutUrl } = r2Helpers;
 const MAX_CAREER_RESUME_SIZE_BYTES = 2 * 1024 * 1024;
+const MAX_VERIFICATION_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+const ALLOWED_VERIFICATION_CONTENT_TYPES = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp']);
+const ALLOWED_VERIFICATION_DOCUMENT_TYPES = ['AADHAAR', 'PAN', 'PASSPORT', 'DRIVING_LICENSE', 'OTHER'];
 
 function resolveSubscriptionAmount(plan, billingCycle) {
   const cycle = billingCycle === 'yearly' ? 'yearly' : 'monthly';
@@ -103,8 +108,17 @@ function resolveSubscriptionAmount(plan, billingCycle) {
 }
 
 function readCouponCatalog() {
+  const rawCatalog = process.env.SUBSCRIPTION_COUPONS_JSON;
+  if (rawCatalog) {
+    try {
+      return JSON.parse(rawCatalog);
+    } catch {
+      return [];
+    }
+  }
+
   try {
-    return JSON.parse(fs.readFileSync(COUPON_FILE_PATH, 'utf8'));
+    return JSON.parse(fs.readFileSync(COUPON_SECRET_FILE_PATH, 'utf8'));
   } catch {
     return [];
   }
@@ -164,6 +178,61 @@ function applyCouponDiscount(amount, coupon) {
 
 function sanitizeText(value, maxLength) {
   return typeof value === 'string' ? value.trim().slice(0, maxLength) : '';
+}
+
+function sanitizeVerificationNotes(value) {
+  return typeof value === 'string' ? value.trim().slice(0, 1000) : '';
+}
+
+function normalizeVerificationStatus(value, { hasDocuments = false } = {}) {
+  if (value === 'approved' || value === 'rejected' || value === 'submitted') {
+    return value;
+  }
+  return hasDocuments ? 'submitted' : 'not_submitted';
+}
+
+async function serializeVerificationDocuments(documents) {
+  if (!Array.isArray(documents) || documents.length === 0) {
+    return [];
+  }
+
+  return Promise.all(documents.map(async document => {
+    const key = typeof document?.key === 'string' ? document.key.replace(/^\/+/, '') : '';
+    let accessUrl = '';
+
+    if (key) {
+      try {
+        accessUrl = await createPresignedGetUrl(key);
+      } catch {
+        accessUrl = '';
+      }
+    }
+
+    return {
+      _id: String(document?._id || ''),
+      key,
+      filename: document?.filename || '',
+      size: typeof document?.size === 'number' ? document.size : 0,
+      contentType: document?.contentType || '',
+      documentType: document?.documentType || 'OTHER',
+      uploadedAt: document?.uploadedAt || null,
+      accessUrl,
+    };
+  }));
+}
+
+async function serializeVendorWithVerification(vendor) {
+  const plain = typeof vendor?.toObject === 'function' ? vendor.toObject() : vendor;
+  return {
+    ...plain,
+    verificationStatus: normalizeVerificationStatus(plain?.verificationStatus, {
+      hasDocuments: Array.isArray(plain?.verificationDocuments) && plain.verificationDocuments.length > 0,
+    }),
+    verificationNotes: sanitizeVerificationNotes(plain?.verificationNotes),
+    verificationReviewedAt: plain?.verificationReviewedAt || null,
+    verificationReviewedBy: plain?.verificationReviewedBy || '',
+    verificationDocuments: await serializeVerificationDocuments(plain?.verificationDocuments),
+  };
 }
 
 function isLikelyHttpUrl(value) {
@@ -642,6 +711,72 @@ export function createSessionToken(user, secret = jwtSecret) {
   );
 }
 
+function getRsvpTokenSecret() {
+  return process.env.RSVP_TOKEN_SECRET || jwtSecret;
+}
+
+function encodeRsvpTokenPart(value) {
+  return Buffer.from(JSON.stringify(value)).toString('base64url');
+}
+
+function decodeRsvpTokenPart(value) {
+  return JSON.parse(Buffer.from(String(value || ''), 'base64url').toString('utf8'));
+}
+
+function createGuestRsvpToken({ ownerId, planId, guestId, version = 1, expiresInDays = 180 } = {}) {
+  const normalizedOwnerId = typeof ownerId === 'string' ? ownerId.trim() : '';
+  const normalizedPlanId = typeof planId === 'string' ? planId.trim() : '';
+  const normalizedGuestId = String(guestId || '').trim();
+
+  if (!normalizedOwnerId || !normalizedPlanId || !normalizedGuestId) {
+    throw new Error('ownerId, planId, and guestId are required to create an RSVP token.');
+  }
+
+  const payload = {
+    ownerId: normalizedOwnerId,
+    planId: normalizedPlanId,
+    guestId: normalizedGuestId,
+    version: Number.isFinite(Number(version)) ? Number(version) : 1,
+    exp: Date.now() + Math.max(1, Number(expiresInDays) || 180) * 24 * 60 * 60 * 1000,
+  };
+  const encodedPayload = encodeRsvpTokenPart(payload);
+  const signature = crypto
+    .createHmac('sha256', getRsvpTokenSecret())
+    .update(encodedPayload)
+    .digest('base64url');
+
+  return `${encodedPayload}.${signature}`;
+}
+
+function verifyGuestRsvpToken(token) {
+  const [encodedPayload, signature] = String(token || '').split('.');
+  if (!encodedPayload || !signature) {
+    throw new Error('Invalid RSVP token.');
+  }
+
+  const expected = crypto
+    .createHmac('sha256', getRsvpTokenSecret())
+    .update(encodedPayload)
+    .digest('base64url');
+
+  const providedBuffer = Buffer.from(signature);
+  const expectedBuffer = Buffer.from(expected);
+  if (providedBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(providedBuffer, expectedBuffer)) {
+    throw new Error('Invalid RSVP token.');
+  }
+
+  const payload = decodeRsvpTokenPart(encodedPayload);
+  if (!payload?.ownerId || !payload?.planId || !payload?.guestId) {
+    throw new Error('Invalid RSVP token.');
+  }
+
+  if (!Number.isFinite(payload.exp) || payload.exp < Date.now()) {
+    throw new Error('This RSVP link has expired.');
+  }
+
+  return payload;
+}
+
 export function getClientOrigins(clientOrigin = process.env.CLIENT_ORIGIN) {
   if (!clientOrigin) {
     return true;
@@ -780,6 +915,71 @@ function findOwnerEmail(plan) {
     return '';
   }
   return plan.collaborators.find(item => item.role === 'owner')?.email || '';
+}
+
+function getPublicWeddingData(planner, publicPlan) {
+  const wedding = {
+    ...planner.wedding,
+    bride: publicPlan.bride || planner.wedding?.bride || '',
+    groom: publicPlan.groom || planner.wedding?.groom || '',
+    date: publicPlan.date || planner.wedding?.date || '',
+    venue: publicPlan.venue || planner.wedding?.venue || '',
+    guests: publicPlan.guests || planner.wedding?.guests || '',
+    budget: publicPlan.budget || planner.wedding?.budget || '',
+  };
+
+  return {
+    wedding,
+    plan: {
+      id: publicPlan.id,
+      bride: publicPlan.bride || '',
+      groom: publicPlan.groom || '',
+      date: publicPlan.date || '',
+      venue: publicPlan.venue || '',
+      websiteSlug: publicPlan.websiteSlug || '',
+      websiteSettings: publicPlan.websiteSettings || {},
+    },
+    events: (planner.events || []).filter(item => item?.planId === publicPlan.id && item?.isPublicWebsiteVisible !== false),
+  };
+}
+
+function getGuestDisplayName(guest) {
+  const fromParts = [guest?.title, guest?.firstName, guest?.middleName, guest?.lastName]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+  return fromParts || String(guest?.name || '').trim() || 'Guest';
+}
+
+function resolveAttendingGuestCount(guest, requestedCount, nextRsvp) {
+  const invitedGuestCount = Math.max(1, Number(guest?.guestCount) || 1);
+  if (nextRsvp !== 'yes') {
+    return 0;
+  }
+
+  const parsed = Number(requestedCount);
+  if (!Number.isFinite(parsed)) {
+    return Math.min(invitedGuestCount, Math.max(1, Number(guest?.attendingGuestCount) || invitedGuestCount));
+  }
+
+  return Math.min(invitedGuestCount, Math.max(1, Math.round(parsed)));
+}
+
+function buildGuestRsvpLink(req, token) {
+  const requestOrigin = typeof req.headers?.origin === 'string' ? req.headers.origin.trim().replace(/\/$/, '') : '';
+  const forwardedProto = typeof req.headers?.['x-forwarded-proto'] === 'string' ? req.headers['x-forwarded-proto'].split(',')[0].trim() : '';
+  const forwardedHost = typeof req.headers?.['x-forwarded-host'] === 'string' ? req.headers['x-forwarded-host'].split(',')[0].trim() : '';
+  const host = forwardedHost || req.headers?.host || '';
+
+  if (requestOrigin) {
+    return `${requestOrigin}/rsvp/${encodeURIComponent(token)}`;
+  }
+
+  if (forwardedProto && host) {
+    return `${forwardedProto}://${host}/rsvp/${encodeURIComponent(token)}`;
+  }
+
+  return `/rsvp/${encodeURIComponent(token)}`;
 }
 
 function normalizeVendorSubtype(type, subType) {
@@ -1197,7 +1397,7 @@ export function createApp(options = {}) {
       if (!vendor) {
         return res.status(404).json({ error: 'No vendor profile found.' });
       }
-      return res.json({ vendor });
+      return res.json({ vendor: await serializeVendorWithVerification(vendor) });
     } catch (error) {
       console.error('Failed to load vendor profile:', error);
       return res.status(500).json({ error: 'An unexpected error occurred.' });
@@ -1265,7 +1465,7 @@ export function createApp(options = {}) {
         { $set: { isVendor: true, vendorId: vendor._id } }
       );
 
-      return res.status(201).json({ vendor });
+      return res.status(201).json({ vendor: await serializeVendorWithVerification(vendor) });
     } catch (error) {
       console.error('Vendor registration failed:', error);
       return res.status(500).json({ error: 'An unexpected error occurred.' });
@@ -1327,9 +1527,107 @@ export function createApp(options = {}) {
         { new: true }
       );
 
-      return res.json({ vendor });
+      return res.json({ vendor: await serializeVendorWithVerification(vendor) });
     } catch (error) {
       console.error('Vendor profile update failed:', error);
+      return res.status(500).json({ error: 'An unexpected error occurred.' });
+    }
+  });
+
+  app.post('/api/media/verification-presigned-url', (req, res, next) => authMiddleware(req, res, next, injectedJwtSecret), async (req, res) => {
+    try {
+      const { filename, contentType, size } = req.body || {};
+
+      if (!filename || typeof filename !== 'string' || !contentType || typeof contentType !== 'string') {
+        return res.status(400).json({ error: 'filename and contentType are required.' });
+      }
+      if (!ALLOWED_VERIFICATION_CONTENT_TYPES.has(contentType)) {
+        return res.status(400).json({ error: 'Only PDF, JPG, PNG, and WebP files are allowed.' });
+      }
+      if (typeof size === 'number' && size > MAX_VERIFICATION_FILE_SIZE_BYTES) {
+        return res.status(400).json({ error: 'File exceeds the 10 MB size limit.' });
+      }
+
+      const rawExt = filename.includes('.') ? filename.split('.').pop() : '';
+      const ext = rawExt.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 10);
+      const key = `vendor-verification/${req.auth.sub}/${crypto.randomUUID()}${ext ? `.${ext}` : ''}`;
+      const uploadUrl = await createPresignedPutUrl(key, contentType);
+
+      return res.json({ uploadUrl, key });
+    } catch (error) {
+      console.error('Verification presigned URL generation failed:', error);
+      return res.status(500).json({ error: 'Could not generate verification upload URL.' });
+    }
+  });
+
+  app.post('/api/vendor/verification', (req, res, next) => authMiddleware(req, res, next, injectedJwtSecret), async (req, res) => {
+    try {
+      const vendor = await VendorModel.findOne({ googleId: req.auth.sub });
+      if (!vendor) {
+        return res.status(404).json({ error: 'No vendor profile found.' });
+      }
+
+      const { key, filename, size, contentType, documentType } = req.body || {};
+      const normalizedKey = typeof key === 'string' ? key.replace(/^\/+/, '') : '';
+
+      if (!normalizedKey) {
+        return res.status(400).json({ error: 'A valid verification document key is required.' });
+      }
+      if (!ALLOWED_VERIFICATION_DOCUMENT_TYPES.includes(documentType)) {
+        return res.status(400).json({ error: `documentType must be one of: ${ALLOWED_VERIFICATION_DOCUMENT_TYPES.join(', ')}.` });
+      }
+
+      vendor.verificationDocuments.push({
+        key: normalizedKey,
+        filename: typeof filename === 'string' ? filename.slice(0, 255) : '',
+        size: typeof size === 'number' && size >= 0 ? size : 0,
+        contentType: typeof contentType === 'string' ? contentType.slice(0, 120) : '',
+        documentType,
+        uploadedAt: new Date(),
+      });
+      vendor.verificationStatus = 'submitted';
+      vendor.verificationReviewedAt = null;
+      vendor.verificationReviewedBy = '';
+
+      await vendor.save();
+      return res.status(201).json({ vendor: await serializeVendorWithVerification(vendor) });
+    } catch (error) {
+      console.error('Vendor verification upload failed:', error);
+      return res.status(500).json({ error: 'An unexpected error occurred.' });
+    }
+  });
+
+  app.delete('/api/vendor/verification', (req, res, next) => authMiddleware(req, res, next, injectedJwtSecret), async (req, res) => {
+    try {
+      const vendor = await VendorModel.findOne({ googleId: req.auth.sub });
+      if (!vendor) {
+        return res.status(404).json({ error: 'No vendor profile found.' });
+      }
+
+      const documentId = String(req.body?.documentId || '').trim();
+      if (!documentId) {
+        return res.status(400).json({ error: 'documentId is required.' });
+      }
+
+      const target = vendor.verificationDocuments.id(documentId);
+      if (!target) {
+        return res.status(404).json({ error: 'Verification document not found.' });
+      }
+
+      target.deleteOne();
+      if (vendor.verificationDocuments.length === 0) {
+        vendor.verificationStatus = 'not_submitted';
+        vendor.verificationNotes = '';
+        vendor.verificationReviewedAt = null;
+        vendor.verificationReviewedBy = '';
+      } else if (vendor.verificationStatus === 'approved') {
+        vendor.verificationStatus = 'submitted';
+      }
+
+      await vendor.save();
+      return res.json({ vendor: await serializeVendorWithVerification(vendor) });
+    } catch (error) {
+      console.error('Vendor verification delete failed:', error);
       return res.status(500).json({ error: 'An unexpected error occurred.' });
     }
   });
@@ -1403,7 +1701,7 @@ export function createApp(options = {}) {
         .lean();
 
       return res.json({
-        vendors: vendors.map(vendor => ({
+        vendors: await Promise.all(vendors.map(async vendor => ({
           id: String(vendor._id || ''),
           googleId: vendor.googleId || '',
           businessName: vendor.businessName || '',
@@ -1420,11 +1718,19 @@ export function createApp(options = {}) {
           bundledServices: Array.isArray(vendor.bundledServices) ? vendor.bundledServices : [],
           budgetRange: vendor.budgetRange || null,
           isApproved: Boolean(vendor.isApproved),
+          verificationStatus: normalizeVerificationStatus(vendor.verificationStatus, {
+            hasDocuments: Array.isArray(vendor.verificationDocuments) && vendor.verificationDocuments.length > 0,
+          }),
+          verificationNotes: sanitizeVerificationNotes(vendor.verificationNotes),
+          verificationReviewedAt: vendor.verificationReviewedAt || null,
+          verificationReviewedBy: vendor.verificationReviewedBy || '',
+          verificationDocuments: await serializeVerificationDocuments(vendor.verificationDocuments),
+          verificationDocumentCount: Array.isArray(vendor.verificationDocuments) ? vendor.verificationDocuments.length : 0,
           media: Array.isArray(vendor.media) ? vendor.media : [],
           mediaCount: Array.isArray(vendor.media) ? vendor.media.length : 0,
           createdAt: vendor.createdAt || null,
           updatedAt: vendor.updatedAt || null,
-        })),
+        }))),
       });
     } catch (error) {
       console.error('Admin vendors fetch failed:', error);
@@ -1441,17 +1747,35 @@ export function createApp(options = {}) {
 
       const vendorId = String(req.body?.vendorId || '').trim();
       const isApproved = req.body?.isApproved;
+      const verificationStatus = typeof req.body?.verificationStatus === 'string' ? req.body.verificationStatus.trim() : '';
+      const verificationNotes = typeof req.body?.verificationNotes === 'string' ? sanitizeVerificationNotes(req.body.verificationNotes) : null;
 
       if (!vendorId) {
         return res.status(400).json({ error: 'vendorId is required.' });
       }
-      if (typeof isApproved !== 'boolean') {
-        return res.status(400).json({ error: 'isApproved must be true or false.' });
+      if (typeof isApproved !== 'boolean' && !verificationStatus && verificationNotes === null) {
+        return res.status(400).json({ error: 'Provide isApproved, verificationStatus, or verificationNotes.' });
+      }
+      if (verificationStatus && !['not_submitted', 'submitted', 'approved', 'rejected'].includes(verificationStatus)) {
+        return res.status(400).json({ error: 'verificationStatus is invalid.' });
+      }
+
+      const updates = {};
+      if (typeof isApproved === 'boolean') {
+        updates.isApproved = isApproved;
+      }
+      if (verificationStatus) {
+        updates.verificationStatus = verificationStatus;
+        updates.verificationReviewedAt = new Date();
+        updates.verificationReviewedBy = session.user.email || session.user.googleId || '';
+      }
+      if (verificationNotes !== null) {
+        updates.verificationNotes = verificationNotes;
       }
 
       const vendor = await VendorModel.findByIdAndUpdate(
         vendorId,
-        { $set: { isApproved } },
+        { $set: updates },
         { new: true }
       );
 
@@ -1465,6 +1789,14 @@ export function createApp(options = {}) {
           businessName: vendor.businessName || '',
           type: vendor.type || '',
           isApproved: Boolean(vendor.isApproved),
+          verificationStatus: normalizeVerificationStatus(vendor.verificationStatus, {
+            hasDocuments: Array.isArray(vendor.verificationDocuments) && vendor.verificationDocuments.length > 0,
+          }),
+          verificationNotes: sanitizeVerificationNotes(vendor.verificationNotes),
+          verificationReviewedAt: vendor.verificationReviewedAt || null,
+          verificationReviewedBy: vendor.verificationReviewedBy || '',
+          verificationDocuments: await serializeVerificationDocuments(vendor.verificationDocuments),
+          verificationDocumentCount: Array.isArray(vendor.verificationDocuments) ? vendor.verificationDocuments.length : 0,
         },
       });
     } catch (error) {
@@ -1796,32 +2128,170 @@ export function createApp(options = {}) {
         return res.status(404).json({ error: 'Wedding website not found.' });
       }
 
-      const wedding = {
-        ...planner.wedding,
-        bride: publicPlan.bride || planner.wedding?.bride || '',
-        groom: publicPlan.groom || planner.wedding?.groom || '',
-        date: publicPlan.date || planner.wedding?.date || '',
-        venue: publicPlan.venue || planner.wedding?.venue || '',
-        guests: publicPlan.guests || planner.wedding?.guests || '',
-        budget: publicPlan.budget || planner.wedding?.budget || '',
-      };
-
-      return res.json({
-        wedding,
-        plan: {
-          id: publicPlan.id,
-          bride: publicPlan.bride || '',
-          groom: publicPlan.groom || '',
-          date: publicPlan.date || '',
-          venue: publicPlan.venue || '',
-        websiteSlug: publicPlan.websiteSlug || '',
-        websiteSettings: publicPlan.websiteSettings || {},
-      },
-        events: (planner.events || []).filter(item => item?.planId === publicPlan.id && item?.isPublicWebsiteVisible !== false),
-      });
+      return res.json(getPublicWeddingData(planner, publicPlan));
     } catch (error) {
       console.error('Failed to load public planner website:', error);
       return res.status(500).json({ error: 'Failed to load wedding website.' });
+    }
+  });
+
+  app.post('/api/planner/me/rsvp-link', (req, res, next) => authMiddleware(req, res, next, injectedJwtSecret), async (req, res) => {
+    try {
+      const plannerOwnerId = req.query?.plannerOwnerId || req.body?.plannerOwnerId || req.auth.sub;
+      const plannerDoc = await PlannerModel.findOne({ googleId: plannerOwnerId });
+      if (!plannerDoc) {
+        return res.status(404).json({ error: 'Planner not found.' });
+      }
+
+      const email = normalizeEmail(req.auth.email);
+      const ownerId = plannerDoc.googleId || plannerOwnerId;
+      const normalized = normalizePlannerOwnership(plannerDoc.toObject(), email, ownerId);
+      const plan = getPlanFromPlanner(normalized, req.body?.planId || normalized.activePlanId);
+      if (!plan) {
+        return res.status(404).json({ error: 'Plan not found.' });
+      }
+
+      if (!hasPlanRole(plan, email, 'editor')) {
+        return res.status(403).json({ error: 'You do not have access to send RSVP links for this plan.' });
+      }
+
+      const guestId = String(req.body?.guestId || '').trim();
+      const guest = (normalized.guests || []).find(item => item?.planId === plan.id && String(item?.id || '') === guestId);
+      if (!guest) {
+        return res.status(404).json({ error: 'Guest not found.' });
+      }
+
+      const token = createGuestRsvpToken({
+        ownerId,
+        planId: plan.id,
+        guestId,
+        version: Number(guest?.rsvpTokenVersion) || 1,
+      });
+      const coupleName = [plan.bride || normalized.wedding?.bride || '', plan.groom || normalized.wedding?.groom || ''].filter(Boolean).join(' & ');
+
+      return res.json({
+        guestName: getGuestDisplayName(guest),
+        coupleName: coupleName || 'our wedding',
+        token,
+        rsvpUrl: buildGuestRsvpLink(req, token),
+      });
+    } catch (error) {
+      console.error('Failed to create RSVP link:', error);
+      return res.status(500).json({ error: 'Failed to create RSVP link.' });
+    }
+  });
+
+  app.get('/api/planner/rsvp', async (req, res) => {
+    let payload;
+    try {
+      payload = verifyGuestRsvpToken(req.query?.token);
+    } catch (error) {
+      return res.status(400).json({ error: error.message || 'Invalid RSVP token.' });
+    }
+
+    try {
+      const plannerDoc = await PlannerModel.findOne({ googleId: payload.ownerId });
+      if (!plannerDoc) {
+        return res.status(404).json({ error: 'Wedding invitation not found.' });
+      }
+
+      const planner = sanitizePlanner(plannerDoc.toObject(), { ownerId: plannerDoc.googleId || '' });
+      const plan = getPlanFromPlanner(planner, payload.planId);
+      if (!plan) {
+        return res.status(404).json({ error: 'Wedding invitation not found.' });
+      }
+
+      const guest = (planner.guests || []).find(item => item?.planId === plan.id && String(item?.id || '') === payload.guestId);
+      if (!guest) {
+        return res.status(404).json({ error: 'Wedding invitation not found.' });
+      }
+
+      if ((Number(guest?.rsvpTokenVersion) || 1) !== (Number(payload.version) || 1)) {
+        return res.status(400).json({ error: 'This RSVP link is no longer valid.' });
+      }
+
+      return res.json({
+        ...getPublicWeddingData(planner, plan),
+        guest: {
+          id: String(guest.id || ''),
+          name: getGuestDisplayName(guest),
+          side: guest.side || '',
+          phone: guest.phone || '',
+          invitedGuestCount: Math.max(1, Number(guest.guestCount) || 1),
+          attendingGuestCount: Math.max(0, Number(guest.attendingGuestCount) || 0),
+          rsvp: guest.rsvp || 'pending',
+        },
+      });
+    } catch (error) {
+      console.error('Failed to load RSVP page:', error);
+      return res.status(500).json({ error: 'Failed to load RSVP.' });
+    }
+  });
+
+  app.post('/api/planner/rsvp', async (req, res) => {
+    let payload;
+    try {
+      payload = verifyGuestRsvpToken(req.body?.token);
+    } catch (error) {
+      return res.status(400).json({ error: error.message || 'Invalid RSVP token.' });
+    }
+
+    try {
+      const plannerDoc = await PlannerModel.findOne({ googleId: payload.ownerId });
+      if (!plannerDoc) {
+        return res.status(404).json({ error: 'Wedding invitation not found.' });
+      }
+
+      const planner = sanitizePlanner(plannerDoc.toObject(), { ownerId: plannerDoc.googleId || '' });
+      const plan = getPlanFromPlanner(planner, payload.planId);
+      if (!plan) {
+        return res.status(404).json({ error: 'Wedding invitation not found.' });
+      }
+
+      const guestIndex = (planner.guests || []).findIndex(item => item?.planId === plan.id && String(item?.id || '') === payload.guestId);
+      if (guestIndex < 0) {
+        return res.status(404).json({ error: 'Wedding invitation not found.' });
+      }
+
+      const guest = planner.guests[guestIndex];
+      if ((Number(guest?.rsvpTokenVersion) || 1) !== (Number(payload.version) || 1)) {
+        return res.status(400).json({ error: 'This RSVP link is no longer valid.' });
+      }
+
+      const nextRsvp = req.body?.rsvp === 'yes' || req.body?.rsvp === 'no' ? req.body.rsvp : null;
+      if (!nextRsvp) {
+        return res.status(400).json({ error: 'RSVP response must be yes or no.' });
+      }
+
+      const attendingGuestCount = resolveAttendingGuestCount(guest, req.body?.attendingGuestCount, nextRsvp);
+      const nextGuests = [...(planner.guests || [])];
+      nextGuests[guestIndex] = {
+        ...guest,
+        rsvp: nextRsvp,
+        attendingGuestCount,
+        rsvpTokenVersion: (Number(guest?.rsvpTokenVersion) || 1) + 1,
+        rsvpUpdatedAt: new Date().toISOString(),
+      };
+
+      await PlannerModel.findOneAndUpdate(
+        { _id: plannerDoc._id },
+        { $set: { guests: nextGuests } },
+        { new: true }
+      );
+
+      return res.json({
+        success: true,
+        guest: {
+          id: String(guest.id || ''),
+          name: getGuestDisplayName(guest),
+          invitedGuestCount: Math.max(1, Number(guest.guestCount) || 1),
+          attendingGuestCount,
+          rsvp: nextRsvp,
+        },
+      });
+    } catch (error) {
+      console.error('Failed to save RSVP:', error);
+      return res.status(500).json({ error: 'Failed to process RSVP.' });
     }
   });
 

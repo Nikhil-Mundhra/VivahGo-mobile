@@ -331,6 +331,7 @@ export default function VendorPortalPage() {
 
                     <VendorPortfolioManager
                       token={session.token}
+                      vendor={{ ...(vendor || {}), ...(previewVendor || {}) }}
                       media={vendor.media || []}
                       onVendorUpdated={updatedVendor => {
                         setVendor(updatedVendor);

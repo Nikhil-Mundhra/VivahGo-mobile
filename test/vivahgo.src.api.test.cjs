@@ -136,6 +136,9 @@ describe('VivahGo/src/api.js', function () {
       await mod.fetchAdminApplications('jwt-admin');
       await mod.fetchAdminVendors('jwt-admin');
       await mod.updateAdminVendorApproval('jwt-admin', { vendorId: 'vendor-1', isApproved: true });
+      await mod.fetchVerificationPresignedUrl('jwt-vendor', { filename: 'id.pdf', contentType: 'application/pdf', size: 123 });
+      await mod.saveVendorVerificationDocument('jwt-vendor', { key: 'vendor-verification/vendor-1/id.pdf', documentType: 'PAN' });
+      await mod.removeVendorVerificationDocument('jwt-vendor', 'doc-1');
       await mod.fetchAdminStaff('jwt-admin');
       await mod.addAdminStaff('jwt-admin', { email: 'staff@example.com', staffRole: 'viewer' });
       await mod.updateAdminStaff('jwt-admin', { email: 'staff@example.com', staffRole: 'editor' });
@@ -144,7 +147,7 @@ describe('VivahGo/src/api.js', function () {
       delete global.fetch;
     }
 
-    assert.equal(calls.length, 15);
+    assert.equal(calls.length, 18);
     assert.match(calls[0].url, /\/auth\/google$/);
     assert.equal(calls[1].options.headers.Authorization, 'Bearer jwt-2');
     assert.match(calls[2].url, /\/planner\/me$/);
@@ -157,9 +160,13 @@ describe('VivahGo/src/api.js', function () {
     assert.match(calls[8].url, /\/admin\/applications$/);
     assert.match(calls[9].url, /\/admin\/vendors$/);
     assert.equal(calls[10].options.method, 'PATCH');
-    assert.match(calls[11].url, /\/admin\/staff$/);
+    assert.match(calls[11].url, /\/media\/verification-presigned-url$/);
+    assert.match(calls[12].url, /\/vendor\/verification$/);
     assert.equal(calls[12].options.method, 'POST');
-    assert.equal(calls[13].options.method, 'PUT');
-    assert.match(calls[14].url, /\/admin\/staff\?email=staff%40example\.com$/);
+    assert.equal(calls[13].options.method, 'DELETE');
+    assert.match(calls[14].url, /\/admin\/staff$/);
+    assert.equal(calls[15].options.method, 'POST');
+    assert.equal(calls[16].options.method, 'PUT');
+    assert.match(calls[17].url, /\/admin\/staff\?email=staff%40example\.com$/);
   });
 });

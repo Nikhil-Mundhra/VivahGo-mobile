@@ -33,10 +33,35 @@ function attachMediaHelpers(items) {
   return media;
 }
 
-function makeVendorDoc(items = []) {
+function attachVerificationHelpers(items) {
+  const documents = items.map(item => ({ ...item }));
+
+  documents.id = function id(documentId) {
+    return documents.find(item => String(item._id) === String(documentId)) || null;
+  };
+
+  documents.forEach(item => {
+    item.deleteOne = () => {
+      const index = documents.findIndex(entry => String(entry._id) === String(item._id));
+      if (index >= 0) {
+        documents.splice(index, 1);
+      }
+    };
+  });
+
+  return documents;
+}
+
+function makeVendorDoc(items = [], verificationDocuments = []) {
   const media = attachMediaHelpers(items);
+  const documents = attachVerificationHelpers(verificationDocuments);
   return {
     media,
+    verificationDocuments: documents,
+    verificationStatus: documents.length ? 'submitted' : 'not_submitted',
+    verificationNotes: '',
+    verificationReviewedAt: null,
+    verificationReviewedBy: '',
     async save() {
       return this;
     },
@@ -49,6 +74,15 @@ function makeVendorDoc(items = []) {
           delete clone.deleteOne;
           return clone;
         }),
+        verificationDocuments: documents.map(item => {
+          const clone = { ...item };
+          delete clone.deleteOne;
+          return clone;
+        }),
+        verificationStatus: this.verificationStatus,
+        verificationNotes: this.verificationNotes,
+        verificationReviewedAt: this.verificationReviewedAt,
+        verificationReviewedBy: this.verificationReviewedBy,
       };
     },
   };
@@ -284,5 +318,53 @@ describe('api/vendor.js -> media route', function () {
     assert.equal(res.statusCode, 201);
     assert.equal(res.body.vendor.media[0].key, 'vendors/Vendor-ABC/Photo.JPG');
     assert.equal(res.body.vendor.media[0].url, 'https://media.vivahgo.com/portfolio/vendors/Vendor-ABC/Photo.JPG');
+  });
+
+  it('stores and removes private verification documents', async function () {
+    const vendorDoc = makeVendorDoc([], [
+      { _id: 'd1', key: 'vendor-verification/vendor-123/id-old.pdf', filename: 'id-old.pdf', size: 100, contentType: 'application/pdf', documentType: 'PAN', uploadedAt: new Date('2026-01-01T00:00:00.000Z') },
+    ]);
+
+    require.cache[corePath].exports = {
+      ...originalCore,
+      connectDb: async () => {},
+      getVendorModel: () => ({
+        findOne: async () => vendorDoc,
+      }),
+    };
+
+    const { handleVendorVerification: handler } = require(handlerPath);
+    const createReq = {
+      method: 'POST',
+      headers: { authorization: `Bearer ${makeToken()}` },
+      body: {
+        key: 'vendor-verification/vendor-123/id-new.pdf',
+        filename: 'id-new.pdf',
+        size: 200,
+        contentType: 'application/pdf',
+        documentType: 'AADHAAR',
+      },
+    };
+    const createdRes = createRes();
+
+    await handler(createReq, createdRes);
+
+    assert.equal(createdRes.statusCode, 201);
+    assert.equal(createdRes.body.vendor.verificationDocuments.length, 2);
+    assert.equal(createdRes.body.vendor.verificationStatus, 'submitted');
+
+    const deleteReq = {
+      method: 'DELETE',
+      headers: { authorization: `Bearer ${makeToken()}` },
+      body: {
+        documentId: 'd1',
+      },
+    };
+    const deletedRes = createRes();
+
+    await handler(deleteReq, deletedRes);
+
+    assert.equal(deletedRes.statusCode, 200);
+    assert.equal(deletedRes.body.vendor.verificationDocuments.length, 1);
   });
 });

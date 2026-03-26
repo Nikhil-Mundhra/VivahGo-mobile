@@ -1,4 +1,4 @@
-const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
+const { S3Client, GetObjectCommand, PutObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 
 const MEDIA_VIVAHGO_FALLBACK_URL = 'https://pub-47c8cf1fe5da4a1b89c93045916376d7.r2.dev/';
@@ -37,6 +37,21 @@ async function createPresignedPutUrl(key, contentType, expiresIn = 3600) {
     Bucket: bucket,
     Key: key,
     ContentType: contentType,
+  });
+
+  return getSignedUrl(client, command, { expiresIn });
+}
+
+async function createPresignedGetUrl(key, expiresIn = 900) {
+  const bucket = process.env.R2_BUCKET_NAME;
+  if (!bucket) {
+    throw new Error('R2_BUCKET_NAME is not configured.');
+  }
+
+  const client = createR2Client();
+  const command = new GetObjectCommand({
+    Bucket: bucket,
+    Key: normalizeObjectKey(key),
   });
 
   return getSignedUrl(client, command, { expiresIn });
@@ -151,6 +166,7 @@ function normalizeMediaList(media) {
 }
 
 module.exports = {
+  createPresignedGetUrl,
   createPresignedPutUrl,
   createPublicObjectUrl,
   extractObjectKeyFromUrl,

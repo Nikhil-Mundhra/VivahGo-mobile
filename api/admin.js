@@ -1,6 +1,6 @@
 const { getBillingReceiptModel, getVendorModel, handlePreflight, normalizeEmail, normalizeStaffRole, setCorsHeaders } = require('./_lib/core');
 const { requireAdminSession, sanitizeStaffUser } = require('./_lib/admin');
-const { normalizeMediaList } = require('./_lib/r2');
+const { createPresignedGetUrl, normalizeMediaList } = require('./_lib/r2');
 const { serializeApplication } = require('./careers');
 
 /******************************************************************************
@@ -24,9 +24,29 @@ async function resolveLean(result) {
   return result;
 }
 
-function serializeAdminVendor(vendor = {}) {
+async function serializeAdminVendor(vendor = {}) {
   const media = normalizeMediaList(vendor.media)
     .sort((a, b) => (a?.sortOrder ?? 0) - (b?.sortOrder ?? 0));
+  const verificationDocuments = Array.isArray(vendor.verificationDocuments) ? vendor.verificationDocuments : [];
+  const signedVerificationDocuments = await Promise.all(verificationDocuments.map(async document => {
+    const key = typeof document?.key === 'string' ? document.key.replace(/^\/+/, '') : '';
+    let accessUrl = '';
+
+    if (key) {
+      try {
+        accessUrl = await createPresignedGetUrl(key);
+      } catch {
+        accessUrl = '';
+      }
+    }
+
+    return {
+      ...document,
+      _id: String(document?._id || ''),
+      key,
+      accessUrl,
+    };
+  }));
 
   return {
     id: String(vendor._id || ''),
@@ -45,6 +65,12 @@ function serializeAdminVendor(vendor = {}) {
     coverageAreas: Array.isArray(vendor.coverageAreas) ? vendor.coverageAreas : [],
     budgetRange: vendor.budgetRange || null,
     isApproved: Boolean(vendor.isApproved),
+    verificationStatus: vendor.verificationStatus || (verificationDocuments.length ? 'submitted' : 'not_submitted'),
+    verificationNotes: vendor.verificationNotes || '',
+    verificationReviewedAt: vendor.verificationReviewedAt || null,
+    verificationReviewedBy: vendor.verificationReviewedBy || '',
+    verificationDocuments: signedVerificationDocuments,
+    verificationDocumentCount: signedVerificationDocuments.length,
     mediaCount: media.length,
     media,
     createdAt: vendor.createdAt || null,
@@ -132,7 +158,7 @@ async function handleAdminVendors(req, res) {
         .lean();
 
       return res.status(200).json({
-        vendors: vendors.map(serializeAdminVendor),
+        vendors: await Promise.all(vendors.map(serializeAdminVendor)),
       });
     }
 
@@ -144,21 +170,37 @@ async function handleAdminVendors(req, res) {
 
       const vendorId = String(req.body?.vendorId || '').trim();
       const isApproved = req.body?.isApproved;
+      const verificationStatus = typeof req.body?.verificationStatus === 'string' ? req.body.verificationStatus.trim() : '';
+      const verificationNotes = typeof req.body?.verificationNotes === 'string' ? req.body.verificationNotes.trim().slice(0, 1000) : null;
 
       if (!vendorId) {
         return res.status(400).json({ error: 'vendorId is required.' });
       }
-      if (typeof isApproved !== 'boolean') {
-        return res.status(400).json({ error: 'isApproved must be true or false.' });
+      if (typeof isApproved !== 'boolean' && !verificationStatus && verificationNotes === null) {
+        return res.status(400).json({ error: 'Provide isApproved, verificationStatus, or verificationNotes.' });
+      }
+      if (verificationStatus && !['not_submitted', 'submitted', 'approved', 'rejected'].includes(verificationStatus)) {
+        return res.status(400).json({ error: 'verificationStatus is invalid.' });
+      }
+
+      const updates = {};
+      if (typeof isApproved === 'boolean') {
+        updates.isApproved = isApproved;
+      }
+      if (verificationStatus) {
+        updates.verificationStatus = verificationStatus;
+        updates.verificationReviewedAt = new Date();
+        updates.verificationReviewedBy = session.user.email || session.user.googleId || '';
+      }
+      if (verificationNotes !== null) {
+        updates.verificationNotes = verificationNotes;
       }
 
       const Vendor = getVendorModel();
       const vendor = await Vendor.findByIdAndUpdate(
         vendorId,
         {
-          $set: {
-            isApproved,
-          },
+          $set: updates,
         },
         { new: true }
       );
@@ -168,7 +210,7 @@ async function handleAdminVendors(req, res) {
       }
 
       return res.status(200).json({
-        vendor: serializeAdminVendor(vendor.toObject()),
+        vendor: await serializeAdminVendor(vendor.toObject()),
       });
     }
 

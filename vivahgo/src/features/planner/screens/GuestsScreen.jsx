@@ -1,9 +1,10 @@
 import { useState } from "react";
+import { createGuestRsvpLink } from "../../../api";
 import { initials } from "../../../utils";
 import { useSwipeDown } from "../../../hooks/useSwipeDown";
 import { useBackButtonClose } from "../../../hooks/useBackButtonClose";
 
-const DEFAULT_BULK_MESSAGE = "Hi {name}, we warmly invite you to our wedding celebrations! Kindly confirm your attendance by replying to this message. We look forward to your presence. 🙏💍";
+const DEFAULT_BULK_MESSAGE = "Hi {name}, we warmly invite you to our wedding celebrations. Please RSVP here: {rsvp_link} We look forward to your presence. 🙏💍";
 
 
 const GUEST_TITLES = new Set(["mr", "mrs", "ms", "miss", "dr", "prof", "shri", "smt", "km", "kum"]);
@@ -52,7 +53,7 @@ function getGuestNameParts(guest) {
   };
 }
 
-function GuestsScreen({ guests, setGuests, planId }) {
+function GuestsScreen({ guests, setGuests, planId, authToken, plannerOwnerId }) {
   const [showEditor, setShowEditor] = useState(false);
   const [editingGuestId, setEditingGuestId] = useState(null);
   const [form, setForm] = useState(createGuestForm());
@@ -64,6 +65,7 @@ function GuestsScreen({ guests, setGuests, planId }) {
   const [bulkMessage, setBulkMessage] = useState(DEFAULT_BULK_MESSAGE);
   const [bulkSentIds, setBulkSentIds] = useState(new Set());
   const [copySuccess, setCopySuccess] = useState(false);
+  const [whatsAppError, setWhatsAppError] = useState("");
 
   const getGuestCount = (guest) => {
     const parsed = Number(guest?.guestCount);
@@ -168,24 +170,53 @@ function GuestsScreen({ guests, setGuests, planId }) {
     setGuests(current => current.filter(guest => guest.id !== id));
   }
 
-  function sendWhatsAppReminder(guest) {
-    const phone = String(guest?.phone || "").replace(/[^0-9]/g, "");
-    if (!phone) return;
+  async function createRsvpLinkForGuest(guest) {
+    if (!authToken) {
+      throw new Error("Sign in is required to send RSVP links.");
+    }
 
-    const guestName = getDisplayName(guest) || "there";
-    const message = encodeURIComponent(`Hi ${guestName}, this is a friendly reminder for our wedding events. Please share your RSVP update. Thank you!`);
-    const url = `https://api.whatsapp.com/send/?phone=${phone}&text=${message}`;
-    window.open(url, "_blank", "noopener,noreferrer");
+    const result = await createGuestRsvpLink(authToken, {
+      guestId: guest.id,
+      planId,
+      plannerOwnerId,
+    });
+
+    return result?.rsvpUrl || "";
   }
 
-  function sendBulkWhatsApp(guest) {
+  async function sendWhatsAppReminder(guest) {
     const phone = String(guest?.phone || "").replace(/[^0-9]/g, "");
     if (!phone) return;
-    const guestName = getDisplayName(guest) || "there";
-    const personalized = bulkMessage.replace(/\{name\}/gi, guestName);
-    const url = `https://api.whatsapp.com/send/?phone=${phone}&text=${encodeURIComponent(personalized)}`;
-    window.open(url, "_blank", "noopener,noreferrer");
-    setBulkSentIds(prev => new Set([...prev, guest.id]));
+
+    try {
+      setWhatsAppError("");
+      const guestName = getDisplayName(guest) || "there";
+      const rsvpUrl = await createRsvpLinkForGuest(guest);
+      const message = encodeURIComponent(`Hi ${guestName}, please RSVP for our wedding here: ${rsvpUrl}`);
+      const url = `https://api.whatsapp.com/send/?phone=${phone}&text=${message}`;
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      setWhatsAppError(error.message || "Could not create an RSVP link for WhatsApp.");
+    }
+  }
+
+  async function sendBulkWhatsApp(guest) {
+    const phone = String(guest?.phone || "").replace(/[^0-9]/g, "");
+    if (!phone) return;
+    try {
+      setWhatsAppError("");
+      const guestName = getDisplayName(guest) || "there";
+      const rsvpUrl = await createRsvpLinkForGuest(guest);
+      const personalized = bulkMessage
+        .replace(/\{name\}/gi, guestName)
+        .replace(/\{rsvp_link\}/gi, rsvpUrl);
+      const finalMessage = personalized.includes(rsvpUrl) ? personalized : `${personalized} ${rsvpUrl}`;
+      const url = `https://api.whatsapp.com/send/?phone=${phone}&text=${encodeURIComponent(finalMessage)}`;
+      window.open(url, "_blank", "noopener,noreferrer");
+      setBulkSentIds(prev => new Set([...prev, guest.id]));
+    } catch (error) {
+      setWhatsAppError(error.message || "Could not create an RSVP link for WhatsApp.");
+    }
   }
 
   function copyAllNumbers(pendingGuests) {
@@ -201,6 +232,7 @@ function GuestsScreen({ guests, setGuests, planId }) {
     setBulkMessage(DEFAULT_BULK_MESSAGE);
     setBulkSentIds(new Set());
     setCopySuccess(false);
+    setWhatsAppError("");
     setShowBulkModal(true);
   }
 
@@ -208,6 +240,7 @@ function GuestsScreen({ guests, setGuests, planId }) {
     setShowBulkModal(false);
     setBulkSentIds(new Set());
     setCopySuccess(false);
+    setWhatsAppError("");
   }
 
   const bulkSwipe = useSwipeDown(() => closeBulkModal());
@@ -272,6 +305,11 @@ function GuestsScreen({ guests, setGuests, planId }) {
 
       {/* Search */}
       <div style={{padding:"0 16px 12px"}}>
+        {whatsAppError ? (
+          <div style={{marginBottom:12,color:"#B3261E",fontSize:13,fontWeight:600}}>
+            {whatsAppError}
+          </div>
+        ) : null}
         <input
           className="input-field"
           value={search}
@@ -432,8 +470,13 @@ function GuestsScreen({ guests, setGuests, planId }) {
               <div className="modal-handle"/>
               <div className="modal-title">📲 Bulk WhatsApp Message</div>
               <div style={{marginBottom:16,padding:"10px 14px",background:"rgba(37,211,102,0.07)",border:"1px solid rgba(37,211,102,0.25)",borderRadius:12,fontSize:12.5,color:"#1a6b35",lineHeight:1.5}}>
-                Send personalized WhatsApp messages to your guests. Use <strong>{"{name}"}</strong> in your message to insert each guest&apos;s name automatically.
+                Send personalized WhatsApp messages to your guests. Use <strong>{"{name}"}</strong> for the guest&apos;s name and <strong>{"{rsvp_link}"}</strong> for their RSVP link.
               </div>
+              {whatsAppError ? (
+                <div style={{marginBottom:12,color:"#B3261E",fontSize:13,fontWeight:600}}>
+                  {whatsAppError}
+                </div>
+              ) : null}
               <div className="input-group">
                 <div className="input-label">Message Template</div>
                 <textarea

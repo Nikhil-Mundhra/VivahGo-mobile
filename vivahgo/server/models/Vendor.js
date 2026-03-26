@@ -20,6 +20,22 @@ const coverageAreaSchema = new mongoose.Schema(
   { _id: true }
 );
 
+const verificationDocumentSchema = new mongoose.Schema(
+  {
+    key: { type: String, required: true, trim: true },
+    filename: { type: String, default: '', trim: true, maxlength: 255 },
+    size: { type: Number, default: 0 },
+    contentType: { type: String, default: '', trim: true, maxlength: 120 },
+    documentType: {
+      type: String,
+      enum: ['AADHAAR', 'PAN', 'PASSPORT', 'DRIVING_LICENSE', 'OTHER'],
+      default: 'OTHER',
+    },
+    uploadedAt: { type: Date, default: () => new Date() },
+  },
+  { _id: true }
+);
+
 const vendorSchema = new mongoose.Schema(
   {
     googleId: { type: String, required: true, unique: true, index: true },
@@ -45,6 +61,15 @@ const vendorSchema = new mongoose.Schema(
     website: { type: String, default: '', trim: true },
     isApproved: { type: Boolean, default: false },
     media: { type: [mediaSchema], default: [] },
+    verificationStatus: {
+      type: String,
+      enum: ['not_submitted', 'submitted', 'approved', 'rejected'],
+      default: 'not_submitted',
+    },
+    verificationNotes: { type: String, default: '', trim: true, maxlength: 1000 },
+    verificationReviewedAt: { type: Date, default: null },
+    verificationReviewedBy: { type: String, default: '', trim: true },
+    verificationDocuments: { type: [verificationDocumentSchema], default: [] },
   },
   { timestamps: true }
 );

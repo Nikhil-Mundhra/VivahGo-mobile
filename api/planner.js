@@ -2,6 +2,7 @@ const {
   assignWeddingWebsiteSlugs,
   buildEmptyPlanner,
   connectDb,
+  createGuestRsvpToken,
   getCollaboratorRoleForPlan,
   getPlannerModel,
   getPlanFromPlanner,
@@ -13,6 +14,7 @@ const {
   normalizeRole,
   sanitizePlanner,
   setCorsHeaders,
+  verifyGuestRsvpToken,
   verifySession,
 } = require('./_lib/core');
 
@@ -63,6 +65,71 @@ function countOwners(collaborators) {
     return 0;
   }
   return collaborators.filter(item => item?.role === 'owner').length;
+}
+
+function getPublicWeddingData(planner, publicPlan) {
+  const wedding = {
+    ...planner.wedding,
+    bride: publicPlan.bride || planner.wedding?.bride || '',
+    groom: publicPlan.groom || planner.wedding?.groom || '',
+    date: publicPlan.date || planner.wedding?.date || '',
+    venue: publicPlan.venue || planner.wedding?.venue || '',
+    guests: publicPlan.guests || planner.wedding?.guests || '',
+    budget: publicPlan.budget || planner.wedding?.budget || '',
+  };
+
+  return {
+    wedding,
+    plan: {
+      id: publicPlan.id,
+      bride: publicPlan.bride || '',
+      groom: publicPlan.groom || '',
+      date: publicPlan.date || '',
+      venue: publicPlan.venue || '',
+      websiteSlug: publicPlan.websiteSlug || '',
+      websiteSettings: publicPlan.websiteSettings || {},
+    },
+    events: (planner.events || []).filter(item => item?.planId === publicPlan.id && item?.isPublicWebsiteVisible !== false),
+  };
+}
+
+function getGuestDisplayName(guest) {
+  const fromParts = [guest?.title, guest?.firstName, guest?.middleName, guest?.lastName]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+  return fromParts || String(guest?.name || '').trim() || 'Guest';
+}
+
+function resolveAttendingGuestCount(guest, requestedCount, nextRsvp) {
+  const invitedGuestCount = Math.max(1, Number(guest?.guestCount) || 1);
+  if (nextRsvp !== 'yes') {
+    return 0;
+  }
+
+  const parsed = Number(requestedCount);
+  if (!Number.isFinite(parsed)) {
+    return Math.min(invitedGuestCount, Math.max(1, Number(guest?.attendingGuestCount) || invitedGuestCount));
+  }
+
+  return Math.min(invitedGuestCount, Math.max(1, Math.round(parsed)));
+}
+
+function buildGuestRsvpLink(req, token) {
+  const requestOrigin = typeof req.headers?.origin === 'string' ? req.headers.origin.trim().replace(/\/$/, '') : '';
+  const forwardedProto = typeof req.headers?.['x-forwarded-proto'] === 'string' ? req.headers['x-forwarded-proto'].split(',')[0].trim() : '';
+  const forwardedHost = typeof req.headers?.['x-forwarded-host'] === 'string' ? req.headers['x-forwarded-host'].split(',')[0].trim() : '';
+  const host = forwardedHost || req.headers?.host || '';
+
+  if (requestOrigin) {
+    return `${requestOrigin}/rsvp/${encodeURIComponent(token)}`;
+  }
+
+  if (forwardedProto && host) {
+    return `${forwardedProto}://${host}/rsvp/${encodeURIComponent(token)}`;
+  }
+
+  return `/rsvp/${encodeURIComponent(token)}`;
 }
 
 /******************************************************************************
@@ -262,32 +329,165 @@ async function handlePlannerPublic(req, res) {
       return res.status(404).json({ error: 'Wedding website not found.' });
     }
 
-    const wedding = {
-      ...planner.wedding,
-      bride: publicPlan.bride || planner.wedding?.bride || '',
-      groom: publicPlan.groom || planner.wedding?.groom || '',
-      date: publicPlan.date || planner.wedding?.date || '',
-      venue: publicPlan.venue || planner.wedding?.venue || '',
-      guests: publicPlan.guests || planner.wedding?.guests || '',
-      budget: publicPlan.budget || planner.wedding?.budget || '',
-    };
-
-    return res.status(200).json({
-      wedding,
-      plan: {
-        id: publicPlan.id,
-        bride: publicPlan.bride || '',
-        groom: publicPlan.groom || '',
-        date: publicPlan.date || '',
-        venue: publicPlan.venue || '',
-        websiteSlug: publicPlan.websiteSlug || '',
-        websiteSettings: publicPlan.websiteSettings || {},
-      },
-      events: (planner.events || []).filter(item => item?.planId === publicPlan.id && item?.isPublicWebsiteVisible !== false),
-    });
+    return res.status(200).json(getPublicWeddingData(planner, publicPlan));
   } catch (error) {
     console.error('Public planner API failed:', error);
     return res.status(500).json({ error: 'Failed to load wedding website.' });
+  }
+}
+
+async function handlePlannerRsvpLink(req, res) {
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST, OPTIONS');
+    return res.status(405).json({ error: 'Method not allowed.' });
+  }
+
+  const { auth, error } = verifySession(req);
+  if (error) {
+    return res.status(401).json({ error });
+  }
+
+  const requestedOwnerId = req.query?.plannerOwnerId || req.body?.plannerOwnerId || '';
+
+  try {
+    await connectDb();
+    const Planner = getPlannerModel();
+    const email = normalizeEmail(auth.email);
+    const plannerOwnerId = requestedOwnerId || auth.sub;
+    const plannerDoc = await Planner.findOne({ googleId: plannerOwnerId });
+    if (!plannerDoc) {
+      return res.status(404).json({ error: 'Planner not found.' });
+    }
+
+    const ownerId = plannerDoc.googleId || plannerOwnerId;
+    const normalized = normalizePlannerOwnership(plannerDoc.toObject(), email, ownerId);
+    const plan = getPlanFromPlanner(normalized, req.body?.planId || normalized.activePlanId);
+    if (!plan) {
+      return res.status(404).json({ error: 'Plan not found.' });
+    }
+
+    if (!hasPlanRole(plan, email, 'editor')) {
+      return res.status(403).json({ error: 'You do not have access to send RSVP links for this plan.' });
+    }
+
+    const guestId = String(req.body?.guestId || '').trim();
+    const guest = (normalized.guests || []).find(item => item?.planId === plan.id && String(item?.id || '') === guestId);
+    if (!guest) {
+      return res.status(404).json({ error: 'Guest not found.' });
+    }
+
+    const token = createGuestRsvpToken({
+      ownerId,
+      planId: plan.id,
+      guestId,
+      version: Number(guest?.rsvpTokenVersion) || 1,
+    });
+    const coupleName = [plan.bride || normalized.wedding?.bride || '', plan.groom || normalized.wedding?.groom || ''].filter(Boolean).join(' & ');
+
+    return res.status(200).json({
+      guestName: getGuestDisplayName(guest),
+      coupleName: coupleName || 'our wedding',
+      token,
+      rsvpUrl: buildGuestRsvpLink(req, token),
+    });
+  } catch (err) {
+    console.error('RSVP link API failed:', err);
+    return res.status(500).json({ error: 'Failed to create RSVP link.' });
+  }
+}
+
+async function handlePlannerRsvp(req, res) {
+  if (req.method !== 'GET' && req.method !== 'POST') {
+    res.setHeader('Allow', 'GET, POST, OPTIONS');
+    return res.status(405).json({ error: 'Method not allowed.' });
+  }
+
+  const token = req.method === 'GET'
+    ? req.query?.token
+    : req.body?.token;
+
+  let payload;
+  try {
+    payload = verifyGuestRsvpToken(token);
+  } catch (error) {
+    return res.status(400).json({ error: error.message || 'Invalid RSVP token.' });
+  }
+
+  try {
+    await connectDb();
+    const Planner = getPlannerModel();
+    const plannerDoc = await Planner.findOne({ googleId: payload.ownerId });
+    if (!plannerDoc) {
+      return res.status(404).json({ error: 'Wedding invitation not found.' });
+    }
+
+    const planner = sanitizePlanner(plannerDoc.toObject(), { ownerId: plannerDoc.googleId || '' });
+    const plan = getPlanFromPlanner(planner, payload.planId);
+    if (!plan) {
+      return res.status(404).json({ error: 'Wedding invitation not found.' });
+    }
+
+    const guestIndex = (planner.guests || []).findIndex(item => item?.planId === plan.id && String(item?.id || '') === payload.guestId);
+    if (guestIndex < 0) {
+      return res.status(404).json({ error: 'Wedding invitation not found.' });
+    }
+
+    const guest = planner.guests[guestIndex];
+    if ((Number(guest?.rsvpTokenVersion) || 1) !== (Number(payload.version) || 1)) {
+      return res.status(400).json({ error: 'This RSVP link is no longer valid.' });
+    }
+
+    if (req.method === 'GET') {
+      return res.status(200).json({
+        ...getPublicWeddingData(planner, plan),
+        guest: {
+          id: String(guest.id || ''),
+          name: getGuestDisplayName(guest),
+          side: guest.side || '',
+          phone: guest.phone || '',
+          invitedGuestCount: Math.max(1, Number(guest.guestCount) || 1),
+          attendingGuestCount: Math.max(0, Number(guest.attendingGuestCount) || 0),
+          rsvp: guest.rsvp || 'pending',
+        },
+      });
+    }
+
+    const nextRsvp = req.body?.rsvp === 'yes' || req.body?.rsvp === 'no'
+      ? req.body.rsvp
+      : null;
+    if (!nextRsvp) {
+      return res.status(400).json({ error: 'RSVP response must be yes or no.' });
+    }
+
+    const attendingGuestCount = resolveAttendingGuestCount(guest, req.body?.attendingGuestCount, nextRsvp);
+    const nextGuests = [...(planner.guests || [])];
+    nextGuests[guestIndex] = {
+      ...guest,
+      rsvp: nextRsvp,
+      attendingGuestCount,
+      rsvpTokenVersion: (Number(guest?.rsvpTokenVersion) || 1) + 1,
+      rsvpUpdatedAt: new Date().toISOString(),
+    };
+
+    await Planner.findOneAndUpdate(
+      { _id: plannerDoc._id },
+      { $set: { guests: nextGuests } },
+      { new: true }
+    );
+
+    return res.status(200).json({
+      success: true,
+      guest: {
+        id: String(guest.id || ''),
+        name: getGuestDisplayName(guest),
+        invitedGuestCount: Math.max(1, Number(guest.guestCount) || 1),
+        attendingGuestCount,
+        rsvp: nextRsvp,
+      },
+    });
+  } catch (err) {
+    console.error('RSVP API failed:', err);
+    return res.status(500).json({ error: 'Failed to process RSVP.' });
   }
 }
 
@@ -486,6 +686,14 @@ async function handler(req, res) {
     return handlePlannerPublic(req, res);
   }
 
+  if (route === 'rsvp-link') {
+    return handlePlannerRsvpLink(req, res);
+  }
+
+  if (route === 'rsvp') {
+    return handlePlannerRsvp(req, res);
+  }
+
   if (route === 'collaborators') {
     return handlePlannerCollaborators(req, res);
   }
@@ -499,3 +707,5 @@ module.exports.handlePlannerAccess = handlePlannerAccess;
 module.exports.handlePlannerCollaborators = handlePlannerCollaborators;
 module.exports.handlePlannerMe = handlePlannerMe;
 module.exports.handlePlannerPublic = handlePlannerPublic;
+module.exports.handlePlannerRsvp = handlePlannerRsvp;
+module.exports.handlePlannerRsvpLink = handlePlannerRsvpLink;

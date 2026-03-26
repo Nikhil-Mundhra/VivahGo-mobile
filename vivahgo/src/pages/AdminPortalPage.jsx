@@ -79,6 +79,7 @@ export default function AdminPortalPage() {
   const [staffActionError, setStaffActionError] = useState('');
   const [savingVendorId, setSavingVendorId] = useState('');
   const [savingStaffEmail, setSavingStaffEmail] = useState('');
+  const [vendorNotesDraft, setVendorNotesDraft] = useState({});
 
   useEffect(() => {
     document.title = 'VivahGo | Admin';
@@ -239,7 +240,11 @@ export default function AdminPortalPage() {
     setError('');
 
     try {
-      const result = await updateAdminVendorApproval(session.token, { vendorId, isApproved });
+      const result = await updateAdminVendorApproval(session.token, {
+        vendorId,
+        isApproved,
+        verificationNotes: vendorNotesDraft[vendorId] ?? undefined,
+      });
       setVendors(current => current.map(vendor => (
         vendor.id === vendorId
           ? { ...vendor, ...(result.vendor || {}), isApproved }
@@ -247,6 +252,32 @@ export default function AdminPortalPage() {
       )));
     } catch (nextError) {
       setError(nextError.message || 'Could not update vendor approval.');
+    } finally {
+      setSavingVendorId('');
+    }
+  }
+
+  async function handleVendorVerification(vendorId, verificationStatus) {
+    if (!session?.token) {
+      return;
+    }
+
+    setSavingVendorId(vendorId);
+    setError('');
+
+    try {
+      const result = await updateAdminVendorApproval(session.token, {
+        vendorId,
+        verificationStatus,
+        verificationNotes: vendorNotesDraft[vendorId] ?? '',
+      });
+      setVendors(current => current.map(vendor => (
+        vendor.id === vendorId
+          ? { ...vendor, ...(result.vendor || {}), verificationStatus: result.vendor?.verificationStatus || verificationStatus }
+          : vendor
+      )));
+    } catch (nextError) {
+      setError(nextError.message || 'Could not update vendor verification.');
     } finally {
       setSavingVendorId('');
     }
@@ -485,12 +516,74 @@ export default function AdminPortalPage() {
                   )}
                   <div className="mt-3 flex flex-wrap gap-4 text-xs text-stone-500">
                     <span>Media: {vendor.mediaCount || 0}</span>
+                    <span>Verification docs: {vendor.verificationDocumentCount || 0}</span>
                     <span>Joined: {formatDate(vendor.createdAt)}</span>
                     {vendor.phone && <span>Phone: {vendor.phone}</span>}
                     {vendor.website && <span>Website: {vendor.website}</span>}
                   </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
+                      vendor.verificationStatus === 'approved'
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : vendor.verificationStatus === 'rejected'
+                          ? 'bg-red-100 text-red-700'
+                          : vendor.verificationStatus === 'submitted'
+                            ? 'bg-amber-100 text-amber-700'
+                            : 'bg-stone-100 text-stone-700'
+                    }`}>
+                      Verification: {vendor.verificationStatus || 'not_submitted'}
+                    </span>
+                    {Array.isArray(vendor.verificationDocuments) && vendor.verificationDocuments.map(document => (
+                      <span key={document._id || document.key} className="inline-flex items-center rounded-full bg-stone-100 px-2.5 py-1 text-xs font-medium text-stone-700">
+                        {document.documentType || 'OTHER'}
+                      </span>
+                    ))}
+                  </div>
+                  {Array.isArray(vendor.verificationDocuments) && vendor.verificationDocuments.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-3 text-sm">
+                      {vendor.verificationDocuments.map(document => (
+                        <a
+                          key={`${document._id || document.key}_preview`}
+                          href={document.accessUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-rose-600 hover:underline"
+                        >
+                          Open {document.documentType || 'document'}
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                  <div className="mt-3">
+                    <label className="block">
+                      <span className="mb-1 block text-xs font-medium uppercase tracking-[0.18em] text-stone-400">Verification notes</span>
+                      <textarea
+                        value={vendorNotesDraft[vendor.id] ?? vendor.verificationNotes ?? ''}
+                        onChange={event => setVendorNotesDraft(current => ({ ...current, [vendor.id]: event.target.value }))}
+                        rows={3}
+                        className="w-full rounded-2xl border border-stone-200 px-3 py-2 text-sm text-stone-900 outline-none focus:border-rose-300"
+                        placeholder="Add reviewer notes for the vendor"
+                      />
+                    </label>
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="login-secondary-btn"
+                    onClick={() => handleVendorVerification(vendor.id, 'approved')}
+                    disabled={!access.canManageVendors || savingVendorId === vendor.id || !vendor.verificationDocumentCount}
+                  >
+                    Verify Docs
+                  </button>
+                  <button
+                    type="button"
+                    className="login-secondary-btn"
+                    onClick={() => handleVendorVerification(vendor.id, 'rejected')}
+                    disabled={!access.canManageVendors || savingVendorId === vendor.id || !vendor.verificationDocumentCount}
+                  >
+                    Reject Docs
+                  </button>
                   <button
                     type="button"
                     className="login-secondary-btn"

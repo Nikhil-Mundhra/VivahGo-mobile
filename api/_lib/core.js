@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 
@@ -131,6 +132,22 @@ function getVendorModel() {
     { _id: true }
   );
 
+  const verificationDocumentSchema = new mongoose.Schema(
+    {
+      key: { type: String, required: true, trim: true },
+      filename: { type: String, default: '', trim: true, maxlength: 255 },
+      size: { type: Number, default: 0 },
+      contentType: { type: String, default: '', trim: true, maxlength: 120 },
+      documentType: {
+        type: String,
+        enum: ['AADHAAR', 'PAN', 'PASSPORT', 'DRIVING_LICENSE', 'OTHER'],
+        default: 'OTHER',
+      },
+      uploadedAt: { type: Date, default: () => new Date() },
+    },
+    { _id: true }
+  );
+
   const schema = new mongoose.Schema(
     {
       googleId: { type: String, required: true, unique: true, index: true },
@@ -155,6 +172,15 @@ function getVendorModel() {
       website: { type: String, default: '', trim: true },
       isApproved: { type: Boolean, default: false },
       media: { type: [mediaSchema], default: [] },
+      verificationStatus: {
+        type: String,
+        enum: ['not_submitted', 'submitted', 'approved', 'rejected'],
+        default: 'not_submitted',
+      },
+      verificationNotes: { type: String, default: '', trim: true, maxlength: 1000 },
+      verificationReviewedAt: { type: Date, default: null },
+      verificationReviewedBy: { type: String, default: '', trim: true },
+      verificationDocuments: { type: [verificationDocumentSchema], default: [] },
     },
     { timestamps: true }
   );
@@ -660,6 +686,72 @@ function createSessionToken(user) {
   );
 }
 
+function getRsvpTokenSecret() {
+  return process.env.RSVP_TOKEN_SECRET || process.env.JWT_SECRET || 'change-me-before-production';
+}
+
+function encodeRsvpTokenPart(value) {
+  return Buffer.from(JSON.stringify(value)).toString('base64url');
+}
+
+function decodeRsvpTokenPart(value) {
+  return JSON.parse(Buffer.from(String(value || ''), 'base64url').toString('utf8'));
+}
+
+function createGuestRsvpToken({ ownerId, planId, guestId, version = 1, expiresInDays = 180 } = {}) {
+  const normalizedOwnerId = typeof ownerId === 'string' ? ownerId.trim() : '';
+  const normalizedPlanId = typeof planId === 'string' ? planId.trim() : '';
+  const normalizedGuestId = String(guestId || '').trim();
+
+  if (!normalizedOwnerId || !normalizedPlanId || !normalizedGuestId) {
+    throw new Error('ownerId, planId, and guestId are required to create an RSVP token.');
+  }
+
+  const payload = {
+    ownerId: normalizedOwnerId,
+    planId: normalizedPlanId,
+    guestId: normalizedGuestId,
+    version: Number.isFinite(Number(version)) ? Number(version) : 1,
+    exp: Date.now() + Math.max(1, Number(expiresInDays) || 180) * 24 * 60 * 60 * 1000,
+  };
+  const encodedPayload = encodeRsvpTokenPart(payload);
+  const signature = crypto
+    .createHmac('sha256', getRsvpTokenSecret())
+    .update(encodedPayload)
+    .digest('base64url');
+
+  return `${encodedPayload}.${signature}`;
+}
+
+function verifyGuestRsvpToken(token) {
+  const [encodedPayload, signature] = String(token || '').split('.');
+  if (!encodedPayload || !signature) {
+    throw new Error('Invalid RSVP token.');
+  }
+
+  const expected = crypto
+    .createHmac('sha256', getRsvpTokenSecret())
+    .update(encodedPayload)
+    .digest('base64url');
+
+  const providedBuffer = Buffer.from(signature);
+  const expectedBuffer = Buffer.from(expected);
+  if (providedBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(providedBuffer, expectedBuffer)) {
+    throw new Error('Invalid RSVP token.');
+  }
+
+  const payload = decodeRsvpTokenPart(encodedPayload);
+  if (!payload?.ownerId || !payload?.planId || !payload?.guestId) {
+    throw new Error('Invalid RSVP token.');
+  }
+
+  if (!Number.isFinite(payload.exp) || payload.exp < Date.now()) {
+    throw new Error('This RSVP link has expired.');
+  }
+
+  return payload;
+}
+
 function readBearerToken(req) {
   const authHeader = req.headers.authorization || '';
   if (!authHeader.startsWith('Bearer ')) {
@@ -705,6 +797,7 @@ module.exports = {
   buildWeddingWebsiteBaseSlug,
   buildEmptyPlanner,
   connectDb,
+  createGuestRsvpToken,
   createSessionToken,
   getBillingReceiptModel,
   getCollaboratorRoleForPlan,
@@ -726,5 +819,6 @@ module.exports = {
   resolveStaffRole,
   sanitizePlanner,
   setCorsHeaders,
+  verifyGuestRsvpToken,
   verifySession,
 };

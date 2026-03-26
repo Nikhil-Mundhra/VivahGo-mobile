@@ -86,6 +86,28 @@ export function fetchPublicWeddingWebsite(slug) {
   return request(`/planner/public?slug=${encodeURIComponent(slug)}`);
 }
 
+export function createGuestRsvpLink(token, payload) {
+  return request('/planner/me/rsvp-link', {
+    method: 'POST',
+    token,
+    body: payload,
+  });
+}
+
+export function fetchGuestRsvpDetails(rsvpToken) {
+  return request(`/planner/rsvp?token=${encodeURIComponent(rsvpToken)}`);
+}
+
+export function submitGuestRsvp(rsvpToken, payload) {
+  return request('/planner/rsvp', {
+    method: 'POST',
+    body: {
+      token: rsvpToken,
+      ...payload,
+    },
+  });
+}
+
 export function savePlanner(token, planner, plannerOwnerId) {
   return request(withOwnerQuery('/planner/me', plannerOwnerId), {
     method: 'PUT',
@@ -217,6 +239,14 @@ export function fetchPresignedUrl(token, { filename, contentType, size }) {
   });
 }
 
+export function fetchVerificationPresignedUrl(token, { filename, contentType, size }) {
+  return request('/media/verification-presigned-url', {
+    method: 'POST',
+    token,
+    body: { filename, contentType, size },
+  });
+}
+
 export function saveVendorMedia(token, mediaData) {
   return request('/vendor/media', { method: 'POST', token, body: mediaData });
 }
@@ -227,6 +257,14 @@ export function updateVendorMedia(token, mediaData) {
 
 export function removeVendorMedia(token, mediaId) {
   return request('/vendor/media', { method: 'DELETE', token, body: { mediaId } });
+}
+
+export function saveVendorVerificationDocument(token, payload) {
+  return request('/vendor/verification', { method: 'POST', token, body: payload });
+}
+
+export function removeVendorVerificationDocument(token, documentId) {
+  return request('/vendor/verification', { method: 'DELETE', token, body: { documentId } });
 }
 
 export function fetchApprovedVendors() {

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { fetchPresignedUrl, removeVendorMedia, saveVendorMedia, updateVendorMedia } from '../api';
 import { FallbackImage, FallbackVideo } from './MediaWithFallback';
+import VendorVerificationManager from './VendorVerificationManager';
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
 
@@ -54,7 +55,7 @@ function MediaPreview({ item }) {
   );
 }
 
-export default function VendorPortfolioManager({ token, media, onVendorUpdated }) {
+export default function VendorPortfolioManager({ token, vendor, media, onVendorUpdated }) {
   const [fileItems, setFileItems] = useState([]);
   const [drafts, setDrafts] = useState(() => buildDraftMap(media));
   const [busyIds, setBusyIds] = useState({});
@@ -265,6 +266,8 @@ export default function VendorPortfolioManager({ token, media, onVendorUpdated }
 
   return (
     <div className="space-y-6">
+      <VendorVerificationManager token={token} vendor={vendor} onVendorUpdated={onVendorUpdated} />
+
       <div className="grid gap-3 md:grid-cols-3">
         <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-rose-500">Portfolio</p>

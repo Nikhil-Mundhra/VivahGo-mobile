@@ -1,5 +1,5 @@
 const { connectDb, getUserModel, getVendorModel, handlePreflight, setCorsHeaders, verifySession } = require('./_lib/core');
-const { extractObjectKeyFromUrl, normalizeMediaList } = require('./_lib/r2');
+const { createPresignedGetUrl, extractObjectKeyFromUrl, normalizeMediaList } = require('./_lib/r2');
 
 const VENDOR_TYPES = ['Venue', 'Photography', 'Catering', 'Wedding Invitations', 'Wedding Gifts', 'Music', 'Wedding Transportation', 'Tent House', 'Wedding Entertainment', 'Florists', 'Wedding Planners', 'Wedding Videography', 'Honeymoon', 'Wedding Decorators', 'Wedding Cakes', 'Wedding DJ', 'Pandit', 'Photobooth', 'Astrologers', 'Party Places', 'Choreographer', 'Bride', 'Groom'];
 const BUNDLED_SERVICE_OPTIONS = VENDOR_TYPES.filter(type => type !== 'Honeymoon');
@@ -30,6 +30,8 @@ const MAX_BUDGET_LIMIT = 5000000;
 const ALLOWED_MEDIA_TYPES = ['IMAGE', 'VIDEO'];
 const MAX_CAPTION_LENGTH = 280;
 const MAX_ALT_TEXT_LENGTH = 180;
+const ALLOWED_VERIFICATION_DOCUMENT_TYPES = ['AADHAAR', 'PAN', 'PASSPORT', 'DRIVING_LICENSE', 'OTHER'];
+const MAX_VERIFICATION_NOTES_LENGTH = 1000;
 
 /******************************************************************************
  * Shared Helpers
@@ -107,6 +109,20 @@ function sanitizeText(value, maxLength) {
   return value.trim().slice(0, maxLength);
 }
 
+function sanitizeVerificationNotes(value) {
+  if (typeof value !== 'string') {
+    return '';
+  }
+  return value.trim().slice(0, MAX_VERIFICATION_NOTES_LENGTH);
+}
+
+function normalizeVerificationStatus(value, { hasDocuments = false } = {}) {
+  if (value === 'approved' || value === 'rejected' || value === 'submitted') {
+    return value;
+  }
+  return hasDocuments ? 'submitted' : 'not_submitted';
+}
+
 function normalizeMediaForResponse(vendor) {
   if (!vendor || !Array.isArray(vendor.media)) {
     return vendor;
@@ -122,9 +138,50 @@ function normalizeMediaForResponse(vendor) {
   };
 }
 
-function serializeVendor(vendor) {
+async function serializeVerificationDocuments(documents) {
+  if (!Array.isArray(documents) || documents.length === 0) {
+    return [];
+  }
+
+  return Promise.all(documents.map(async document => {
+    const key = typeof document?.key === 'string' ? document.key.replace(/^\/+/, '') : '';
+    let accessUrl = '';
+
+    if (key) {
+      try {
+        accessUrl = await createPresignedGetUrl(key);
+      } catch {
+        accessUrl = '';
+      }
+    }
+
+    return {
+      _id: String(document?._id || ''),
+      key,
+      filename: document?.filename || '',
+      size: typeof document?.size === 'number' ? document.size : 0,
+      contentType: document?.contentType || '',
+      documentType: document?.documentType || 'OTHER',
+      uploadedAt: document?.uploadedAt || null,
+      accessUrl,
+    };
+  }));
+}
+
+async function serializeVendor(vendor) {
   const vendorObject = typeof vendor?.toObject === 'function' ? vendor.toObject() : vendor;
-  return normalizeMediaForResponse(vendorObject);
+  const normalizedVendor = normalizeMediaForResponse(vendorObject);
+
+  return {
+    ...normalizedVendor,
+    verificationStatus: normalizeVerificationStatus(normalizedVendor?.verificationStatus, {
+      hasDocuments: Array.isArray(normalizedVendor?.verificationDocuments) && normalizedVendor.verificationDocuments.length > 0,
+    }),
+    verificationNotes: sanitizeVerificationNotes(normalizedVendor?.verificationNotes),
+    verificationReviewedAt: normalizedVendor?.verificationReviewedAt || null,
+    verificationReviewedBy: normalizedVendor?.verificationReviewedBy || '',
+    verificationDocuments: await serializeVerificationDocuments(normalizedVendor?.verificationDocuments),
+  };
 }
 
 /******************************************************************************
@@ -210,10 +267,7 @@ async function handleVendorMe(req, res) {
         return res.status(404).json({ error: 'No vendor profile found.' });
       }
       return res.status(200).json({
-        vendor: {
-          ...vendor,
-          media: normalizeMediaList(vendor.media),
-        },
+        vendor: await serializeVendor(vendor),
       });
     }
 
@@ -269,10 +323,7 @@ async function handleVendorMe(req, res) {
       );
 
       return res.status(201).json({
-        vendor: {
-          ...vendor.toObject(),
-          media: normalizeMediaList(vendor.media),
-        },
+        vendor: await serializeVendor(vendor),
       });
     }
 
@@ -329,10 +380,7 @@ async function handleVendorMe(req, res) {
         { new: true }
       );
       return res.status(200).json({
-        vendor: {
-          ...vendor.toObject(),
-          media: normalizeMediaList(vendor.media),
-        },
+        vendor: await serializeVendor(vendor),
       });
     }
 
@@ -400,7 +448,7 @@ async function handleVendorMedia(req, res) {
       });
 
       await vendor.save();
-      return res.status(201).json({ vendor: serializeVendor(vendor) });
+      return res.status(201).json({ vendor: await serializeVendor(vendor) });
     }
 
     if (req.method === 'PUT') {
@@ -435,7 +483,7 @@ async function handleVendorMedia(req, res) {
         });
 
         await vendor.save();
-        return res.status(200).json({ vendor: serializeVendor(vendor) });
+        return res.status(200).json({ vendor: await serializeVendor(vendor) });
       }
 
       if (!mediaId || typeof mediaId !== 'string') {
@@ -463,7 +511,7 @@ async function handleVendorMedia(req, res) {
       }
 
       await vendor.save();
-      return res.status(200).json({ vendor: serializeVendor(vendor) });
+      return res.status(200).json({ vendor: await serializeVendor(vendor) });
     }
 
     if (req.method === 'DELETE') {
@@ -505,13 +553,92 @@ async function handleVendorMedia(req, res) {
       });
 
       await vendor.save();
-      return res.status(200).json({ vendor: serializeVendor(vendor) });
+      return res.status(200).json({ vendor: await serializeVendor(vendor) });
     }
 
     res.setHeader('Allow', 'POST, PUT, DELETE, OPTIONS');
     return res.status(405).json({ error: 'Method not allowed.' });
   } catch (error) {
     console.error('Vendor media error:', error);
+    return res.status(500).json({ error: 'An unexpected error occurred.' });
+  }
+}
+
+/******************************************************************************
+ * /api/vendor/verification
+ ******************************************************************************/
+
+async function handleVendorVerification(req, res) {
+  const { auth, error: authError } = verifySession(req);
+  if (authError) {
+    return res.status(401).json({ error: authError });
+  }
+
+  try {
+    await connectDb();
+    const Vendor = getVendorModel();
+    const vendor = await Vendor.findOne({ googleId: auth.sub });
+
+    if (!vendor) {
+      return res.status(404).json({ error: 'No vendor profile found.' });
+    }
+
+    if (req.method === 'POST') {
+      const { key, filename, size, contentType, documentType } = req.body || {};
+      const normalizedKey = typeof key === 'string' ? key.replace(/^\/+/, '') : '';
+
+      if (!normalizedKey) {
+        return res.status(400).json({ error: 'A valid verification document key is required.' });
+      }
+      if (!ALLOWED_VERIFICATION_DOCUMENT_TYPES.includes(documentType)) {
+        return res.status(400).json({ error: `documentType must be one of: ${ALLOWED_VERIFICATION_DOCUMENT_TYPES.join(', ')}.` });
+      }
+
+      vendor.verificationDocuments.push({
+        key: normalizedKey,
+        filename: typeof filename === 'string' ? filename.slice(0, 255) : '',
+        size: typeof size === 'number' && size >= 0 ? size : 0,
+        contentType: typeof contentType === 'string' ? contentType.slice(0, 120) : '',
+        documentType,
+        uploadedAt: new Date(),
+      });
+      vendor.verificationStatus = 'submitted';
+      vendor.verificationReviewedAt = null;
+      vendor.verificationReviewedBy = '';
+
+      await vendor.save();
+      return res.status(201).json({ vendor: await serializeVendor(vendor) });
+    }
+
+    if (req.method === 'DELETE') {
+      const { documentId } = req.body || {};
+      if (!documentId || typeof documentId !== 'string') {
+        return res.status(400).json({ error: 'documentId is required.' });
+      }
+
+      const target = vendor.verificationDocuments.id(documentId);
+      if (!target) {
+        return res.status(404).json({ error: 'Verification document not found.' });
+      }
+
+      target.deleteOne();
+      if (vendor.verificationDocuments.length === 0) {
+        vendor.verificationStatus = 'not_submitted';
+        vendor.verificationNotes = '';
+        vendor.verificationReviewedAt = null;
+        vendor.verificationReviewedBy = '';
+      } else if (vendor.verificationStatus === 'approved') {
+        vendor.verificationStatus = 'submitted';
+      }
+
+      await vendor.save();
+      return res.status(200).json({ vendor: await serializeVendor(vendor) });
+    }
+
+    res.setHeader('Allow', 'POST, DELETE, OPTIONS');
+    return res.status(405).json({ error: 'Method not allowed.' });
+  } catch (error) {
+    console.error('Vendor verification error:', error);
     return res.status(500).json({ error: 'An unexpected error occurred.' });
   }
 }
@@ -540,6 +667,10 @@ async function handler(req, res) {
     return handleVendorMedia(req, res);
   }
 
+  if (route === 'verification') {
+    return handleVendorVerification(req, res);
+  }
+
   res.setHeader('Allow', 'OPTIONS');
   return res.status(404).json({ error: 'Vendor route not found.' });
 }
@@ -548,3 +679,4 @@ module.exports = handler;
 module.exports.handleVendorList = handleVendorList;
 module.exports.handleVendorMe = handleVendorMe;
 module.exports.handleVendorMedia = handleVendorMedia;
+module.exports.handleVendorVerification = handleVendorVerification;

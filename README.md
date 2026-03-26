@@ -85,10 +85,13 @@ Set these variables in `vivahgo/.env`:
 - `CLIENT_ORIGIN`
 - `FEEDBACK_WEBHOOK_URL`
 - `FEEDBACK_SECRET_KEY`
+- `SUBSCRIPTION_COUPONS_JSON`
 
 Use the same Google Web Client ID for `VITE_GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_ID`.
 
 `FEEDBACK_SECRET_KEY` is server-only and must not use a `VITE_` prefix.
+
+`SUBSCRIPTION_COUPONS_JSON` is server-only and should contain a JSON array of coupon objects. Use [config/subscription-coupons.example.json](/Users/nikhil/Documents/VivahGo-mobile/config/subscription-coupons.example.json) as the format reference, or create a local-only `config/subscription-coupons.local.json` file that is ignored by Git.
 
 ### Google OAuth Setup Notes
 
