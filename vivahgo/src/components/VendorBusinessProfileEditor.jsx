@@ -25,6 +25,33 @@ function formatInr(value) {
   return `₹${Number(value || 0).toLocaleString('en-IN')}`;
 }
 
+function normalizeUrlValue(value) {
+  const trimmed = typeof value === 'string' ? value.trim() : '';
+
+  if (!trimmed) {
+    return '';
+  }
+
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed;
+  }
+
+  return `https://${trimmed}`;
+}
+
+function isValidUrl(value) {
+  if (!value) {
+    return true;
+  }
+
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 function buildInitialForm(vendor) {
   const budgetRange = normalizeBudgetRange(vendor?.budgetRange);
 
@@ -110,6 +137,13 @@ export default function VendorBusinessProfileEditor({ token, vendor, onVendorUpd
     });
   }
 
+  function normalizeUrlField(field) {
+    setForm(current => ({
+      ...current,
+      [field]: normalizeUrlValue(current[field]),
+    }));
+  }
+
   function addCoverageArea() {
     if (!coverageDraft.country || !coverageDraft.state || !coverageDraft.city) {
       return;
@@ -192,8 +226,34 @@ export default function VendorBusinessProfileEditor({ token, vendor, onVendorUpd
     setSaved(false);
     setError('');
 
+    const normalizedWebsite = normalizeUrlValue(form.website);
+    const normalizedMapsLink = normalizeUrlValue(form.googleMapsLink);
+
+    if (!form.businessName.trim()) {
+      setError('Business name is required.');
+      setSaving(false);
+      return;
+    }
+
+    if (!isValidUrl(normalizedWebsite)) {
+      setError('Enter a valid website URL.');
+      setSaving(false);
+      return;
+    }
+
+    if (!isValidUrl(normalizedMapsLink)) {
+      setError('Enter a valid Google Maps URL.');
+      setSaving(false);
+      return;
+    }
+
     try {
-      const data = await updateVendorProfile(token, form);
+      const payload = {
+        ...form,
+        website: normalizedWebsite,
+        googleMapsLink: normalizedMapsLink,
+      };
+      const data = await updateVendorProfile(token, payload);
       onVendorUpdated?.(data.vendor);
       setForm(buildInitialForm(data.vendor));
       setSaved(true);
@@ -210,7 +270,15 @@ export default function VendorBusinessProfileEditor({ token, vendor, onVendorUpd
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className="vendor-registration-label" htmlFor="businessName">Business Name</label>
-          <input id="businessName" value={form.businessName} onChange={event => updateForm('businessName', event.target.value)} className="vendor-registration-field" />
+          <input
+            id="businessName"
+            type="text"
+            autoComplete="organization"
+            placeholder="e.g. Royal Catering Co."
+            value={form.businessName}
+            onChange={event => updateForm('businessName', event.target.value)}
+            className="vendor-registration-field"
+          />
         </div>
         <div>
           <label className="vendor-registration-label" htmlFor="type">Category</label>
@@ -230,9 +298,16 @@ export default function VendorBusinessProfileEditor({ token, vendor, onVendorUpd
         </div>
       )}
 
-      <div>
-        <label className="vendor-registration-label" htmlFor="description">Description</label>
-        <textarea id="description" value={form.description} onChange={event => updateForm('description', event.target.value)} className="vendor-registration-field vendor-registration-textarea" rows={4} />
+        <div>
+          <label className="vendor-registration-label" htmlFor="description">Description</label>
+        <textarea
+          id="description"
+          value={form.description}
+          onChange={event => updateForm('description', event.target.value)}
+          className="vendor-registration-field vendor-registration-textarea"
+          rows={4}
+          placeholder="Describe your services, specialties, and what makes your business stand out."
+        />
       </div>
 
       <div className="vendor-registration-location-block">
@@ -312,8 +387,12 @@ export default function VendorBusinessProfileEditor({ token, vendor, onVendorUpd
           <label className="vendor-registration-label" htmlFor="googleMapsLink">Google Maps Link</label>
           <input
             id="googleMapsLink"
+            type="url"
+            inputMode="url"
+            autoComplete="url"
             value={form.googleMapsLink}
             onChange={event => updateForm('googleMapsLink', event.target.value)}
+            onBlur={() => normalizeUrlField('googleMapsLink')}
             className="vendor-registration-field"
             placeholder="Paste your main service location Google Maps link"
           />
@@ -365,11 +444,30 @@ export default function VendorBusinessProfileEditor({ token, vendor, onVendorUpd
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className="vendor-registration-label" htmlFor="phone">Phone</label>
-          <input id="phone" value={form.phone} onChange={event => updateForm('phone', event.target.value)} className="vendor-registration-field" />
+          <input
+            id="phone"
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel"
+            placeholder="e.g. +91 99999 00000"
+            value={form.phone}
+            onChange={event => updateForm('phone', event.target.value)}
+            className="vendor-registration-field"
+          />
         </div>
         <div>
           <label className="vendor-registration-label" htmlFor="website">Website</label>
-          <input id="website" value={form.website} onChange={event => updateForm('website', event.target.value)} className="vendor-registration-field" />
+          <input
+            id="website"
+            type="url"
+            inputMode="url"
+            autoComplete="url"
+            placeholder="https://yourbusiness.com"
+            value={form.website}
+            onChange={event => updateForm('website', event.target.value)}
+            onBlur={() => normalizeUrlField('website')}
+            className="vendor-registration-field"
+          />
         </div>
       </div>
 

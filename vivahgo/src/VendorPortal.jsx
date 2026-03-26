@@ -36,11 +36,14 @@ export default function VendorPortal() {
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [avatarLoadError, setAvatarLoadError] = useState(false);
   // Track which token we last completed a fetch for.
   // loadingVendor is derived: we have a token but haven't finished fetching for it yet.
   const [lastFetchedToken, setLastFetchedToken] = useState(null);
   const loadingVendor = Boolean(session?.token) && session.token !== lastFetchedToken;
   const profileEditorRef = useRef(null);
+  const accountFirstName = session?.user?.given_name || session?.user?.name?.split(' ')[0] || 'You';
+  const profileInitial = accountFirstName.trim().charAt(0).toUpperCase() || 'Y';
 
   useEffect(() => {
     document.title = 'VivahGo | Vendor Portal';
@@ -87,6 +90,7 @@ export default function VendorPortal() {
       setPreviewVendor(null);
       setLastFetchedToken(null);
       setVendorLoadError('');
+      setAvatarLoadError(false);
       setSession(newSession);
     } catch {
       // Error shown implicitly; user can retry
@@ -175,14 +179,11 @@ export default function VendorPortal() {
     <div className="min-h-screen bg-gradient-to-br from-rose-50 to-amber-50">
       <header className="bg-white shadow-sm border-b border-gray-100 px-3 py-4 sm:px-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <a href="/home" className="flex items-center gap-2 min-w-0">
-            <img src="/Thumbnail.png" alt="VivahGo" className="h-8" />
-            <span className="font-semibold text-gray-900 truncate">Home</span>
+          <a href="/home" className="vendor-home-pill">
+            <img src="/Thumbnail.png" alt="VivahGo" className="h-8 w-8 rounded-full object-cover" />
+            <span className="vendor-home-pill-text">Home</span>
           </a>
           <div className="flex flex-col items-start gap-2 min-[360px]:flex-row min-[360px]:items-center min-[360px]:justify-between sm:justify-end">
-            {session.user?.name && (
-              <span className="max-w-full text-sm text-gray-500 truncate">{session.user.name}</span>
-            )}
             <div className="relative">
               <button
                 type="button"
@@ -210,7 +211,21 @@ export default function VendorPortal() {
                 </div>
               )}
             </div>
-            <a href="/" className="shrink-0 text-sm text-rose-600 font-medium hover:underline">Open Planner</a>
+            <a href="/" className="vendor-planner-pill">
+              <span className="vendor-planner-pill-text">Open Planner</span>
+              {session.user?.picture && !avatarLoadError ? (
+                <img
+                  src={session.user.picture}
+                  alt={`${accountFirstName} profile`}
+                  className="vendor-planner-pill-avatar"
+                  onError={() => setAvatarLoadError(true)}
+                />
+              ) : (
+                <span className="vendor-planner-pill-avatar vendor-planner-pill-avatar-fallback" aria-hidden="true">
+                  {profileInitial}
+                </span>
+              )}
+            </a>
           </div>
         </div>
       </header>

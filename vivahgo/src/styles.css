@@ -1731,6 +1731,86 @@ body { background: var(--color-deep-red); }
   font-weight: 700;
   cursor: pointer;
 }
+.vendor-home-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 8px 14px 8px 10px;
+  border: 1px solid rgba(139,26,26,0.14);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at top left, rgba(212,175,55,0.22), transparent 52%),
+    linear-gradient(135deg, rgba(255,255,255,0.98), rgba(252,241,233,0.96));
+  box-shadow: 0 10px 24px rgba(107,15,15,0.08);
+  text-decoration: none;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+.vendor-home-pill:hover {
+  transform: translateY(-1px);
+  border-color: rgba(139,26,26,0.24);
+  box-shadow: 0 14px 28px rgba(107,15,15,0.12);
+}
+.vendor-home-pill:focus-visible {
+  outline: 3px solid rgba(212,175,55,0.35);
+  outline-offset: 2px;
+}
+.vendor-home-pill-text {
+  overflow: hidden;
+  color: var(--color-dark-text);
+  font-family: 'Jost', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vendor-planner-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 18px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #b03f1c 0%, #7f1d1d 100%);
+  box-shadow: 0 18px 30px rgba(136, 49, 22, 0.2);
+  color: #fff8f0;
+  font-family: 'Jost', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+}
+.vendor-planner-pill:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 22px 34px rgba(136, 49, 22, 0.24);
+}
+.vendor-planner-pill:focus-visible {
+  outline: 3px solid rgba(212,175,55,0.35);
+  outline-offset: 2px;
+}
+.vendor-planner-pill-text {
+  white-space: nowrap;
+}
+.vendor-planner-pill-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  object-fit: cover;
+  flex: 0 0 28px;
+  border: 1px solid rgba(255, 248, 240, 0.45);
+}
+.vendor-planner-pill-avatar-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 248, 240, 0.2);
+  color: #fff8f0;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
 .vendor-settings-menu {
   position: absolute;
   top: calc(100% + 8px);
