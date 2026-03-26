@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { initials } from "../utils";
-import { useSwipeDown } from "../hooks/useSwipeDown";
-import { useBackButtonClose } from "../hooks/useBackButtonClose";
+import { initials } from "../../../utils";
+import { useSwipeDown } from "../../../hooks/useSwipeDown";
+import { useBackButtonClose } from "../../../hooks/useBackButtonClose";
 
 const DEFAULT_BULK_MESSAGE = "Hi {name}, we warmly invite you to our wedding celebrations! Kindly confirm your attendance by replying to this message. We look forward to your presence. 🙏💍";
 

@@ -1,8 +1,8 @@
 {
   "scripts": {
-    "build": "cd vivahgo && npm run build",
-    "dev": "cd vivahgo && npm run dev",
-    "lint": "cd vivahgo && npm run lint",
+    "build": "cd VivahGo && npm run build",
+    "dev": "cd VivahGo && npm run dev",
+    "lint": "cd VivahGo && npm run lint",
     "test": "mocha \"test/**/*.test.cjs\"",
     "test:coverage": "c8 --reporter=text-summary --reporter=lcov --reporter=html --include=api/**/*.js --include=VivahGo/server/**/*.js --include=VivahGo/src/**/*.js mocha \"test/**/*.test.cjs\"",
     "coverage:check": "c8 --check-coverage --statements 90 --branches 0 --functions 0 --lines 0 --include=api/**/*.js --include=VivahGo/server/**/*.js --include=VivahGo/src/**/*.js mocha \"test/**/*.test.cjs\""

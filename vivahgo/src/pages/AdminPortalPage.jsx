@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import './styles.css';
-import GoogleLoginButton from './components/GoogleLoginButton';
+import '../styles.css';
+import GoogleLoginButton from '../components/GoogleLoginButton';
 import {
   addAdminStaff,
   fetchAdminApplications,
@@ -11,7 +11,7 @@ import {
   removeAdminStaff,
   updateAdminStaff,
   updateAdminVendorApproval,
-} from './api';
+} from '../api';
 
 const SESSION_KEY = 'vivahgo.session';
 
@@ -57,7 +57,7 @@ function formatFileSize(value) {
   return `${(value / 1024 / 1024).toFixed(1)} MB`;
 }
 
-export default function AdminPortal() {
+export default function AdminPortalPage() {
   const [session, setSession] = useState(() => readSession());
   const [adminUser, setAdminUser] = useState(null);
   const [access, setAccess] = useState(null);

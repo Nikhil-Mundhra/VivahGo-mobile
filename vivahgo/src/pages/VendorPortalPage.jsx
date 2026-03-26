@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import './vendor.css';
-import './styles.css';
-import GoogleLoginButton from './components/GoogleLoginButton';
-import VendorRegistrationForm from './components/VendorRegistrationForm';
-import VendorPortfolioManager from './components/VendorPortfolioManager';
-import VendorDirectoryPreview from './components/VendorDirectoryPreview';
-import VendorBusinessProfileEditor from './components/VendorBusinessProfileEditor';
-import VendorPortalDashboard from './components/VendorPortalDashboard';
-import NavIcon from './components/NavIcon';
-import { deleteAccount, fetchVendorProfile, loginWithGoogle } from './api';
+import '../vendor.css';
+import '../styles.css';
+import GoogleLoginButton from '../components/GoogleLoginButton';
+import VendorRegistrationForm from '../components/VendorRegistrationForm';
+import VendorPortfolioManager from '../components/VendorPortfolioManager';
+import VendorDirectoryPreview from '../components/VendorDirectoryPreview';
+import VendorBusinessProfileEditor from '../components/VendorBusinessProfileEditor';
+import VendorPortalDashboard from '../components/VendorPortalDashboard';
+import NavIcon from '../components/NavIcon';
+import { deleteAccount, fetchVendorProfile, loginWithGoogle } from '../api';
 
 const SESSION_KEY = 'vivahgo.session';
 const VENDOR_PORTAL_SECTIONS = [
@@ -27,7 +27,7 @@ function readSession() {
   }
 }
 
-export default function VendorPortal() {
+export default function VendorPortalPage() {
   const [session, setSession] = useState(() => readSession());
   const [vendor, setVendor] = useState(null);
   const [vendorLoadError, setVendorLoadError] = useState('');

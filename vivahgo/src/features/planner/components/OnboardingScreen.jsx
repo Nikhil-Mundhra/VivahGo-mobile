@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { MARRIAGE_TEMPLATES } from "../plannerDefaults";
-import { POPULAR_WEDDING_LOCATIONS } from "../locationOptions";
+import { MARRIAGE_TEMPLATES } from "../../../plannerDefaults";
+import { POPULAR_WEDDING_LOCATIONS } from "../../../locationOptions";
 
 const MONTHS = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useBackButtonClose } from "../hooks/useBackButtonClose";
+import { useBackButtonClose } from "../../../hooks/useBackButtonClose";
 
 function AccountScreen({ user, authMode, wedding, setWedding, subscription, onClose, onLogout, onDeleteAccount }) {
   const [form, setForm] = useState({

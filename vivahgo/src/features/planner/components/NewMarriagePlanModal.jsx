@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MARRIAGE_TEMPLATES } from "../plannerDefaults.js";
+import { MARRIAGE_TEMPLATES } from "../../../plannerDefaults.js";
 
 export default function NewMarriagePlanModal({ onClose, onCreate }) {
   const [step, setStep] = useState("template"); // 'template' or 'details'

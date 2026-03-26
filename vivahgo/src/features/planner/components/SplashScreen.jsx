@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import Mandala from "./Mandala";
+import Mandala from "../../../components/Mandala";
 
 function SplashScreen({ onStart, onSkip, showSkip = false }) {
   const [show, setShow] = useState(false);

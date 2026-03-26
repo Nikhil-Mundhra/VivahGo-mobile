@@ -1,5 +1,5 @@
-import GoogleLoginButton from './GoogleLoginButton';
-import NavIcon from './NavIcon';
+import GoogleLoginButton from '../../../components/GoogleLoginButton';
+import NavIcon from '../../../components/NavIcon';
 
 function LoginScreen({ onGoogleLogin, onDemoLogin, onGoToHome, onLoginError, isLoggingIn, errorMessage, showOauthHelp }) {
   const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173';

@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { BUNDLED_SERVICE_OPTIONS, VENDOR_SUBTYPE_OPTIONS, VENDOR_TYPES } from "../constants";
-import { DEFAULT_VENDORS } from "../data";
-import { formatVendorBudgetRange, formatVendorPriceTier, getVendorPriceLevel, getVendorQuickFacts } from "../utils";
-import VendorDetailScreen from "./VendorDetailScreen";
-import { fetchApprovedVendors } from "../api";
+import { BUNDLED_SERVICE_OPTIONS, VENDOR_SUBTYPE_OPTIONS, VENDOR_TYPES } from "../../../constants";
+import { DEFAULT_VENDORS } from "../../../data";
+import { formatVendorBudgetRange, formatVendorPriceTier, getVendorPriceLevel, getVendorQuickFacts } from "../../../utils";
+import VendorDetailScreen from "../../../components/VendorDetailScreen";
+import { fetchApprovedVendors } from "../../../api";
 
 function VendorsScreen({ vendors }) {
   const [activeTab, setActiveTab] = useState("All");

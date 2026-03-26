@@ -4,12 +4,12 @@ import { GoogleOAuthProvider } from '@react-oauth/google'
 import { Analytics } from '@vercel/analytics/react'
 import { SpeedInsights } from '@vercel/speed-insights/react'
 import './index.css'
-import App from './App.jsx'
-import MarketingHomePage from './MarketingHomePage.jsx'
-import CareersPage from './CareersPage.jsx'
-import WeddingWebsitePage from './components/WeddingWebsitePage.jsx'
-import VendorPortal from './VendorPortal.jsx'
-import AdminPortal from './AdminPortal.jsx'
+import PlannerPage from './pages/PlannerPage.jsx'
+import MarketingHomePage from './pages/MarketingHomePage.jsx'
+import CareersPage from './pages/CareersPage.jsx'
+import WeddingWebsitePage from './pages/WeddingWebsitePage.jsx'
+import VendorPortalPage from './pages/VendorPortalPage.jsx'
+import AdminPortalPage from './pages/AdminPortalPage.jsx'
 
 const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 const pathname = typeof window !== 'undefined' ? window.location.pathname : '/';
@@ -36,13 +36,13 @@ if (typeof document !== 'undefined') {
 
 const app = (
   <StrictMode>
-    {isVendorRoute ? <VendorPortal />
-      : isAdminRoute ? <AdminPortal />
+    {isVendorRoute ? <VendorPortalPage />
+      : isAdminRoute ? <AdminPortalPage />
       : isCareersRoute ? <CareersPage />
       : isMarketingHomeRoute ? <MarketingHomePage />
       : isWeddingWebsiteRoute ? <WeddingWebsitePage />
       : publicWeddingSlug ? <WeddingWebsitePage websiteSlug={publicWeddingSlug} />
-      : <App />}
+      : <PlannerPage />}
     <Analytics />
     <SpeedInsights />
   </StrictMode>

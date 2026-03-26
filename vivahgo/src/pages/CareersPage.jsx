@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import './styles.css';
-import './marketing-home.css';
-import FeedbackModal from './components/FeedbackModal';
-import LegalFooter from './components/LegalFooter';
-import TermsConditionsModal from './components/TermsConditionsModal';
-import { fetchCareers, submitCareerApplication } from './api';
+import '../styles.css';
+import '../marketing-home.css';
+import FeedbackModal from '../components/FeedbackModal';
+import LegalFooter from '../components/LegalFooter';
+import TermsConditionsModal from '../components/TermsConditionsModal';
+import { fetchCareers, submitCareerApplication } from '../api';
 
 const MAX_RESUME_SIZE_BYTES = 2 * 1024 * 1024;
 

@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { EVENT_COLORS } from "../constants";
-import { DEFAULT_EVENTS } from "../data";
-import { fmt } from "../utils";
-import { useSwipeDown } from "../hooks/useSwipeDown";
-import { useBackButtonClose } from "../hooks/useBackButtonClose";
+import { EVENT_COLORS } from "../../../constants";
+import { DEFAULT_EVENTS } from "../../../data";
+import { fmt } from "../../../utils";
+import { useSwipeDown } from "../../../hooks/useSwipeDown";
+import { useBackButtonClose } from "../../../hooks/useBackButtonClose";
 
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const YEARS  = Array.from({length: 8}, (_, i) => 2025 + i);
