@@ -14,7 +14,7 @@ describe('api/health.js', function () {
     assert.equal(res.statusCode, 200);
     assert.deepEqual(res.body, { ok: true });
     assert.equal(res.headers['Access-Control-Allow-Headers'], 'Content-Type, Authorization');
-    assert.equal(res.headers['Access-Control-Allow-Methods'], 'GET, POST, PUT, DELETE, OPTIONS');
+    assert.equal(res.headers['Access-Control-Allow-Methods'], 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   });
 
   it('handles OPTIONS preflight with 204 and no JSON body', async function () {

@@ -182,7 +182,7 @@ describe('core helpers', function () {
         res.headers['Access-Control-Allow-Headers'],
         'Content-Type, Authorization'
       );
-      assert.equal(res.headers['Access-Control-Allow-Methods'], 'GET, POST, PUT, DELETE, OPTIONS');
+      assert.equal(res.headers['Access-Control-Allow-Methods'], 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
       assert.equal(res.headers.Vary, undefined);
     });
 
