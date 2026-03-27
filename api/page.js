@@ -2,9 +2,17 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const plannerModule = require('./planner');
+const keywordLibrary = require('../vivahgo/src/generated/seo-keywords.json');
+const guides = require('../vivahgo/src/content/guides.json');
 
 const DEFAULT_SITE_URL = 'https://vivahgo.com';
 const DEFAULT_IMAGE_PATH = '/social-preview.jpg';
+const STRUCTURED_DATA_KEYWORDS = keywordLibrary.clusters.primary.slice(0, 24).join(', ');
+const COVERAGE_TOPICS = [
+  ...keywordLibrary.clusters.primary.slice(0, 8),
+  ...keywordLibrary.clusters.cultural.slice(0, 4),
+];
+const GUIDE_BY_SLUG = new Map(guides.map((guide) => [guide.slug, guide]));
 const HOME_FAQS = [
   {
     question: 'Is VivahGo for couples or planners?',
@@ -35,6 +43,14 @@ function escapeAttribute(value) {
 
 function escapeJsonForHtml(value) {
   return JSON.stringify(value).replace(/</g, '\\u003c');
+}
+
+function formatDisplayLabel(value) {
+  return String(value || '')
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => word.split('-').map((part) => (part ? `${part.charAt(0).toUpperCase()}${part.slice(1)}` : part)).join('-'))
+    .join(' ');
 }
 
 function getRequestSiteUrl(req) {
@@ -119,6 +135,7 @@ function buildSeoMarkup(meta, req) {
   const imageAlt = escapeAttribute(meta.imageAlt || 'VivahGo wedding planning preview');
   const type = escapeAttribute(meta.type || 'website');
   const themeColor = escapeAttribute(meta.themeColor || '#6b0f0f');
+  const locale = escapeAttribute(meta.locale || 'en_IN');
   const structuredData = Array.isArray(meta.structuredData)
     ? meta.structuredData.filter(Boolean)
     : (meta.structuredData ? [meta.structuredData] : []);
@@ -131,6 +148,7 @@ function buildSeoMarkup(meta, req) {
     `    <link rel="canonical" href="${canonicalUrl}" />`,
     `    <meta property="og:type" content="${type}" />`,
     `    <meta property="og:site_name" content="VivahGo" />`,
+    `    <meta property="og:locale" content="${locale}" />`,
     `    <meta property="og:title" content="${escapeAttribute(meta.title)}" />`,
     `    <meta property="og:description" content="${description}" />`,
     `    <meta property="og:url" content="${canonicalUrl}" />`,
@@ -190,6 +208,16 @@ function createJsonCaptureResponse() {
 
 async function getRouteData(req, plannerHandlers = plannerModule) {
   const route = String(req.query?.route || '').trim().toLowerCase();
+  if (route === 'guide') {
+    const slug = String(req.query?.slug || '').trim();
+    const guide = GUIDE_BY_SLUG.get(slug) || null;
+    return {
+      route,
+      statusCode: guide ? 200 : 404,
+      payload: guide ? { guide } : { error: 'Guide not found.' },
+    };
+  }
+
   if (route === 'website') {
     const res = createJsonCaptureResponse();
     await plannerHandlers.handlePlannerPublic({
@@ -217,7 +245,7 @@ function buildMarketingMetadata(req, page) {
   if (page === 'pricing') {
     return {
       title: 'VivahGo Pricing | Plans for Couples and Planners',
-      description: 'Compare VivahGo plans for couples, families, and planners coordinating one or many Indian wedding celebrations.',
+      description: 'Compare Indian wedding planner app pricing for couples, families, planners, and studios managing guests, budgets, vendors, RSVPs, and wedding websites.',
       canonicalPath: '/pricing',
       robots: 'index, follow',
       structuredData: [
@@ -227,11 +255,13 @@ function buildMarketingMetadata(req, page) {
           name: 'VivahGo Pricing',
           url: buildAbsoluteUrl(req, '/pricing'),
           description: 'VivahGo pricing for couples, families, and wedding planners.',
+          keywords: STRUCTURED_DATA_KEYWORDS,
         },
         {
           '@context': 'https://schema.org',
           '@type': 'OfferCatalog',
           name: 'VivahGo Plans',
+          keywords: STRUCTURED_DATA_KEYWORDS,
           itemListElement: [
             { '@type': 'Offer', name: 'Starter', priceCurrency: 'INR', price: '0', availability: 'https://schema.org/InStock' },
             { '@type': 'Offer', name: 'Premium', priceCurrency: 'INR', price: '2000', availability: 'https://schema.org/InStock' },
@@ -254,7 +284,46 @@ function buildMarketingMetadata(req, page) {
         name: 'VivahGo Careers',
         url: buildAbsoluteUrl(req, '/careers'),
         description: 'Explore open roles at VivahGo.',
+        keywords: STRUCTURED_DATA_KEYWORDS,
       },
+    };
+  }
+
+  if (page === 'guides') {
+    return {
+      title: 'VivahGo Guides | Indian Wedding Planning Resources',
+      description: 'Read Indian wedding planning guides for checklists, budgets, guest list management, vendor coordination, cultural wedding timelines, and destination weddings.',
+      canonicalPath: '/guides',
+      robots: 'index, follow',
+      structuredData: [
+        {
+          '@context': 'https://schema.org',
+          '@type': 'CollectionPage',
+          name: 'VivahGo Guides',
+          url: buildAbsoluteUrl(req, '/guides'),
+          description: 'Guides for Indian wedding planning, budgeting, guest lists, vendor coordination, cultural ceremonies, and destination wedding organization.',
+          keywords: STRUCTURED_DATA_KEYWORDS,
+        },
+        {
+          '@context': 'https://schema.org',
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Home', item: buildAbsoluteUrl(req, '/home') },
+            { '@type': 'ListItem', position: 2, name: 'Guides', item: buildAbsoluteUrl(req, '/guides') },
+          ],
+        },
+        {
+          '@context': 'https://schema.org',
+          '@type': 'ItemList',
+          name: 'Wedding planning guides',
+          itemListElement: guides.map((guide, index) => ({
+            '@type': 'ListItem',
+            position: index + 1,
+            name: guide.title,
+            url: buildAbsoluteUrl(req, `/guides/${guide.slug}`),
+          })),
+        },
+      ],
     };
   }
 
@@ -275,8 +344,8 @@ function buildMarketingMetadata(req, page) {
   }
 
   return {
-    title: 'VivahGo | Wedding Planning for Indian Weddings',
-    description: 'VivahGo helps couples and planners manage wedding tasks, budgets, guests, events, vendors, and wedding websites in one shared workspace.',
+    title: 'VivahGo | Indian Wedding Planner App for Cultural Weddings',
+    description: 'VivahGo is an Indian wedding planner app for cultural weddings with checklist tracking, budgets, guest lists, vendors, RSVPs, ceremonies, and wedding websites.',
     canonicalPath: '/home',
     robots: 'index, follow',
     structuredData: [
@@ -286,6 +355,52 @@ function buildMarketingMetadata(req, page) {
         name: 'VivahGo',
         url: buildAbsoluteUrl(req, '/home'),
         logo: buildAbsoluteUrl(req, '/logo.svg'),
+        description: 'Indian wedding planning software for couples, families, and planners managing ceremonies, guests, budgets, vendors, and wedding websites.',
+        keywords: STRUCTURED_DATA_KEYWORDS,
+        areaServed: ['India', 'UAE', 'USA', 'UK', 'Canada', 'Australia', 'Singapore'],
+      },
+      {
+        '@context': 'https://schema.org',
+        '@type': 'WebSite',
+        name: 'VivahGo',
+        url: buildAbsoluteUrl(req, '/home'),
+        description: 'Wedding planning software for Indian weddings with shared tasks, budgets, guests, vendors, and event management.',
+        inLanguage: 'en-IN',
+        keywords: STRUCTURED_DATA_KEYWORDS,
+      },
+      {
+        '@context': 'https://schema.org',
+        '@type': 'SoftwareApplication',
+        name: 'VivahGo',
+        url: buildAbsoluteUrl(req, '/home'),
+        applicationCategory: 'BusinessApplication',
+        operatingSystem: 'Web',
+        description: 'Indian wedding planner app for cultural weddings with checklists, budgets, vendor coordination, guest RSVP tracking, and wedding websites.',
+        keywords: STRUCTURED_DATA_KEYWORDS,
+        featureList: [
+          'Wedding checklist management',
+          'Budget tracking',
+          'Guest list and RSVP tracking',
+          'Vendor coordination',
+          'Multi-event wedding timelines',
+          'Wedding website creation',
+        ],
+        offers: {
+          '@type': 'Offer',
+          price: '0',
+          priceCurrency: 'INR',
+          availability: 'https://schema.org/InStock',
+        },
+      },
+      {
+        '@context': 'https://schema.org',
+        '@type': 'ItemList',
+        name: 'Indian wedding planning coverage',
+        itemListElement: COVERAGE_TOPICS.map((topic, index) => ({
+          '@type': 'ListItem',
+          position: index + 1,
+          name: formatDisplayLabel(topic),
+        })),
       },
       {
         '@context': 'https://schema.org',
@@ -298,6 +413,56 @@ function buildMarketingMetadata(req, page) {
             text: item.answer,
           },
         })),
+      },
+    ],
+  };
+}
+
+function buildGuideMetadata(req, slug, payload, statusCode) {
+  const guide = payload?.guide || GUIDE_BY_SLUG.get(slug) || null;
+  if (statusCode !== 200 || !guide) {
+    return {
+      title: 'Guide Not Found | VivahGo',
+      description: payload?.error || 'The requested guide could not be found.',
+      canonicalPath: `/guides/${slug}`,
+      robots: 'noindex, nofollow',
+    };
+  }
+
+  return {
+    title: `${guide.title} | VivahGo Guides`,
+    description: guide.seoDescription,
+    canonicalPath: `/guides/${guide.slug}`,
+    robots: 'index, follow',
+    structuredData: [
+      {
+        '@context': 'https://schema.org',
+        '@type': 'Article',
+        headline: guide.title,
+        description: guide.seoDescription,
+        url: buildAbsoluteUrl(req, `/guides/${guide.slug}`),
+        author: {
+          '@type': 'Organization',
+          name: 'VivahGo',
+        },
+        publisher: {
+          '@type': 'Organization',
+          name: 'VivahGo',
+          logo: {
+            '@type': 'ImageObject',
+            url: buildAbsoluteUrl(req, '/logo.svg'),
+          },
+        },
+        keywords: Array.isArray(guide.keywords) ? guide.keywords.join(', ') : '',
+      },
+      {
+        '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'Home', item: buildAbsoluteUrl(req, '/home') },
+          { '@type': 'ListItem', position: 2, name: 'Guides', item: buildAbsoluteUrl(req, '/guides') },
+          { '@type': 'ListItem', position: 3, name: guide.title, item: buildAbsoluteUrl(req, `/guides/${guide.slug}`) },
+        ],
       },
     ],
   };
@@ -358,6 +523,10 @@ function buildRsvpMetadata(req, token, payload, statusCode) {
 
 function resolveMetadata(req, routeData) {
   const route = routeData?.route || String(req.query?.route || '').trim().toLowerCase();
+  if (route === 'guide') {
+    return buildGuideMetadata(req, req.query?.slug || '', routeData?.payload, routeData?.statusCode);
+  }
+
   if (route === 'website') {
     return buildWebsiteMetadata(req, req.query?.slug || '', routeData?.payload, routeData?.statusCode);
   }
@@ -437,8 +606,8 @@ function createPageHandler(options = {}) {
     } catch (error) {
       console.error('Page rendering failed:', error);
       const fallbackMeta = {
-        title: 'VivahGo | Wedding Planning for Indian Weddings',
-        description: 'VivahGo helps couples and planners manage wedding tasks, budgets, guests, events, and vendors in one shared workspace.',
+        title: 'VivahGo | Indian Wedding Planner App for Cultural Weddings',
+        description: 'VivahGo is an Indian wedding planner app for cultural weddings with checklist tracking, budgets, guest lists, vendors, RSVPs, ceremonies, and wedding websites.',
         canonicalPath: '/home',
         robots: 'index, follow',
       };
@@ -449,6 +618,7 @@ function createPageHandler(options = {}) {
 }
 
 module.exports = createPageHandler();
+module.exports.buildGuideMetadata = buildGuideMetadata;
 module.exports.buildMarketingMetadata = buildMarketingMetadata;
 module.exports.buildRsvpMetadata = buildRsvpMetadata;
 module.exports.buildWebsiteMetadata = buildWebsiteMetadata;

@@ -68,6 +68,10 @@ describe('VivahGo/src/seo.js', function () {
       'https://vivahgo.com/pricing'
     );
     assert.equal(
+      dom.window.document.querySelector('meta[property="og:locale"]').getAttribute('content'),
+      'en_IN'
+    );
+    assert.equal(
       dom.window.document.querySelector('meta[name="twitter:image"]').getAttribute('content'),
       'https://vivahgo.com/social-preview.jpg'
     );

@@ -4,6 +4,7 @@ import '../marketing-home.css';
 import FeedbackModal from '../components/FeedbackModal';
 import LegalFooter from '../components/LegalFooter';
 import TermsConditionsModal from '../components/TermsConditionsModal';
+import MarketingSiteHeader from '../components/MarketingSiteHeader.jsx';
 import { fetchCareers, submitCareerApplication } from '../api';
 import { DEFAULT_SITE_URL, usePageSeo } from '../seo.js';
 
@@ -113,9 +114,6 @@ export default function CareersPage() {
     () => careers.find((career) => career.id === form.jobId) || careers[0] || null,
     [careers, form.jobId]
   );
-  const isSignedIn = Boolean(session?.mode && (session?.user || session?.token));
-  const firstName = session?.user?.given_name || session?.user?.name?.split(' ')[0] || 'there';
-  const profileInitial = firstName.trim().charAt(0).toUpperCase() || 'Y';
 
   function updateForm(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -213,37 +211,13 @@ export default function CareersPage() {
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f8f3ee_0%,#fffdf8_42%,#fff_100%)] text-stone-900">
-      <header className="marketing-header">
-        <a className="marketing-brand" href="/home" aria-label="VivahGo home page">
-          <img src="/Thumbnail.png" alt="VivahGo" className="marketing-brand-mark" />
-        </a>
-        <nav className="marketing-nav marketing-page-toggle" aria-label="Marketing pages">
-          <a href="/home">Home</a>
-          <a href="/pricing">Pricing</a>
-          <a className="marketing-nav-link-active" href="/careers">Careers</a>
-        </nav>
-        <div className="marketing-auth">
-          <a className="marketing-header-link-button" href="/vendor">
-            For Vendors
-          </a>
-          <a className="marketing-auth-button" href="/">
-            Plan Now
-            {isSignedIn && (
-              session?.user?.picture ? (
-                <img
-                  src={session.user.picture}
-                  alt={`${firstName} profile`}
-                  className="marketing-auth-avatar"
-                />
-              ) : (
-                <span className="marketing-auth-avatar marketing-auth-avatar-fallback" aria-hidden="true">
-                  {profileInitial}
-                </span>
-              )
-            )}
-          </a>
-        </div>
-      </header>
+      <MarketingSiteHeader
+        activePage="careers"
+        session={session}
+        onContactUs={() => setShowFeedbackModal(true)}
+        primaryCtaLabel="Plan Now"
+        mobileCtaLabel="Plan Now"
+      />
 
       <main>
         <section className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 lg:grid-cols-[1.15fr_0.85fr] lg:py-20">

@@ -35,10 +35,12 @@
     { "source": "/api/subscription/webhook", "destination": "/api/subscription?op=webhook" },
     { "source": "/home", "destination": "/api/page?route=home" },
     { "source": "/pricing", "destination": "/api/page?route=pricing" },
+    { "source": "/guides", "destination": "/api/page?route=guides" },
+    { "source": "/guides/:slug", "destination": "/api/page?route=guide&slug=:slug" },
     { "source": "/careers", "destination": "/api/page?route=careers" },
     { "source": "/wedding", "destination": "/api/page?route=wedding" },
     { "source": "/rsvp/:token", "destination": "/api/page?route=rsvp&token=:token" },
-    { "source": "/:slug((?!api|home|pricing|wedding|vendor|admin|careers|rsvp|robots\\.txt|sitemap\\.xml|logo\\.svg|icons\\.svg|Thumbnail\\.png).+)", "destination": "/api/page?route=website&slug=:slug" },
+    { "source": "/:slug((?!api|home|pricing|guides|wedding|vendor|admin|careers|rsvp|robots\\.txt|sitemap\\.xml|logo\\.svg|icons\\.svg|Thumbnail\\.png).+)", "destination": "/api/page?route=website&slug=:slug" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }

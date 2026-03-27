@@ -2,6 +2,7 @@
   "scripts": {
     "build": "cd vivahgo && npm run build",
     "dev": "cd vivahgo && npm run dev",
+    "generate:seo-keywords": "node scripts/generate-seo-keywords.cjs",
     "lint": "cd vivahgo && npm run lint",
     "test": "mocha \"test/**/*.test.cjs\"",
     "verify:seo": "node scripts/verify-seo.cjs",

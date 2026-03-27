@@ -124,6 +124,7 @@ export function applySeoMetadata(config = {}, options = {}) {
   const canonicalUrl = buildAbsoluteUrl(config.canonicalUrl || config.path || "/", { siteUrl });
   const robots = config.noindex ? "noindex, nofollow" : "index, follow";
   const imageAlt = String(config.imageAlt || "VivahGo wedding planning preview").trim();
+  const locale = String(config.locale || "en_IN").trim();
   const themeColor = String(config.themeColor || "#6b0f0f").trim();
 
   if (!doc?.head) {
@@ -145,6 +146,7 @@ export function applySeoMetadata(config = {}, options = {}) {
   upsertMeta(doc, "name", "theme-color", themeColor);
   upsertMeta(doc, "property", "og:type", type);
   upsertMeta(doc, "property", "og:site_name", "VivahGo");
+  upsertMeta(doc, "property", "og:locale", locale);
   upsertMeta(doc, "property", "og:title", title);
   upsertMeta(doc, "property", "og:description", description);
   upsertMeta(doc, "property", "og:url", canonicalUrl);

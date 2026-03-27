@@ -2,6 +2,8 @@ import { useEffect } from "react";
 import PlannerPage from "./pages/PlannerPage.jsx";
 import MarketingHomePage from "./pages/MarketingHomePage.jsx";
 import CareersPage from "./pages/CareersPage.jsx";
+import GuidesPage from "./pages/GuidesPage.jsx";
+import GuideArticlePage from "./pages/GuideArticlePage.jsx";
 import GuestRsvpPage from "./pages/GuestRsvpPage.jsx";
 import WeddingWebsitePage from "./pages/WeddingWebsitePage.jsx";
 import VendorPortalPage from "./pages/VendorPortalPage.jsx";
@@ -14,16 +16,28 @@ export default function App() {
   const routeInfo = getRouteInfo(pathname);
   const fallbackSeo = routeInfo.isMarketingHomeRoute
     ? {
-      title: "VivahGo | Wedding Planning for Indian Weddings",
-      description: "VivahGo helps couples and planners manage wedding tasks, budgets, guests, events, and vendors in one shared workspace.",
+      title: "VivahGo | Indian Wedding Planner App for Cultural Weddings",
+      description: "VivahGo is an Indian wedding planner app for cultural weddings with checklist tracking, budgets, guest lists, vendors, RSVPs, ceremonies, and wedding websites.",
       path: "/home",
     }
     : routeInfo.isPricingRoute
       ? {
         title: "VivahGo Pricing | Plans for Couples and Planners",
-        description: "Compare VivahGo plans for couples, families, and wedding planners managing one or many celebrations.",
+        description: "Compare Indian wedding planner app pricing for couples, families, planners, and studios managing guests, budgets, vendors, RSVPs, and wedding websites.",
         path: "/pricing",
       }
+      : routeInfo.isGuidesRoute
+        ? {
+          title: "VivahGo Guides | Indian Wedding Planning Resources",
+          description: "Browse Indian wedding planning guides for checklists, budgets, guest lists, vendor coordination, cultural wedding timelines, and destination weddings.",
+          path: "/guides",
+        }
+      : routeInfo.guideSlug
+        ? {
+          title: "VivahGo Guide",
+          description: "An Indian wedding planning guide from VivahGo.",
+          path: `/guides/${routeInfo.guideSlug}`,
+        }
       : routeInfo.isCareersRoute
         ? {
           title: "VivahGo Careers | Join the Team",
@@ -90,6 +104,14 @@ export default function App() {
 
   if (routeInfo.isCareersRoute) {
     return <CareersPage />;
+  }
+
+  if (routeInfo.isGuidesRoute) {
+    return <GuidesPage />;
+  }
+
+  if (routeInfo.guideSlug) {
+    return <GuideArticlePage guideSlug={routeInfo.guideSlug} />;
   }
 
   if (routeInfo.isMarketingHomeRoute) {

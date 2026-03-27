@@ -1,0 +1,320 @@
+[
+  {
+    "slug": "indian-wedding-checklist",
+    "title": "Indian Wedding Planning Checklist",
+    "summary": "A practical checklist for organizing ceremonies, budgets, family decisions, and vendors without losing the thread.",
+    "seoDescription": "Read a practical Indian wedding planning checklist covering ceremony sequencing, family coordination, vendor planning, budget checkpoints, and guest workflow.",
+    "coverImage": "",
+    "coverAlt": "",
+    "imageHint": "Add a custom checklist cover image to /public/guides/indian-wedding-checklist.jpg later.",
+    "readTime": "7 min read",
+    "keywords": [
+      "indian wedding planner",
+      "wedding checklist app",
+      "wedding timeline planner"
+    ],
+    "sections": [
+      {
+        "heading": "Start with one master planning system",
+        "paragraphs": [
+          "Indian weddings become hard to manage when the calendar, budget, guest decisions, and vendor updates all live in separate places. The first step is not doing more work. It is putting the work into one shared planning system so every ceremony and decision stays connected.",
+          "That means creating one wedding calendar, one list of owners, one budget structure, and one current version of guest and vendor data. Once the planning foundation is centralized, every next decision becomes easier."
+        ],
+        "bullets": [
+          "Lock the event sequence before you start detailed vendor coordination.",
+          "Assign clear owners for each ceremony, family workstream, and payment checkpoint.",
+          "Keep one live source of truth for dates, venue notes, and pending decisions."
+        ]
+      },
+      {
+        "heading": "Break the wedding into ceremony-level workflows",
+        "paragraphs": [
+          "A useful checklist should separate general planning from ceremony-specific work. Roka, mehndi, sangeet, haldi, baraat, pheras, reception, and post-wedding rituals each need different vendors, guest timing, decor, and hospitality decisions.",
+          "When ceremonies are managed separately but viewed together, couples and planners can see where delays are building and what depends on what."
+        ],
+        "bullets": [
+          "Track decor, hospitality, rituals, transport, and venue readiness per function.",
+          "Link ceremony tasks to the people responsible for approvals and execution.",
+          "Review timing, guest movement, and vendor dependencies for each event."
+        ]
+      },
+      {
+        "heading": "Turn the checklist into execution",
+        "paragraphs": [
+          "The best checklist is one that turns into action. It should connect to your budget, guest count changes, RSVP responses, and vendor payment milestones rather than sitting as a static document.",
+          "That is where a planning app becomes more useful than a spreadsheet. It helps the checklist stay alive while the wedding keeps moving."
+        ],
+        "bullets": [
+          "Review checklist progress weekly with families or planners.",
+          "Tie pending tasks to budget and vendor status where possible.",
+          "Promote the checklist into a full planning workspace once decisions start multiplying."
+        ]
+      }
+    ]
+  },
+  {
+    "slug": "punjabi-wedding-timeline",
+    "title": "Punjabi Wedding Timeline Guide",
+    "summary": "Map roka, mehndi, sangeet, baraat, anand karaj, and reception into one coordinated planning flow.",
+    "seoDescription": "Plan a Punjabi wedding timeline with guidance for roka, mehndi, sangeet, baraat, anand karaj, reception, family logistics, and vendor coordination.",
+    "coverImage": "",
+    "coverAlt": "",
+    "imageHint": "Add a Punjabi wedding timeline cover image to /public/guides/punjabi-wedding-timeline.jpg later.",
+    "readTime": "6 min read",
+    "keywords": [
+      "punjabi wedding planner",
+      "anand karaj checklist",
+      "baraat timeline"
+    ],
+    "sections": [
+      {
+        "heading": "Plan the full sequence before refining details",
+        "paragraphs": [
+          "Punjabi weddings often move across several high-energy events, each with different family expectations and production needs. If the sequence is not clear early, decor, transport, hospitality, choreography, and rituals all start colliding.",
+          "Build the macro timeline first. Then work inward on ceremony details, guest logistics, and vendor timing."
+        ],
+        "bullets": [
+          "Map roka, mehndi, sangeet, baraat, anand karaj, vidaai, and reception together.",
+          "Identify ceremonies with the highest guest movement and family coordination load.",
+          "Treat transport and hospitality as part of the timeline, not side tasks."
+        ]
+      },
+      {
+        "heading": "Keep celebration energy and logistics aligned",
+        "paragraphs": [
+          "Punjabi weddings often involve choreography, entertainment, multiple venue handoffs, and family participation across both sides. That makes handoffs especially important between the high-energy celebrations and the wedding-day ritual flow.",
+          "A timeline should show not just when the event starts, but when setup, arrivals, hospitality, and ceremony readiness begin."
+        ],
+        "bullets": [
+          "Set separate start times for guest arrival, vendor setup, and ceremony start.",
+          "Coordinate baraat timing with venue access and reception flow.",
+          "Track families, planners, and MCs against the same live event sheet."
+        ]
+      },
+      {
+        "heading": "Use the timeline to reduce repeated follow-up",
+        "paragraphs": [
+          "The biggest value of a Punjabi wedding timeline is not the document itself. It is the reduction in repeated explanation. When families and vendors can see the same live version, fewer things get lost in calls and chat threads.",
+          "This also makes it easier to absorb last-minute changes without re-briefing everyone from scratch."
+        ],
+        "bullets": [
+          "Share the latest timeline with planners, core family, and key vendors.",
+          "Connect payments and vendor confirmations to the same event timeline.",
+          "Keep the wedding-day version concise enough for quick reference on the ground."
+        ]
+      }
+    ]
+  },
+  {
+    "slug": "wedding-budget-planner",
+    "title": "Indian Wedding Budget Planning Guide",
+    "summary": "Break venue, decor, catering, rituals, travel, and vendor payments into a cleaner budget process.",
+    "seoDescription": "Use this Indian wedding budget planning guide to organize venue, decor, catering, rituals, travel, attire, and vendor payment tracking.",
+    "coverImage": "",
+    "coverAlt": "",
+    "imageHint": "Add a budget planning cover image to /public/guides/wedding-budget-planner.jpg later.",
+    "readTime": "7 min read",
+    "keywords": [
+      "wedding budget planner",
+      "vendor payments wedding planning",
+      "catering wedding budget"
+    ],
+    "sections": [
+      {
+        "heading": "Budget by category and by ceremony",
+        "paragraphs": [
+          "Wedding budgets get distorted when everything is tracked as one flat total. A better approach is to split the budget by category and also by event or ceremony where needed. That helps couples understand where spending is growing and what is driving it.",
+          "Venue, decor, catering, rituals, travel, attire, stay, transport, and vendor balances all behave differently over time. Tracking them separately makes trade-offs easier."
+        ],
+        "bullets": [
+          "Create clear top-level categories before vendor booking begins.",
+          "Separate ceremony-specific spend from general wedding spend.",
+          "Review both actual spend and pending commitments together."
+        ]
+      },
+      {
+        "heading": "Track advances and pending balances early",
+        "paragraphs": [
+          "Many wedding budgets feel under control until the pending balances pile up near the wedding. Advances create a false sense of visibility unless the remaining payment schedule is tracked closely.",
+          "The more vendors and events involved, the more important it becomes to track due dates, remaining balances, and approval dependencies."
+        ],
+        "bullets": [
+          "Log the advance, total commitment, and pending balance for each vendor.",
+          "Review due dates against the planning timeline every week.",
+          "Keep emergency and contingency room visible instead of hiding it in misc spend."
+        ]
+      },
+      {
+        "heading": "Connect the budget to planning decisions",
+        "paragraphs": [
+          "A budget planner should not live separately from the rest of the wedding. Guest count shifts affect catering and stay. Venue changes affect decor and transport. Ceremony sequencing affects production and hospitality costs.",
+          "Budget planning becomes calmer when it is connected to the same system that manages events, vendors, and guests."
+        ],
+        "bullets": [
+          "Review budget changes after guest count or venue changes.",
+          "Use ceremony-level visibility to spot overspending early.",
+          "Move financial decisions out of scattered family chats and into one trackable workspace."
+        ]
+      }
+    ]
+  },
+  {
+    "slug": "guest-list-rsvp",
+    "title": "Guest List and RSVP Guide",
+    "summary": "Keep family sides, follow-ups, guest counts, and invitation responses aligned in one system.",
+    "seoDescription": "Manage wedding guest lists and RSVPs with a cleaner process for family sides, follow-ups, invitation status, rooming, and final counts.",
+    "coverImage": "",
+    "coverAlt": "",
+    "imageHint": "Add a guest list cover image to /public/guides/guest-list-rsvp.jpg later.",
+    "readTime": "6 min read",
+    "keywords": [
+      "wedding guest list manager",
+      "wedding rsvp manager",
+      "guest list planner"
+    ],
+    "sections": [
+      {
+        "heading": "Keep one master guest list from the start",
+        "paragraphs": [
+          "Guest planning becomes messy when each family branch maintains its own spreadsheet or message thread. The master list should include the side of the family, invitation status, RSVP status, guest count, and any hospitality or rooming needs.",
+          "Without that structure, it becomes difficult to trust the final count when catering, transport, and stay decisions begin depending on it."
+        ],
+        "bullets": [
+          "Store one current guest list instead of several private versions.",
+          "Track family side and owner along with RSVP status.",
+          "Keep rooming, transport, and special notes attached to the guest profile."
+        ]
+      },
+      {
+        "heading": "Treat RSVP tracking as operations, not admin",
+        "paragraphs": [
+          "RSVP management is not just about confirmations. It directly shapes headcounts, transport, welcome planning, room blocks, and seating assumptions. That is why follow-ups and final guest counts should live close to the rest of the plan.",
+          "A clean RSVP flow reduces repeated calls and gives everyone confidence in the latest numbers."
+        ],
+        "bullets": [
+          "Monitor pending, yes, and no responses in real time.",
+          "Record updated guest counts when invitations change.",
+          "Use reminders without losing the history of who confirmed what."
+        ]
+      },
+      {
+        "heading": "Connect guests to the wider wedding plan",
+        "paragraphs": [
+          "Guest data becomes most useful when it informs the rest of the wedding. Hospitality, catering, ceremony planning, transport, and budget decisions all get sharper when guest information is reliable.",
+          "That is why the guest list should sit inside the same workspace as tasks, vendors, and events."
+        ],
+        "bullets": [
+          "Use updated guest counts to adjust hospitality and catering assumptions.",
+          "Keep RSVP and invitation links easy to access and resend.",
+          "Tie guest planning to event flow rather than treating it as a separate admin task."
+        ]
+      }
+    ]
+  },
+  {
+    "slug": "vendor-coordination",
+    "title": "Wedding Vendor Coordination Guide",
+    "summary": "Track photographers, decorators, venues, pandits, choreographers, transport, and entertainment vendors together.",
+    "seoDescription": "Coordinate wedding vendors with a structured approach for booking, timelines, deliverables, payment checkpoints, and event-day alignment.",
+    "coverImage": "",
+    "coverAlt": "",
+    "imageHint": "Add a vendor coordination cover image to /public/guides/vendor-coordination.jpg later.",
+    "readTime": "7 min read",
+    "keywords": [
+      "wedding vendor coordination app",
+      "wedding vendor planner",
+      "wedding decorators for indian weddings"
+    ],
+    "sections": [
+      {
+        "heading": "Coordinate vendors from one source of truth",
+        "paragraphs": [
+          "Vendor coordination breaks down when decorators, photographers, venues, pandits, choreographers, transport teams, entertainers, and families all work from different assumptions. The cure is not more messaging. It is one current plan that shows timing, scope, and ownership clearly.",
+          "The more event-heavy the wedding, the more important this becomes."
+        ],
+        "bullets": [
+          "Store vendor scope, timing, and payment status together.",
+          "Link each vendor to the ceremonies and deliverables they support.",
+          "Keep notes about approvals and changes in the same workspace."
+        ]
+      },
+      {
+        "heading": "Track bookings beyond the vendor name",
+        "paragraphs": [
+          "A vendor list is not enough. You need to know what has been promised, what is pending approval, what has been paid, and what other vendors depend on that work. This is especially true for decor, venue, entertainment, hospitality, and event production teams.",
+          "Vendor coordination becomes easier when their work is visible in the event plan itself."
+        ],
+        "bullets": [
+          "Record booking stage, payment checkpoints, and pending items.",
+          "Track dependencies between venue, decor, sound, and event timing.",
+          "Review handoff risks before each major function."
+        ]
+      },
+      {
+        "heading": "Make the event-day version simple",
+        "paragraphs": [
+          "On the wedding day, the vendor plan needs to be shorter and clearer than the planning version. Teams should quickly see contact details, setup timing, the event they support, and the owner responsible for decisions.",
+          "That lets planners and families solve issues faster when things change on the ground."
+        ],
+        "bullets": [
+          "Prepare a concise event-day vendor sheet for core teams.",
+          "Surface the latest contact details and escalation owners.",
+          "Keep the planning view detailed and the execution view simple."
+        ]
+      }
+    ]
+  },
+  {
+    "slug": "destination-weddings",
+    "title": "Destination Wedding Planning in India",
+    "summary": "Plan multi-event weddings across Jaipur, Udaipur, Goa, Delhi NCR, Mumbai, and other high-intent wedding cities.",
+    "seoDescription": "Plan destination weddings in India with guidance for venue clusters, guest movement, room blocks, transport, hospitality, and multi-event timelines.",
+    "coverImage": "",
+    "coverAlt": "",
+    "imageHint": "Add a destination wedding cover image to /public/guides/destination-weddings.jpg later.",
+    "readTime": "6 min read",
+    "keywords": [
+      "jaipur wedding planner",
+      "goa wedding planner",
+      "destination wedding planner"
+    ],
+    "sections": [
+      {
+        "heading": "Plan the destination as a system",
+        "paragraphs": [
+          "Destination weddings are harder because the location itself becomes part of the planning problem. Venues, stay, guest movement, transport windows, family arrivals, and vendor availability all become tightly connected.",
+          "That means the destination plan should be treated as one operating system, not a collection of isolated bookings."
+        ],
+        "bullets": [
+          "Map venues, room blocks, and transport loops together.",
+          "Track guest movement between airport, hotel, and ceremony sites.",
+          "Review city-level logistics as part of the wedding timeline."
+        ]
+      },
+      {
+        "heading": "Use ceremony planning to control complexity",
+        "paragraphs": [
+          "Cities like Jaipur, Udaipur, Goa, Delhi NCR, and Mumbai often involve several function spaces and large vendor teams. The more spread out the venue and guest setup becomes, the more valuable ceremony-level planning becomes.",
+          "Destination planning gets calmer when each function has its own operational view while still connecting to the full wedding."
+        ],
+        "bullets": [
+          "Break each event into venue readiness, guest flow, and vendor timing.",
+          "Watch where travel time affects event sequencing.",
+          "Keep rooming and hospitality updates tied to live guest data."
+        ]
+      },
+      {
+        "heading": "Build city and venue visibility over time",
+        "paragraphs": [
+          "Destination content is also powerful for SEO because city-level guides can expand naturally from it. Once the core destination guide is strong, deeper Jaipur, Udaipur, Goa, Delhi NCR, or Mumbai content becomes more credible and more useful.",
+          "That helps a guides library grow in a way that feels intentional instead of thin."
+        ],
+        "bullets": [
+          "Start with a strong India destination planning guide.",
+          "Expand into city-specific content only when each page offers real value.",
+          "Use internal links between destination guides, pricing, and product pages."
+        ]
+      }
+    ]
+  }
+]

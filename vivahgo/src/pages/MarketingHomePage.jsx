@@ -1,11 +1,10 @@
-import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
 import "../styles.css";
 import "../marketing-home.css";
 import TermsConditionsModal from "../components/TermsConditionsModal";
 import FeedbackModal from "../components/FeedbackModal";
 import LegalFooter from "../components/LegalFooter";
+import MarketingSiteHeader from "../components/MarketingSiteHeader.jsx";
 import GoogleLoginButton from "../components/GoogleLoginButton";
 import LoadingBar from "../components/LoadingBar";
 import SubscriptionCheckoutSheet from "../components/SubscriptionCheckoutSheet";
@@ -17,11 +16,10 @@ import GuestsScreen from "../features/planner/screens/GuestsScreen";
 import { confirmCheckoutPayment, createCheckoutSession, getCheckoutQuote, getSubscriptionStatus, loginWithGoogle } from "../api";
 import { createDemoPlanner } from "../plannerDefaults";
 import { DEFAULT_SITE_URL, usePageSeo } from "../seo.js";
+import seoKeywordLibrary from "../generated/seo-keywords.json";
 
 const SESSION_STORAGE_KEY = "vivahgo.session";
 const DEMO_PLANNER = createDemoPlanner();
-const MotionButton = motion.button;
-const MotionDiv = motion.div;
 
 const trustSignals = [
   "Used by early couples and planners across India",
@@ -121,6 +119,57 @@ const socialLinks = [
   { name: "LinkedIn", href: "https://www.linkedin.com/", label: "Connect with VivahGo on LinkedIn" },
 ];
 
+const structuredDataKeywords = seoKeywordLibrary.clusters.primary.slice(0, 24);
+const coverageTopics = [
+  ...seoKeywordLibrary.clusters.primary.slice(0, 8),
+  ...seoKeywordLibrary.clusters.cultural.slice(0, 4),
+];
+const highlightedCities = ["jaipur", "udaipur", "delhi", "gurgaon", "mumbai", "goa", "hyderabad", "bengaluru", "kolkata", "chennai"];
+
+function formatDisplayLabel(value = "") {
+  return String(value)
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) =>
+      word
+        .split("-")
+        .map((part) => (part ? part.charAt(0).toUpperCase() + part.slice(1) : part))
+        .join("-")
+    )
+    .join(" ");
+}
+
+const culturalCoverage = seoKeywordLibrary.sourceSnapshot.cultures
+  .filter((value) => !value.endsWith(" wedding"))
+  .map(formatDisplayLabel);
+const ceremonyCoverage = seoKeywordLibrary.sourceSnapshot.ceremonies.slice(0, 12).map(formatDisplayLabel);
+const vendorCoverage = seoKeywordLibrary.sourceSnapshot.vendorTypes.slice(0, 12).map(formatDisplayLabel);
+const cityCoverage = seoKeywordLibrary.sourceSnapshot.indianCities
+  .filter((city) => highlightedCities.includes(city))
+  .map(formatDisplayLabel);
+const keywordCoverageCards = [
+  {
+    title: "Cultural wedding templates",
+    description: "Plan Punjabi, Gujarati, Marwari, Bengali, and South Indian celebrations with ceremony-specific flows.",
+    items: culturalCoverage,
+  },
+  {
+    title: "Ceremonies and rituals",
+    description: "Build event plans around rituals families actually search for and coordinate.",
+    items: ceremonyCoverage,
+  },
+  {
+    title: "Vendor planning categories",
+    description: "Track the vendors, services, and bookings that shape a multi-event Indian wedding.",
+    items: vendorCoverage,
+  },
+  {
+    title: "Popular Indian wedding cities",
+    description: "Support destination and city-based planning across high-intent wedding markets in India.",
+    items: cityCoverage,
+  },
+];
+
 const howItWorksSteps = [
   "Create your wedding workspace",
   "Add family, guests, and vendors",
@@ -162,6 +211,9 @@ const homeStructuredData = [
     name: "VivahGo",
     url: `${DEFAULT_SITE_URL}/home`,
     logo: `${DEFAULT_SITE_URL}/logo.svg`,
+    description: "Indian wedding planning software for couples, families, and planners managing ceremonies, guests, budgets, vendors, and wedding websites.",
+    keywords: structuredDataKeywords.join(", "),
+    areaServed: ["India", "UAE", "USA", "UK", "Canada", "Australia", "Singapore"],
   },
   {
     "@context": "https://schema.org",
@@ -169,6 +221,42 @@ const homeStructuredData = [
     name: "VivahGo",
     url: `${DEFAULT_SITE_URL}/home`,
     description: "Wedding planning software for Indian weddings with shared tasks, budgets, guests, vendors, and event management.",
+    inLanguage: "en-IN",
+    keywords: structuredDataKeywords.join(", "),
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: "VivahGo",
+    url: `${DEFAULT_SITE_URL}/home`,
+    applicationCategory: "BusinessApplication",
+    operatingSystem: "Web",
+    description: "Indian wedding planner app for cultural weddings with checklists, budgets, vendor coordination, guest RSVP tracking, and wedding websites.",
+    keywords: structuredDataKeywords.join(", "),
+    featureList: [
+      "Wedding checklist management",
+      "Budget tracking",
+      "Guest list and RSVP tracking",
+      "Vendor coordination",
+      "Multi-event wedding timelines",
+      "Wedding website creation",
+    ],
+    offers: {
+      "@type": "Offer",
+      price: "0",
+      priceCurrency: "INR",
+      availability: "https://schema.org/InStock",
+    },
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: "Indian wedding planning coverage",
+    itemListElement: coverageTopics.map((topic, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: formatDisplayLabel(topic),
+    })),
   },
   {
     "@context": "https://schema.org",
@@ -191,11 +279,13 @@ const pricingStructuredData = [
     name: "VivahGo Pricing",
     url: `${DEFAULT_SITE_URL}/pricing`,
     description: "VivahGo pricing for couples, families, and wedding planners.",
+    keywords: structuredDataKeywords.join(", "),
   },
   {
     "@context": "https://schema.org",
     "@type": "OfferCatalog",
     name: "VivahGo Plans",
+    keywords: structuredDataKeywords.join(", "),
     itemListElement: plans.map((plan) => ({
       "@type": "Offer",
       name: plan.name,
@@ -284,51 +374,9 @@ function SocialIcon({ name }) {
   );
 }
 
-function MobileMenuOverlay({ isOpen, onClose }) {
-  if (typeof document === "undefined") {
-    return null;
-  }
-
-  return createPortal(
-    <AnimatePresence>
-      {isOpen ? (
-        <>
-          <MotionButton
-            key="backdrop"
-            type="button"
-            className="marketing-mobile-menu-backdrop"
-            aria-label="Close navigation menu"
-            onClick={onClose}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.18, ease: "easeOut" }}
-          />
-          <MotionDiv
-            key="menu"
-            id="marketing-mobile-menu"
-            className="marketing-mobile-menu marketing-mobile-menu-open"
-            initial={{ opacity: 0, y: -16, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -12, scale: 0.98 }}
-            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-          >
-            <a href="/home" onClick={onClose}>Home</a>
-            <a href="/pricing" onClick={onClose}>Pricing</a>
-            <a href="/careers" onClick={onClose}>Careers</a>
-            <a href="/vendor" onClick={onClose}>Vendor Login</a>
-          </MotionDiv>
-        </>
-      ) : null}
-    </AnimatePresence>,
-    document.body
-  );
-}
-
 export default function MarketingHomePage({ page = "home" }) {
   const [session, setSession] = useState(() => readStoredSession());
   const [billingCycle, setBillingCycle] = useState("monthly");
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [checkoutLoadingPlan, setCheckoutLoadingPlan] = useState(null);
@@ -344,13 +392,13 @@ export default function MarketingHomePage({ page = "home" }) {
   const seoConfig = isPricingPage
     ? {
       title: "VivahGo Pricing | Plans for Couples and Planners",
-      description: "Compare VivahGo plans for couples, families, and planners coordinating one or many Indian wedding celebrations.",
+      description: "Compare Indian wedding planner app pricing for couples, families, planners, and studios managing guests, budgets, vendors, RSVPs, and wedding websites.",
       path: "/pricing",
       structuredData: pricingStructuredData,
     }
     : {
-      title: "VivahGo | Wedding Planning for Indian Weddings",
-      description: "VivahGo helps couples and planners manage wedding tasks, budgets, guests, events, vendors, and wedding websites in one shared workspace.",
+      title: "VivahGo | Indian Wedding Planner App for Cultural Weddings",
+      description: "VivahGo is an Indian wedding planner app for cultural weddings with checklist tracking, budgets, guest lists, vendors, RSVPs, ceremonies, and wedding websites.",
       path: "/home",
       structuredData: homeStructuredData,
     };
@@ -394,50 +442,8 @@ export default function MarketingHomePage({ page = "home" }) {
 
   const isSignedIn = Boolean(session?.mode && (session?.user || session?.token));
   const isYearlyBilling = billingCycle === "yearly";
-  const firstName = session?.user?.given_name || session?.user?.name?.split(" ")[0] || "there";
-  const profileInitial = firstName.trim().charAt(0).toUpperCase() || "Y";
-  const primaryCtaLabel = "Start Planning Now";
-  const mobileCtaLabel = "Plan Now";
   const subscriptionTier = subscription?.tier || "starter";
   const hasActivePaidPlan = subscription?.status === "active" && (subscriptionTier === "premium" || subscriptionTier === "studio");
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return undefined;
-    }
-
-    const handleResize = () => {
-      if (window.innerWidth > 720) {
-        setMobileNavOpen(false);
-      }
-    };
-
-    window.addEventListener("resize", handleResize);
-    return () => {
-      window.removeEventListener("resize", handleResize);
-    };
-  }, []);
-
-  function closeMobileNav() {
-    setMobileNavOpen(false);
-  }
-
-  useEffect(() => {
-    if (typeof document === "undefined") {
-      return undefined;
-    }
-
-    const { body } = document;
-    const previousOverflow = body.style.overflow;
-
-    if (mobileNavOpen) {
-      body.style.overflow = "hidden";
-    }
-
-    return () => {
-      body.style.overflow = previousOverflow;
-    };
-  }, [mobileNavOpen]);
 
   useEffect(() => {
     let active = true;
@@ -463,23 +469,6 @@ export default function MarketingHomePage({ page = "home" }) {
       active = false;
     };
   }, [session?.token]);
-
-  useEffect(() => {
-    if (!mobileNavOpen || typeof window === "undefined") {
-      return undefined;
-    }
-
-    const handleKeyDown = (event) => {
-      if (event.key === "Escape") {
-        setMobileNavOpen(false);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [mobileNavOpen]);
 
   function handleChoosePlan(planName) {
     const planKey = planName.toLowerCase();
@@ -752,60 +741,20 @@ export default function MarketingHomePage({ page = "home" }) {
             >✕</button>
           </div>
         )}
-        <header className="marketing-header">
-          <button
-            type="button"
-            className="marketing-mobile-menu-toggle"
-            aria-label={mobileNavOpen ? "Close navigation menu" : "Open navigation menu"}
-            aria-expanded={mobileNavOpen}
-            aria-controls="marketing-mobile-menu"
-            onClick={() => setMobileNavOpen((current) => !current)}
-          >
-            <span />
-            <span />
-            <span />
-          </button>
-          <a className="marketing-brand" href="/home" aria-label="VivahGo home page">
-            <img src="/Thumbnail.png" alt="VivahGo" className="marketing-brand-mark" />
-          </a>
-
-          <nav className="marketing-nav marketing-page-toggle" aria-label="Marketing pages">
-            <a className={!isPricingPage ? "marketing-nav-link-active" : ""} href="/home">Home</a>
-            <a className={isPricingPage ? "marketing-nav-link-active" : ""} href="/pricing">Pricing</a>
-            <a href="/careers">Careers</a>
-          </nav>
-
-          <div className="marketing-auth">
-            <a className="marketing-header-link-button" href="/vendor">
-              For Vendors
-            </a>
-            <a className="marketing-auth-button" href="/">
-              <span className="marketing-auth-button-label marketing-auth-button-label-desktop">{primaryCtaLabel}</span>
-              <span className="marketing-auth-button-label marketing-auth-button-label-mobile">{mobileCtaLabel}</span>
-              {isSignedIn && (
-                session?.user?.picture ? (
-                  <img
-                    src={session.user.picture}
-                    alt={`${firstName} profile`}
-                    className="marketing-auth-avatar"
-                  />
-                ) : (
-                  <span className="marketing-auth-avatar marketing-auth-avatar-fallback" aria-hidden="true">
-                    {profileInitial}
-                  </span>
-                )
-              )}
-            </a>
-          </div>
-        </header>
-        <MobileMenuOverlay isOpen={mobileNavOpen} onClose={closeMobileNav} />
+        <MarketingSiteHeader
+          activePage="pricing"
+          session={session}
+          onContactUs={() => setShowFeedbackModal(true)}
+          primaryCtaLabel="Start Planning Now"
+          mobileCtaLabel="Plan Now"
+        />
 
         <main className="marketing-main">
           <section className="marketing-section marketing-pricing-page-intro">
             <div className="marketing-section-heading">
               <p className="marketing-section-kicker">Pricing</p>
               <h1>Choose the workspace that fits your wedding.</h1>
-              <p>Start free, upgrade when you need more coordination, and keep billing simple as your planning grows.</p>
+              <p>Start free, upgrade when you need more coordination, and keep billing simple as your Indian wedding planning grows.</p>
             </div>
           </section>
 
@@ -988,53 +937,13 @@ export default function MarketingHomePage({ page = "home" }) {
           >✕</button>
         </div>
       )}
-      <header className="marketing-header">
-        <button
-          type="button"
-          className="marketing-mobile-menu-toggle"
-          aria-label={mobileNavOpen ? "Close navigation menu" : "Open navigation menu"}
-          aria-expanded={mobileNavOpen}
-          aria-controls="marketing-mobile-menu"
-          onClick={() => setMobileNavOpen((current) => !current)}
-        >
-          <span />
-          <span />
-          <span />
-        </button>
-        <a className="marketing-brand" href="/home" aria-label="VivahGo home page">
-          <img src="/Thumbnail.png" alt="VivahGo" className="marketing-brand-mark" />
-        </a>
-
-        <nav className="marketing-nav marketing-page-toggle" aria-label="Marketing pages">
-          <a className={!isPricingPage ? "marketing-nav-link-active" : ""} href="/home">Home</a>
-          <a className={isPricingPage ? "marketing-nav-link-active" : ""} href="/pricing">Pricing</a>
-          <a href="/careers">Careers</a>
-        </nav>
-
-        <div className="marketing-auth">
-          <a className="marketing-header-link-button" href="/vendor">
-            For Vendors
-          </a>
-          <a className="marketing-auth-button" href="/">
-            <span className="marketing-auth-button-label marketing-auth-button-label-desktop">{primaryCtaLabel}</span>
-            <span className="marketing-auth-button-label marketing-auth-button-label-mobile">{mobileCtaLabel}</span>
-            {isSignedIn && (
-              session?.user?.picture ? (
-                <img
-                  src={session.user.picture}
-                  alt={`${firstName} profile`}
-                  className="marketing-auth-avatar"
-                />
-              ) : (
-                <span className="marketing-auth-avatar marketing-auth-avatar-fallback" aria-hidden="true">
-                  {profileInitial}
-                </span>
-              )
-            )}
-          </a>
-        </div>
-      </header>
-      <MobileMenuOverlay isOpen={mobileNavOpen} onClose={closeMobileNav} />
+      <MarketingSiteHeader
+        activePage="home"
+        session={session}
+        onContactUs={() => setShowFeedbackModal(true)}
+        primaryCtaLabel="Start Planning Now"
+        mobileCtaLabel="Plan Now"
+      />
 
       <main className="marketing-main">
         <section className="marketing-hero">
@@ -1219,6 +1128,32 @@ export default function MarketingHomePage({ page = "home" }) {
           </div>
         </section>
 
+        <section className="marketing-section marketing-search-coverage" aria-labelledby="search-coverage-title">
+          <div className="marketing-section-heading">
+            <p className="marketing-section-kicker">Search Coverage</p>
+            <h2 id="search-coverage-title">Built around real Indian wedding searches, not generic planner copy.</h2>
+            <p>
+              VivahGo already maps to {seoKeywordLibrary.sourceSummary.cultures} cultural wedding terms, {seoKeywordLibrary.sourceSummary.ceremonies} ceremony flows,
+              {` ${seoKeywordLibrary.sourceSummary.vendorTypes} vendor categories, and ${seoKeywordLibrary.sourceSummary.cities} Indian cities.`}
+              That gives the site stronger topical coverage for the way couples, parents, and planners actually search.
+            </p>
+          </div>
+
+          <div className="marketing-coverage-grid">
+            {keywordCoverageCards.map((card) => (
+              <article className="marketing-coverage-card" key={card.title}>
+                <h3>{card.title}</h3>
+                <p>{card.description}</p>
+                <div className="marketing-keyword-chip-cloud" aria-label={card.title}>
+                  {card.items.map((item) => (
+                    <span className="marketing-keyword-chip" key={item}>{item}</span>
+                  ))}
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+
         <section className="marketing-section" aria-labelledby="what-you-get-title">
           <div className="marketing-section-heading">
             <p className="marketing-section-kicker">What you get</p>
@@ -1304,6 +1239,23 @@ export default function MarketingHomePage({ page = "home" }) {
                 <summary>{item.question}</summary>
                 <p>{item.answer}</p>
               </details>
+            ))}
+          </div>
+        </section>
+
+        <section className="marketing-section marketing-keyword-library-section" aria-labelledby="keyword-library-title">
+          <div className="marketing-section-heading">
+            <p className="marketing-section-kicker">Planning Topics</p>
+            <h2 id="keyword-library-title">High-intent Indian wedding planning topics the product already covers.</h2>
+            <p>
+              The site now has a source-backed keyword library of {seoKeywordLibrary.summary.keywordCount.toLocaleString("en-IN")} search phrases built from VivahGo’s own
+              wedding templates, vendor categories, planning tasks, ceremony names, and India location coverage.
+            </p>
+          </div>
+
+          <div className="marketing-keyword-chip-cloud marketing-keyword-chip-cloud-wide" aria-label="Popular Indian wedding planning topics">
+            {seoKeywordLibrary.clusters.primary.slice(0, 18).map((keyword) => (
+              <span className="marketing-keyword-chip" key={keyword}>{formatDisplayLabel(keyword)}</span>
             ))}
           </div>
         </section>

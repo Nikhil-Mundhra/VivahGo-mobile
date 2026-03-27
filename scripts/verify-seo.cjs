@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const DEFAULT_ROUTES = ['/home', '/pricing', '/careers'];
+const DEFAULT_ROUTES = ['/home', '/pricing', '/guides', '/guides/wedding-budget-planner', '/careers'];
 const REQUIRED_META_KEYS = [
   'description',
   'robots',

@@ -127,6 +127,7 @@ body[data-route='home'] #root {
 }
 
 .marketing-nav a,
+.marketing-nav button,
 .marketing-auth-badge,
 .marketing-summary,
 .marketing-proof-strip span,
@@ -164,7 +165,8 @@ body[data-route='home'] #root {
   backdrop-filter: blur(18px);
 }
 
-.marketing-nav a {
+.marketing-nav a,
+.marketing-nav-button {
   text-decoration: none;
   font-size: 0.95rem;
   font-weight: 600;
@@ -174,9 +176,56 @@ body[data-route='home'] #root {
   transition: background-color 180ms ease, color 180ms ease, transform 180ms ease;
 }
 
+.marketing-nav-button {
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  cursor: pointer;
+}
+
 .marketing-nav-link-active {
   background: rgba(187, 77, 40, 0.14);
   color: var(--marketing-accent-deep);
+}
+
+.marketing-nav-dropdown {
+  position: relative;
+}
+
+.marketing-nav-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  min-width: 200px;
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 20px;
+  border: 1px solid rgba(87, 50, 38, 0.12);
+  background: rgba(255, 251, 246, 0.98);
+  box-shadow: 0 18px 38px rgba(120, 61, 36, 0.18);
+  z-index: 20;
+}
+
+.marketing-nav-dropdown-link,
+.marketing-nav-dropdown-action {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.74);
+  color: var(--marketing-muted-strong);
+  text-decoration: none;
+  text-align: left;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.marketing-nav-dropdown-link-active {
+  color: var(--marketing-accent-deep);
+  background: rgba(187, 77, 40, 0.14);
 }
 
 .marketing-auth {
@@ -280,7 +329,10 @@ body[data-route='home'] #root {
 .marketing-secondary-action:hover,
 .marketing-price-action:hover,
 .marketing-social-link:hover,
-.marketing-nav a:hover {
+.marketing-nav a:hover,
+.marketing-nav button:hover,
+.marketing-nav-dropdown-link:hover,
+.marketing-nav-dropdown-action:hover {
   transform: translateY(-1px);
 }
 
@@ -1087,6 +1139,258 @@ body[data-route='home'] #root {
   font-weight: 700;
 }
 
+.marketing-guide-card-actions {
+  margin-top: 18px;
+}
+
+.marketing-guides-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
+  margin-top: 28px;
+}
+
+.marketing-guide-card {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  border-radius: 28px;
+  background: var(--marketing-surface-strong);
+  border: 1px solid rgba(87, 50, 38, 0.1);
+  overflow: hidden;
+  box-shadow: 0 18px 40px rgba(63, 31, 18, 0.08);
+}
+
+.marketing-guide-card-media {
+  padding: 18px 18px 0;
+}
+
+.marketing-guide-card-image {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  border-radius: 22px;
+  border: 1px solid rgba(87, 50, 38, 0.08);
+}
+
+.marketing-guide-card-image-placeholder {
+  display: grid;
+  place-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 220px;
+  padding: 24px;
+  border-radius: 22px;
+  border: 1px dashed rgba(125, 37, 18, 0.24);
+  background:
+    linear-gradient(180deg, rgba(255, 250, 244, 0.98) 0%, rgba(248, 237, 223, 0.92) 100%);
+  text-align: center;
+}
+
+.marketing-guide-card-image-placeholder span {
+  color: var(--marketing-accent-deep);
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.marketing-guide-card-image-placeholder small {
+  max-width: 22rem;
+  color: var(--marketing-muted-strong);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.marketing-guide-card-image-placeholder-large {
+  min-height: 340px;
+}
+
+.marketing-guide-card-body {
+  display: grid;
+  align-content: start;
+  padding: 18px 22px 22px;
+}
+
+.marketing-guide-card-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--marketing-accent-deep);
+  font-size: 0.83rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.marketing-guide-card-body h3 {
+  margin: 10px 0 10px;
+  font-family: 'Playfair Display', serif;
+  font-size: 1.7rem;
+  line-height: 1.14;
+  color: var(--marketing-ink);
+}
+
+.marketing-guide-card-body p {
+  margin: 0;
+  color: var(--marketing-muted-strong);
+  line-height: 1.7;
+}
+
+.marketing-guide-section .marketing-section-heading {
+  max-width: 56rem;
+}
+
+.marketing-guide-body {
+  max-width: 56rem;
+  margin: 28px auto 0;
+}
+
+.marketing-guide-body p {
+  margin: 0 0 18px;
+  color: var(--marketing-muted-strong);
+  font-size: 1.02rem;
+  line-height: 1.78;
+}
+
+.marketing-guide-list {
+  margin: 0;
+  padding-left: 22px;
+  color: var(--marketing-muted-strong);
+  display: grid;
+  gap: 10px;
+}
+
+.marketing-guide-list li {
+  line-height: 1.65;
+}
+
+.marketing-guide-cta {
+  justify-content: flex-start;
+}
+
+.marketing-guide-article-hero {
+  background:
+    linear-gradient(180deg, rgba(255, 250, 244, 0.98) 0%, rgba(247, 235, 218, 0.94) 100%),
+    var(--marketing-surface);
+}
+
+.marketing-guide-article-breadcrumbs {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--marketing-muted-strong);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.marketing-guide-article-breadcrumbs a {
+  color: var(--marketing-accent-deep);
+  text-decoration: none;
+}
+
+.marketing-guide-article-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+  gap: 24px;
+  margin-top: 18px;
+  align-items: center;
+}
+
+.marketing-guide-article-copy h1 {
+  margin: 12px 0 14px;
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(2.3rem, 4vw, 4rem);
+  line-height: 1.02;
+  color: var(--marketing-ink);
+}
+
+.marketing-guide-article-meta {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.marketing-guide-article-meta span {
+  border-radius: 999px;
+  border: 1px solid rgba(87, 50, 38, 0.12);
+  background: rgba(255, 252, 248, 0.92);
+  color: var(--marketing-muted-strong);
+  padding: 6px 12px;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.marketing-guide-article-media {
+  width: 100%;
+}
+
+.marketing-coverage-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 28px;
+}
+
+.marketing-coverage-card {
+  padding: 24px;
+  border-radius: 26px;
+  background: var(--marketing-surface-strong);
+  border: 1px solid rgba(87, 50, 38, 0.1);
+}
+
+.marketing-coverage-card h3 {
+  margin: 0 0 10px;
+  font-family: 'Playfair Display', serif;
+  font-size: 1.55rem;
+  line-height: 1.16;
+  color: var(--marketing-ink);
+}
+
+.marketing-coverage-card p {
+  margin: 0;
+  color: var(--marketing-muted-strong);
+  line-height: 1.65;
+}
+
+.marketing-keyword-chip-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 0;
+  margin-top: 18px;
+}
+
+.marketing-keyword-chip-cloud-wide {
+  justify-content: center;
+}
+
+.marketing-keyword-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 0;
+  padding: 0;
+  color: var(--marketing-accent-deep);
+  font-size: 0.92rem;
+  font-weight: 700;
+  line-height: 1.55;
+  letter-spacing: 0.01em;
+}
+
+.marketing-keyword-chip::after {
+  content: "";
+  width: 4px;
+  height: 4px;
+  margin: 0 14px;
+  border-radius: 999px;
+  background: rgba(125, 37, 18, 0.24);
+  flex: 0 0 4px;
+}
+
+.marketing-keyword-chip:last-child::after {
+  content: none;
+}
+
 .marketing-inline-highlight {
   display: inline-block;
   padding: 0.08em 0.12em 0.18em;
@@ -1817,8 +2121,14 @@ body[data-route='home'] #root {
   .marketing-how-it-works-grid,
   .marketing-feature-grid,
   .marketing-pricing-grid,
+  .marketing-coverage-grid,
+  .marketing-guides-grid,
   .marketing-social-links,
   .marketing-differentiator-list {
+    grid-template-columns: 1fr;
+  }
+
+  .marketing-guide-article-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1974,14 +2284,19 @@ body[data-route='home'] #root {
     gap: 6px;
   }
 
-  .marketing-mobile-menu a {
+  .marketing-mobile-menu a,
+  .marketing-mobile-menu button {
     display: block;
+    width: 100%;
     padding: 10px 12px;
     border-radius: 14px;
     text-decoration: none;
     color: var(--marketing-muted-strong);
     font-weight: 700;
     background: rgba(255, 255, 255, 0.74);
+    border: 0;
+    text-align: left;
+    font: inherit;
   }
 
   .marketing-mobile-menu-backdrop {

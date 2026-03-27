@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 
 const { createRes } = require('./helpers/testUtils.cjs');
 const {
+  buildGuideMetadata,
   buildMarketingMetadata,
   buildRsvpMetadata,
   buildWebsiteMetadata,
@@ -28,12 +29,30 @@ describe('api/page.js', function () {
     assert.doesNotMatch(html, /<title>Old<\/title>/);
   });
 
-  it('builds marketing metadata for home, pricing, and careers pages', function () {
+  it('builds marketing metadata for home, pricing, guides, and careers pages', function () {
     const req = { headers: { host: 'vivahgo.com', 'x-forwarded-proto': 'https' } };
 
     assert.equal(buildMarketingMetadata(req, 'home').canonicalPath, '/home');
     assert.equal(buildMarketingMetadata(req, 'pricing').canonicalPath, '/pricing');
+    assert.equal(buildMarketingMetadata(req, 'guides').canonicalPath, '/guides');
     assert.equal(buildMarketingMetadata(req, 'careers').canonicalPath, '/careers');
+  });
+
+  it('builds guide metadata for a valid guide slug and noindexes missing guides', function () {
+    const req = { headers: { host: 'vivahgo.com', 'x-forwarded-proto': 'https' } };
+    const guideMeta = buildGuideMetadata(req, 'wedding-budget-planner', {
+      guide: {
+        slug: 'wedding-budget-planner',
+        title: 'Indian Wedding Budget Planning Guide',
+        seoDescription: 'Budget guide.',
+        keywords: ['wedding budget planner'],
+      },
+    }, 200);
+    const missingGuideMeta = buildGuideMetadata(req, 'missing-guide', { error: 'Guide not found.' }, 404);
+
+    assert.match(guideMeta.title, /Budget Planning Guide/);
+    assert.equal(guideMeta.canonicalPath, '/guides/wedding-budget-planner');
+    assert.equal(missingGuideMeta.robots, 'noindex, nofollow');
   });
 
   it('builds wedding and rsvp metadata from planner payloads', function () {
@@ -74,6 +93,44 @@ describe('api/page.js', function () {
     assert.equal(res.headers['Cache-Control'], 'public, s-maxage=3600, stale-while-revalidate=86400');
     assert.match(res.body, /VivahGo Pricing/);
     assert.match(res.body, /application\/ld\+json/);
+  });
+
+  it('renders guide html for a valid guide slug', async function () {
+    const handler = createPageHandler({
+      loadHtmlTemplate: async () => '<!doctype html><html><head><script type="module" src="/assets/app.js"></script></head><body><div id="root"></div></body></html>',
+      plannerHandlers: {},
+    });
+    const req = {
+      method: 'GET',
+      headers: { host: 'vivahgo.com', 'x-forwarded-proto': 'https' },
+      query: { route: 'guide', slug: 'wedding-budget-planner' },
+    };
+    const res = createRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.match(res.body, /Indian Wedding Budget Planning Guide/);
+    assert.match(res.body, /https:\/\/vivahgo\.com\/guides\/wedding-budget-planner/);
+  });
+
+  it('renders guide html and returns 404 for an unknown guide slug', async function () {
+    const handler = createPageHandler({
+      loadHtmlTemplate: async () => '<!doctype html><html><head><script type="module" src="/assets/app.js"></script></head><body><div id="root"></div></body></html>',
+      plannerHandlers: {},
+    });
+    const req = {
+      method: 'GET',
+      headers: { host: 'vivahgo.com', 'x-forwarded-proto': 'https' },
+      query: { route: 'guide', slug: 'missing-guide' },
+    };
+    const res = createRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 404);
+    assert.match(res.body, /Guide Not Found/);
+    assert.match(res.body, /noindex, nofollow/);
   });
 
   it('renders public website html from planner data', async function () {
