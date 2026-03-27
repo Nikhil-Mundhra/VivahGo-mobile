@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { EVENT_COLORS } from "../../../constants";
 import { DEFAULT_EVENTS } from "../../../data";
-import { formatCoverageLocation, getLocationCities, getLocationCountries, getLocationStates } from "../../../locationOptions";
 import { WEDDING_WEBSITE_THEMES } from "../../../plannerDefaults";
 import { fmt } from "../../../utils";
 import { useSwipeDown } from "../../../hooks/useSwipeDown";
@@ -29,12 +28,7 @@ function buildTimeStr(timeH, timeM, timeP) {
   return timeH && timeM ? timeH + ":" + timeM + " " + timeP : "";
 }
 
-function parseVenueLocation(value) {
-  const [city = "", state = "", country = ""] = String(value || "")
-    .split(",")
-    .map((item) => item.trim());
-  return { country, state, city };
-}
+const OTHER_VENUE_VALUE = "__other__";
 
 function ToggleRow({ label, description, checked, onChange }) {
   return (
@@ -51,7 +45,7 @@ function ToggleRow({ label, description, checked, onChange }) {
   );
 }
 
-function EventsScreen({ events, setEvents, expenses, setExpenses, onOpenBudget, initialEditingEventId, planId, websitePath = "/wedding", websiteSettings, subscriptionTier = "starter", onSaveWebsiteSettings }) {
+function EventsScreen({ events, setEvents, expenses, setExpenses, onOpenBudget, initialEditingEventId, planId, websitePath = "/wedding", websiteSettings, subscriptionTier = "starter", onSaveWebsiteSettings, defaultVenue = "", presetVenues = [] }) {
   const [editing, setEditing] = useState(() => {
     const initialEvent = events.find(event => String(event.id) === String(initialEditingEventId));
     return initialEvent ? { isPublicWebsiteVisible: true, ...initialEvent, ...parseTimeParts(initialEvent.time) } : null;
@@ -60,7 +54,7 @@ function EventsScreen({ events, setEvents, expenses, setExpenses, onOpenBudget, 
   const [showWebsiteModal, setShowWebsiteModal] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [form, setForm] = useState({ name: "", emoji: "✨", date: "", timeH: "", timeM: "", timeP: "AM", venue: "", status: "upcoming", note: "", isPublicWebsiteVisible: true });
+  const [form, setForm] = useState({ name: "", emoji: "✨", date: "", timeH: "", timeM: "", timeP: "AM", venue: defaultVenue || "", status: "upcoming", note: "", isPublicWebsiteVisible: true });
   const [websiteForm, setWebsiteForm] = useState(() => ({
     isActive: websiteSettings?.isActive !== false,
     showCountdown: websiteSettings?.showCountdown !== false,
@@ -74,7 +68,7 @@ function EventsScreen({ events, setEvents, expenses, setExpenses, onOpenBudget, 
   const websiteSwipe = useSwipeDown(() => setShowWebsiteModal(false));
 
   function resetAddForm() {
-    setForm({ name: "", emoji: "✨", date: "", timeH: "", timeM: "", timeP: "AM", venue: "", status: "upcoming", note: "", isPublicWebsiteVisible: true });
+    setForm({ name: "", emoji: "✨", date: "", timeH: "", timeM: "", timeP: "AM", venue: defaultVenue || "", status: "upcoming", note: "", isPublicWebsiteVisible: true });
   }
 
   function closeAddModal() {
@@ -123,12 +117,9 @@ function EventsScreen({ events, setEvents, expenses, setExpenses, onOpenBudget, 
   const usedNames = new Set(events.map(e => e.name));
   const availablePresets = DEFAULT_EVENTS.filter(e => !usedNames.has(e.name));
   const canPersonalizeWebsite = subscriptionTier === "premium" || subscriptionTier === "studio";
-  const addVenueLocation = parseVenueLocation(form.venue);
-  const addVenueStates = getLocationStates(addVenueLocation.country);
-  const addVenueCities = getLocationCities(addVenueLocation.country, addVenueLocation.state);
-  const editingVenueLocation = parseVenueLocation(editing?.venue);
-  const editingVenueStates = getLocationStates(editingVenueLocation.country);
-  const editingVenueCities = getLocationCities(editingVenueLocation.country, editingVenueLocation.state);
+  const venueOptions = Array.from(new Set([defaultVenue, ...presetVenues].filter(Boolean)));
+  const addVenueSelection = venueOptions.includes(form.venue) ? form.venue : (form.venue ? OTHER_VENUE_VALUE : (defaultVenue || ""));
+  const editingVenueSelection = venueOptions.includes(editing?.venue) ? editing?.venue : (editing?.venue ? OTHER_VENUE_VALUE : (defaultVenue || ""));
 
   function handlePresetChange(val) {
     setSelectedPreset(val);
@@ -280,43 +271,27 @@ function EventsScreen({ events, setEvents, expenses, setExpenses, onOpenBudget, 
             </div>
             <div className="input-group">
               <div className="input-label">Venue</div>
-              <div style={{ display: "grid", gap: 8 }}>
-                <select
-                  className="select-field"
-                  value={editingVenueLocation.country}
-                  onChange={e=>setEditing({
-                    ...editing,
-                    venue: formatCoverageLocation({ country: e.target.value, state: "", city: "" }),
-                  })}
-                >
-                  <option value="">Select country</option>
-                  {getLocationCountries().map(country => <option key={country} value={country}>{country}</option>)}
-                </select>
-                <select
-                  className="select-field"
-                  value={editingVenueLocation.state}
-                  onChange={e=>setEditing({
-                    ...editing,
-                    venue: formatCoverageLocation({ country: editingVenueLocation.country, state: e.target.value, city: "" }),
-                  })}
-                  disabled={!editingVenueStates.length}
-                >
-                  <option value="">Select state</option>
-                  {editingVenueStates.map(state => <option key={state} value={state}>{state}</option>)}
-                </select>
-                <select
-                  className="select-field"
-                  value={editingVenueLocation.city}
-                  onChange={e=>setEditing({
-                    ...editing,
-                    venue: formatCoverageLocation({ country: editingVenueLocation.country, state: editingVenueLocation.state, city: e.target.value }),
-                  })}
-                  disabled={!editingVenueCities.length}
-                >
-                  <option value="">Select city</option>
-                  {editingVenueCities.map(city => <option key={city} value={city}>{city}</option>)}
-                </select>
-              </div>
+              <select
+                className="select-field"
+                value={editingVenueSelection}
+                onChange={e=>setEditing({
+                  ...editing,
+                  venue: e.target.value === OTHER_VENUE_VALUE ? "" : e.target.value,
+                })}
+              >
+                <option value="">Select location</option>
+                {venueOptions.map(venue => <option key={venue} value={venue}>{venue}</option>)}
+                <option value={OTHER_VENUE_VALUE}>Other</option>
+              </select>
+              {editingVenueSelection === OTHER_VENUE_VALUE && (
+                <input
+                  className="input-field"
+                  value={editing.venue}
+                  onChange={e=>setEditing({ ...editing, venue: e.target.value })}
+                  placeholder="Enter custom location"
+                  style={{ marginTop: 8 }}
+                />
+              )}
             </div>
             <div className="input-group">
               <div className="input-label">Status</div>
@@ -468,34 +443,24 @@ function EventsScreen({ events, setEvents, expenses, setExpenses, onOpenBudget, 
                 </div>
                 <div className="input-group">
                   <div className="input-label">Venue</div>
-                  <div style={{ display: "grid", gap: 8 }}>
-                    <select
-                      className="select-field"
-                      value={addVenueLocation.country}
-                      onChange={e => setForm({ ...form, venue: formatCoverageLocation({ country: e.target.value, state: "", city: "" }) })}
-                    >
-                      <option value="">Select country</option>
-                      {getLocationCountries().map(country => <option key={country} value={country}>{country}</option>)}
-                    </select>
-                    <select
-                      className="select-field"
-                      value={addVenueLocation.state}
-                      onChange={e => setForm({ ...form, venue: formatCoverageLocation({ country: addVenueLocation.country, state: e.target.value, city: "" }) })}
-                      disabled={!addVenueStates.length}
-                    >
-                      <option value="">Select state</option>
-                      {addVenueStates.map(state => <option key={state} value={state}>{state}</option>)}
-                    </select>
-                    <select
-                      className="select-field"
-                      value={addVenueLocation.city}
-                      onChange={e => setForm({ ...form, venue: formatCoverageLocation({ country: addVenueLocation.country, state: addVenueLocation.state, city: e.target.value }) })}
-                      disabled={!addVenueCities.length}
-                    >
-                      <option value="">Select city</option>
-                      {addVenueCities.map(city => <option key={city} value={city}>{city}</option>)}
-                    </select>
-                  </div>
+                  <select
+                    className="select-field"
+                    value={addVenueSelection}
+                    onChange={e => setForm({ ...form, venue: e.target.value === OTHER_VENUE_VALUE ? "" : e.target.value })}
+                  >
+                    <option value="">Select location</option>
+                    {venueOptions.map(venue => <option key={venue} value={venue}>{venue}</option>)}
+                    <option value={OTHER_VENUE_VALUE}>Other</option>
+                  </select>
+                  {addVenueSelection === OTHER_VENUE_VALUE && (
+                    <input
+                      className="input-field"
+                      value={form.venue}
+                      onChange={e => setForm({ ...form, venue: e.target.value })}
+                      placeholder="Enter custom location"
+                      style={{ marginTop: 8 }}
+                    />
+                  )}
                 </div>
                 <div className="input-group">
                   <div className="input-label">Status</div>

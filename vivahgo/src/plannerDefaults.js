@@ -459,6 +459,7 @@ export function createBlankMarriagePlan(planId = null) {
     groom: '',
     date: '',
     venue: '',
+    extraLocations: [],
     guests: '',
     budget: '',
     websiteSlug: '',
@@ -478,6 +479,7 @@ export function createDemoMarriagePlan() {
     groom: 'Kabir',
     date: '14 February 2027',
     venue: 'Jaipur Palace Grounds',
+    extraLocations: ['Jaipur Courtyard', 'Royal Ballroom', 'Sunset Pavilion'],
     guests: '320',
     budget: '6500000',
     websiteSlug: 'aarohi-kabir-1',
@@ -543,6 +545,11 @@ export function normalizePlanner(planner) {
       .filter(marriage => marriage && typeof marriage === 'object')
       .map(marriage => ({
         ...marriage,
+        extraLocations: Array.isArray(marriage.extraLocations)
+          ? marriage.extraLocations
+            .filter(location => typeof location === 'string' && location.trim())
+            .map(location => location.trim())
+          : [],
         websiteSlug: typeof marriage.websiteSlug === 'string' ? marriage.websiteSlug : '',
         websiteSettings: {
           ...DEFAULT_WEBSITE_SETTINGS,
@@ -571,6 +578,7 @@ export function normalizePlanner(planner) {
       groom: planner.wedding.groom || '',
       date: planner.wedding.date || '',
       venue: planner.wedding.venue || '',
+      extraLocations: [],
       guests: planner.wedding.guests || '',
       budget: planner.wedding.budget || '',
       websiteSlug: '',
