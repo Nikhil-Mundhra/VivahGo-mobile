@@ -141,7 +141,7 @@ export default function MarketingSiteHeader({
 
         <a className="marketing-brand" href="/home" aria-label="VivahGo home page">
           <img
-            src="/Thumbnail.png"
+            src="/header-logo.png"
             alt="VivahGo"
             className="marketing-brand-mark"
             decoding="async"

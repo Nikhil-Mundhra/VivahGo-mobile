@@ -121,7 +121,8 @@ body[data-route='home'] #root {
 
 .marketing-brand-mark {
   display: block;
-  width: clamp(88px, 10vw, 124px);
+  width: clamp(140px, 17vw, 230px);
+  max-height: 64px;
   height: auto;
   object-fit: contain;
 }
@@ -2261,8 +2262,8 @@ body[data-route='home'] #root {
   }
 
   .marketing-brand-mark {
-    width: auto;
-    max-width: 84px;
+    width: min(100%, 132px);
+    max-height: 44px;
   }
 
   .marketing-auth {
