@@ -2,6 +2,11 @@
   "installCommand": "npm install && npm install --prefix vivahgo",
   "buildCommand": "npm --prefix vivahgo run build",
   "outputDirectory": "vivahgo/dist",
+  "functions": {
+    "api/page.js": {
+      "includeFiles": "vivahgo/dist/index.html"
+    }
+  },
   "rewrites": [
     { "source": "/api/auth/google", "destination": "/api/auth?route=google" },
     { "source": "/api/auth/me", "destination": "/api/auth?route=me" },
@@ -28,6 +33,12 @@
     { "source": "/api/subscription/confirm", "destination": "/api/subscription?op=confirm" },
     { "source": "/api/subscription/portal", "destination": "/api/subscription?op=portal" },
     { "source": "/api/subscription/webhook", "destination": "/api/subscription?op=webhook" },
+    { "source": "/home", "destination": "/api/page?route=home" },
+    { "source": "/pricing", "destination": "/api/page?route=pricing" },
+    { "source": "/careers", "destination": "/api/page?route=careers" },
+    { "source": "/wedding", "destination": "/api/page?route=wedding" },
+    { "source": "/rsvp/:token", "destination": "/api/page?route=rsvp&token=:token" },
+    { "source": "/:slug((?!api|home|pricing|wedding|vendor|admin|careers|rsvp|robots\\.txt|sitemap\\.xml|logo\\.svg|icons\\.svg|Thumbnail\\.png).+)", "destination": "/api/page?route=website&slug=:slug" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }

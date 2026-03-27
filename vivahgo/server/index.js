@@ -719,10 +719,6 @@ const RSVP_TOKEN_VERSION = '1';
 const RSVP_TOKEN_SIGNATURE_BYTES = 12;
 const RSVP_TOKEN_DAY_MS = 24 * 60 * 60 * 1000;
 
-function encodeRsvpTokenPart(value) {
-  return Buffer.from(JSON.stringify(value)).toString('base64url');
-}
-
 function decodeRsvpTokenPart(value) {
   return JSON.parse(Buffer.from(String(value || ''), 'base64url').toString('utf8'));
 }

@@ -285,6 +285,29 @@ npm run lint
 - In local development, the frontend defaults to `http://localhost:4000/api` unless `VITE_USE_REMOTE_API=true`.
 - Production can usually use relative `/api` requests without setting `VITE_API_BASE_URL`.
 
+## SEO Verification
+
+After deploying, run the smoke test against production:
+
+```bash
+npm run verify:seo -- https://vivahgo.com
+```
+
+To verify public wedding or RSVP previews too, pass real routes:
+
+```bash
+npm run verify:seo -- https://vivahgo.com /home /pricing /careers /asha-rohan-1 /rsvp/REAL_TOKEN
+```
+
+The script checks the initial HTML response for:
+
+- `<title>`
+- canonical link
+- description
+- Open Graph tags
+- Twitter card tags
+- robots tag
+
 ## Security
 
 See [SECURITY.md](/Users/nikhil/Documents/VivahGo-mobile/SECURITY.md) for supported versions and vulnerability reporting instructions.

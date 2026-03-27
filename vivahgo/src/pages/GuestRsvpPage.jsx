@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { fetchGuestRsvpDetails, submitGuestRsvp } from "../api";
+import { usePageSeo } from "../seo.js";
 
 function clampAttendingGuestCount(value, invitedGuestCount, fallback = 1) {
   const parsed = parseInt(value, 10);
@@ -31,6 +32,20 @@ export default function GuestRsvpPage({ rsvpToken = "" }) {
   const [groupMembers, setGroupMembers] = useState([]);
   const [showGroupMembersForm, setShowGroupMembersForm] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const guest = data?.guest || {};
+  const wedding = data?.wedding || {};
+  const plan = data?.plan || {};
+  const coupleNames = [wedding.bride || plan.bride || "", wedding.groom || plan.groom || ""].filter(Boolean).join(" & ") || "Wedding Celebration";
+  const seoDescription = data
+    ? `RSVP for ${coupleNames}${wedding.date || plan.date ? ` on ${wedding.date || plan.date}` : ""}${wedding.venue || plan.venue ? ` at ${wedding.venue || plan.venue}` : ""}.`
+    : "Confirm your wedding invitation and update your RSVP.";
+
+  usePageSeo({
+    title: data ? `${coupleNames} | RSVP` : "VivahGo RSVP | Confirm Your Invitation",
+    description: seoDescription,
+    path: rsvpToken ? `/rsvp/${rsvpToken}` : "/rsvp",
+    noindex: true,
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -61,8 +76,6 @@ export default function GuestRsvpPage({ rsvpToken = "" }) {
         }
       }
     }
-
-    document.title = "VivahGo | RSVP";
 
     if (rsvpToken) {
       load();
@@ -135,11 +148,7 @@ export default function GuestRsvpPage({ rsvpToken = "" }) {
     );
   }
 
-  const guest = data?.guest || {};
-  const wedding = data?.wedding || {};
-  const plan = data?.plan || {};
   const events = Array.isArray(data?.events) ? data.events : [];
-  const coupleNames = [wedding.bride || plan.bride || "", wedding.groom || plan.groom || ""].filter(Boolean).join(" & ") || "Wedding Celebration";
   const invitedGuestCount = Math.max(1, Number(guest.invitedGuestCount) || 1);
   const resolvedAttendingGuestCount = clampAttendingGuestCount(
     attendingGuestCountInput,
@@ -469,7 +478,6 @@ const styles = {
   sectionHeader: {
     display: "flex",
     alignItems: "flex-start",
-    justifyContent: "space-between",
     gap: 12,
     marginBottom: 18,
     textAlign: "center",

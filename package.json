@@ -4,6 +4,7 @@
     "dev": "cd vivahgo && npm run dev",
     "lint": "cd vivahgo && npm run lint",
     "test": "mocha \"test/**/*.test.cjs\"",
+    "verify:seo": "node scripts/verify-seo.cjs",
     "test:coverage": "c8 --reporter=text-summary --reporter=lcov --reporter=html --include=api/**/*.js --include=vivahgo/server/**/*.js --include=vivahgo/src/**/*.js mocha \"test/**/*.test.cjs\"",
     "coverage:check": "c8 --check-coverage --statements 90 --branches 0 --functions 0 --lines 0 --include=api/**/*.js --include=vivahgo/server/**/*.js --include=vivahgo/src/**/*.js mocha \"test/**/*.test.cjs\""
   },

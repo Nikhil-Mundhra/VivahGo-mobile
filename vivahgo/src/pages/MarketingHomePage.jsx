@@ -16,9 +16,12 @@ import BudgetScreen from "../features/planner/screens/BudgetScreen";
 import GuestsScreen from "../features/planner/screens/GuestsScreen";
 import { confirmCheckoutPayment, createCheckoutSession, getCheckoutQuote, getSubscriptionStatus, loginWithGoogle } from "../api";
 import { createDemoPlanner } from "../plannerDefaults";
+import { DEFAULT_SITE_URL, usePageSeo } from "../seo.js";
 
 const SESSION_STORAGE_KEY = "vivahgo.session";
 const DEMO_PLANNER = createDemoPlanner();
+const MotionButton = motion.button;
+const MotionDiv = motion.div;
 
 const trustSignals = [
   "Used by early couples and planners across India",
@@ -152,6 +155,58 @@ const testimonials = [
   },
 ];
 
+const homeStructuredData = [
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "VivahGo",
+    url: `${DEFAULT_SITE_URL}/home`,
+    logo: `${DEFAULT_SITE_URL}/logo.svg`,
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "VivahGo",
+    url: `${DEFAULT_SITE_URL}/home`,
+    description: "Wedding planning software for Indian weddings with shared tasks, budgets, guests, vendors, and event management.",
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqs.map((item) => ({
+      "@type": "Question",
+      name: item.question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: item.answer,
+      },
+    })),
+  },
+];
+
+const pricingStructuredData = [
+  {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    name: "VivahGo Pricing",
+    url: `${DEFAULT_SITE_URL}/pricing`,
+    description: "VivahGo pricing for couples, families, and wedding planners.",
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "OfferCatalog",
+    name: "VivahGo Plans",
+    itemListElement: plans.map((plan) => ({
+      "@type": "Offer",
+      name: plan.name,
+      description: plan.description,
+      priceCurrency: "INR",
+      price: String(plan.monthlyPrice),
+      availability: "https://schema.org/InStock",
+    })),
+  },
+];
+
 function getStarType(rating, starNumber) {
   if (rating >= starNumber) {
     return "full";
@@ -238,7 +293,7 @@ function MobileMenuOverlay({ isOpen, onClose }) {
     <AnimatePresence>
       {isOpen ? (
         <>
-          <motion.button
+          <MotionButton
             key="backdrop"
             type="button"
             className="marketing-mobile-menu-backdrop"
@@ -249,7 +304,7 @@ function MobileMenuOverlay({ isOpen, onClose }) {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.18, ease: "easeOut" }}
           />
-          <motion.div
+          <MotionDiv
             key="menu"
             id="marketing-mobile-menu"
             className="marketing-mobile-menu marketing-mobile-menu-open"
@@ -262,7 +317,7 @@ function MobileMenuOverlay({ isOpen, onClose }) {
             <a href="/pricing" onClick={onClose}>Pricing</a>
             <a href="/careers" onClick={onClose}>Careers</a>
             <a href="/vendor" onClick={onClose}>Vendor Login</a>
-          </motion.div>
+          </MotionDiv>
         </>
       ) : null}
     </AnimatePresence>,
@@ -286,6 +341,21 @@ export default function MarketingHomePage({ page = "home" }) {
   const [checkoutRoute, setCheckoutRoute] = useState(() => readCheckoutRouteFromUrl());
   const [subscription, setSubscription] = useState(null);
   const isPricingPage = page === "pricing";
+  const seoConfig = isPricingPage
+    ? {
+      title: "VivahGo Pricing | Plans for Couples and Planners",
+      description: "Compare VivahGo plans for couples, families, and planners coordinating one or many Indian wedding celebrations.",
+      path: "/pricing",
+      structuredData: pricingStructuredData,
+    }
+    : {
+      title: "VivahGo | Wedding Planning for Indian Weddings",
+      description: "VivahGo helps couples and planners manage wedding tasks, budgets, guests, events, vendors, and wedding websites in one shared workspace.",
+      path: "/home",
+      structuredData: homeStructuredData,
+    };
+
+  usePageSeo(seoConfig);
 
   useEffect(() => {
     const syncSession = () => {
@@ -298,7 +368,6 @@ export default function MarketingHomePage({ page = "home" }) {
       }
     };
 
-    document.title = isPricingPage ? "VivahGo | Pricing" : "VivahGo | Home";
     syncSession();
 
     window.addEventListener("storage", syncSession);

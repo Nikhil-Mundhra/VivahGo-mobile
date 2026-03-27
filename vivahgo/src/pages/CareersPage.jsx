@@ -5,6 +5,7 @@ import FeedbackModal from '../components/FeedbackModal';
 import LegalFooter from '../components/LegalFooter';
 import TermsConditionsModal from '../components/TermsConditionsModal';
 import { fetchCareers, submitCareerApplication } from '../api';
+import { DEFAULT_SITE_URL, usePageSeo } from '../seo.js';
 
 const MAX_RESUME_SIZE_BYTES = 2 * 1024 * 1024;
 
@@ -47,10 +48,20 @@ export default function CareersPage() {
     coverLetter: '',
     resumeFile: null,
   });
+  const careersStructuredData = {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    name: 'VivahGo Careers',
+    url: `${DEFAULT_SITE_URL}/careers`,
+    description: 'Explore open roles at VivahGo.',
+  };
 
-  useEffect(() => {
-    document.title = 'VivahGo | Careers';
-  }, []);
+  usePageSeo({
+    title: 'VivahGo Careers | Join the Team',
+    description: 'Explore open roles at VivahGo and help us build better wedding planning tools for couples, families, and planners.',
+    path: '/careers',
+    structuredData: careersStructuredData,
+  });
 
   useEffect(() => {
     if (typeof window === 'undefined') {

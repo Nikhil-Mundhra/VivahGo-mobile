@@ -11,6 +11,7 @@ const SOURCE_JS_FILES = [
   'api/careers.js',
   'api/feedback.js',
   'api/health.js',
+  'api/page.js',
   'api/planner.js',
   'api/vendor.js',
   appPath('eslint.config.js'),

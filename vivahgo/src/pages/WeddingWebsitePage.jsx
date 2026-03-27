@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { EVENT_COLORS } from "../constants";
 import { fetchPublicWeddingWebsite } from "../api";
 import { daysUntil } from "../utils";
+import { usePageSeo } from "../seo.js";
 
 const DEMO_PLANNER_STORAGE_KEY = "vivahgo.demoPlanner";
 const SESSION_STORAGE_KEY = "vivahgo.session";
@@ -61,6 +62,31 @@ const WEBSITE_THEME_STYLES = {
 export default function WeddingWebsitePage({ websiteSlug = "" }) {
   const [plannerData, setPlannerData] = useState(() => (websiteSlug ? null : getStoredPlannerData()));
   const [loaded, setLoaded] = useState(() => !websiteSlug);
+  const isPublicWebsite = Boolean(websiteSlug);
+  const activePlan = isPublicWebsite ? plannerData?.plan || null : getActivePlan(plannerData);
+  const wedding = plannerData?.wedding || {};
+  const brideName = wedding.bride || activePlan?.bride || "";
+  const groomName = wedding.groom || activePlan?.groom || "";
+  const weddingDate = wedding.date || activePlan?.date || "";
+  const weddingVenue = wedding.venue || activePlan?.venue || "";
+  const coupleDisplay = brideName && groomName
+    ? `${brideName} & ${groomName}`
+    : brideName || groomName || "Our Wedding";
+  const seoTitle = !loaded
+    ? (isPublicWebsite ? "VivahGo Wedding Website" : "VivahGo Wedding Website Preview")
+    : !plannerData
+      ? (isPublicWebsite ? "Wedding Website Not Found | VivahGo" : "VivahGo Wedding Website Preview")
+      : `${coupleDisplay} | Wedding Website`;
+  const seoDescription = !plannerData
+    ? "A public wedding website powered by VivahGo."
+    : `${coupleDisplay}${weddingDate ? ` are celebrating on ${weddingDate}` : ""}${weddingVenue ? ` at ${weddingVenue}` : ""}. View the schedule and wedding details on VivahGo.`;
+
+  usePageSeo({
+    title: seoTitle,
+    description: seoDescription,
+    path: isPublicWebsite ? `/${websiteSlug}` : "/wedding",
+    noindex: true,
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -120,9 +146,6 @@ export default function WeddingWebsitePage({ websiteSlug = "" }) {
     );
   }
 
-  const isPublicWebsite = Boolean(websiteSlug);
-  const activePlan = isPublicWebsite ? plannerData.plan || null : getActivePlan(plannerData);
-  const wedding = plannerData.wedding || {};
   const websiteSettings = {
     showCountdown: activePlan?.websiteSettings?.showCountdown !== false,
     showCalendar: activePlan?.websiteSettings?.showCalendar !== false,
@@ -142,15 +165,7 @@ export default function WeddingWebsitePage({ websiteSlug = "" }) {
       return a.date.localeCompare(b.date);
     });
 
-  const brideName = wedding.bride || activePlan?.bride || "";
-  const groomName = wedding.groom || activePlan?.groom || "";
-  const weddingDate = wedding.date || activePlan?.date || "";
-  const weddingVenue = wedding.venue || activePlan?.venue || "";
   const countdownDays = weddingDate ? daysUntil(weddingDate) : null;
-
-  const coupleDisplay = brideName && groomName
-    ? `${brideName} & ${groomName}`
-    : brideName || groomName || "Our Wedding";
 
   return (
     <div style={{ ...styles.page, background: themeStyles.pageBackground }}>

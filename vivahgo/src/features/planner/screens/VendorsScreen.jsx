@@ -46,8 +46,12 @@ function VendorsScreen({ vendors }) {
     }
 
     const mediaQuery = window.matchMedia("(max-width: 767px)");
-    const handleChange = (event) => setIsMobileView(event.matches);
-    setIsMobileView(mediaQuery.matches);
+    const handleChange = (event) => {
+      setIsMobileView(event.matches);
+      if (!event.matches) {
+        setShowMobileFilters(false);
+      }
+    };
 
     if (typeof mediaQuery.addEventListener === "function") {
       mediaQuery.addEventListener("change", handleChange);
@@ -57,12 +61,6 @@ function VendorsScreen({ vendors }) {
     mediaQuery.addListener(handleChange);
     return () => mediaQuery.removeListener(handleChange);
   }, []);
-
-  useEffect(() => {
-    if (!isMobileView) {
-      setShowMobileFilters(false);
-    }
-  }, [isMobileView]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
