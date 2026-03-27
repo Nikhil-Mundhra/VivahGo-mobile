@@ -207,6 +207,19 @@ body[data-route='home'] #root {
   z-index: 20;
 }
 
+.marketing-nav-dropdown-menu-floating {
+  position: fixed;
+  z-index: 10010;
+}
+
+.marketing-desktop-more-backdrop {
+  position: fixed;
+  inset: 0;
+  border: 0;
+  background: transparent;
+  z-index: 10000;
+}
+
 .marketing-nav-dropdown-link,
 .marketing-nav-dropdown-action {
   display: block;
@@ -2277,6 +2290,11 @@ body[data-route='home'] #root {
     background: rgba(255, 251, 246, 0.98);
     box-shadow: 0 18px 38px rgba(120, 61, 36, 0.18);
     z-index: 10010;
+  }
+
+  .marketing-nav-dropdown-menu-floating,
+  .marketing-desktop-more-backdrop {
+    display: none;
   }
 
   .marketing-mobile-menu-open {

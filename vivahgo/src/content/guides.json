@@ -4,8 +4,8 @@
     "title": "Indian Wedding Planning Checklist",
     "summary": "A practical checklist for organizing ceremonies, budgets, family decisions, and vendors without losing the thread.",
     "seoDescription": "Read a practical Indian wedding planning checklist covering ceremony sequencing, family coordination, vendor planning, budget checkpoints, and guest workflow.",
-    "coverImage": "",
-    "coverAlt": "",
+    "coverImage": "/guides/indian-wedding-planning-checklist.png",
+    "coverAlt": "Wedding planning checklist with notebook and floral decor",
     "imageHint": "Add a custom checklist cover image to /public/guides/indian-wedding-checklist.jpg later.",
     "readTime": "7 min read",
     "keywords": [
@@ -17,8 +17,8 @@
       {
         "heading": "Start with one master planning system",
         "paragraphs": [
-          "Indian weddings become hard to manage when the calendar, budget, guest decisions, and vendor updates all live in separate places. The first step is not doing more work. It is putting the work into one shared planning system so every ceremony and decision stays connected.",
-          "That means creating one wedding calendar, one list of owners, one budget structure, and one current version of guest and vendor data. Once the planning foundation is centralized, every next decision becomes easier."
+          "Indian weddings become hard to manage when the calendar, budget, guest decisions, and vendor updates all live in separate places. A Couple Wedding Planner setup works best when both partners can see the same tasks, timelines, and trade-offs without constantly rebuilding context. The first step is not doing more work. It is putting the work into one shared planning system so every ceremony and decision stays connected.",
+          "That means creating one wedding calendar, one list of owners, one budget structure, and one current version of guest and vendor data. A Family Wedding Planner approach also helps when parents, siblings, or planners need visibility without creating multiple conflicting versions of the plan. Once the planning foundation is centralized, every next decision becomes easier."
         ],
         "bullets": [
           "Lock the event sequence before you start detailed vendor coordination.",
@@ -29,8 +29,8 @@
       {
         "heading": "Break the wedding into ceremony-level workflows",
         "paragraphs": [
-          "A useful checklist should separate general planning from ceremony-specific work. Roka, mehndi, sangeet, haldi, baraat, pheras, reception, and post-wedding rituals each need different vendors, guest timing, decor, and hospitality decisions.",
-          "When ceremonies are managed separately but viewed together, couples and planners can see where delays are building and what depends on what."
+          "A useful checklist should separate general planning from ceremony-specific work. Roka, mehndi, sangeet, haldi, baraat, pheras, reception, and post-wedding rituals each need different vendors, guest timing, decor, and hospitality decisions. Indian Wedding Family Coordination becomes much easier when every ceremony has its own owner, timing view, and approval path.",
+          "When ceremonies are managed separately but viewed together, an Indian Wedding Planner can see where delays are building, what depends on what, and which family decisions are still blocking execution."
         ],
         "bullets": [
           "Track decor, hospitality, rituals, transport, and venue readiness per function.",
@@ -42,7 +42,7 @@
         "heading": "Turn the checklist into execution",
         "paragraphs": [
           "The best checklist is one that turns into action. It should connect to your budget, guest count changes, RSVP responses, and vendor payment milestones rather than sitting as a static document.",
-          "That is where a planning app becomes more useful than a spreadsheet. It helps the checklist stay alive while the wedding keeps moving."
+          "That is where an Indian Wedding Planning App becomes more useful than a spreadsheet. It helps the checklist stay alive while the wedding keeps moving."
         ],
         "bullets": [
           "Review checklist progress weekly with families or planners.",
@@ -57,8 +57,8 @@
     "title": "Punjabi Wedding Timeline Guide",
     "summary": "Map roka, mehndi, sangeet, baraat, anand karaj, and reception into one coordinated planning flow.",
     "seoDescription": "Plan a Punjabi wedding timeline with guidance for roka, mehndi, sangeet, baraat, anand karaj, reception, family logistics, and vendor coordination.",
-    "coverImage": "",
-    "coverAlt": "",
+    "coverImage": "/guides/punjabi-wedding-timeline.png",
+    "coverAlt": "Punjabi wedding ceremony timeline with festive decor",
     "imageHint": "Add a Punjabi wedding timeline cover image to /public/guides/punjabi-wedding-timeline.jpg later.",
     "readTime": "6 min read",
     "keywords": [
@@ -110,8 +110,8 @@
     "title": "Indian Wedding Budget Planning Guide",
     "summary": "Break venue, decor, catering, rituals, travel, and vendor payments into a cleaner budget process.",
     "seoDescription": "Use this Indian wedding budget planning guide to organize venue, decor, catering, rituals, travel, attire, and vendor payment tracking.",
-    "coverImage": "",
-    "coverAlt": "",
+    "coverImage": "/guides/Wedding-budget-planner.png",
+    "coverAlt": "Indian wedding budget planner with expense notes and decor details",
     "imageHint": "Add a budget planning cover image to /public/guides/wedding-budget-planner.jpg later.",
     "readTime": "7 min read",
     "keywords": [
@@ -163,8 +163,8 @@
     "title": "Guest List and RSVP Guide",
     "summary": "Keep family sides, follow-ups, guest counts, and invitation responses aligned in one system.",
     "seoDescription": "Manage wedding guest lists and RSVPs with a cleaner process for family sides, follow-ups, invitation status, rooming, and final counts.",
-    "coverImage": "",
-    "coverAlt": "",
+    "coverImage": "/guides/guest-list-rsvp.jpg",
+    "coverAlt": "Wedding guest list and RSVP planning setup",
     "imageHint": "Add a guest list cover image to /public/guides/guest-list-rsvp.jpg later.",
     "readTime": "6 min read",
     "keywords": [
@@ -176,7 +176,7 @@
       {
         "heading": "Keep one master guest list from the start",
         "paragraphs": [
-          "Guest planning becomes messy when each family branch maintains its own spreadsheet or message thread. The master list should include the side of the family, invitation status, RSVP status, guest count, and any hospitality or rooming needs.",
+          "Guest planning becomes messy when each family branch maintains its own spreadsheet or message thread. An Indian Wedding Guest List should include the side of the family, invitation status, RSVP status, guest count, and any hospitality or rooming needs in one trusted view.",
           "Without that structure, it becomes difficult to trust the final count when catering, transport, and stay decisions begin depending on it."
         ],
         "bullets": [
@@ -216,8 +216,8 @@
     "title": "Wedding Vendor Coordination Guide",
     "summary": "Track photographers, decorators, venues, pandits, choreographers, transport, and entertainment vendors together.",
     "seoDescription": "Coordinate wedding vendors with a structured approach for booking, timelines, deliverables, payment checkpoints, and event-day alignment.",
-    "coverImage": "",
-    "coverAlt": "",
+    "coverImage": "/guides/vendor-coordination.jpg",
+    "coverAlt": "Wedding vendor coordination board for multiple event teams",
     "imageHint": "Add a vendor coordination cover image to /public/guides/vendor-coordination.jpg later.",
     "readTime": "7 min read",
     "keywords": [
@@ -269,8 +269,8 @@
     "title": "Destination Wedding Planning in India",
     "summary": "Plan multi-event weddings across Jaipur, Udaipur, Goa, Delhi NCR, Mumbai, and other high-intent wedding cities.",
     "seoDescription": "Plan destination weddings in India with guidance for venue clusters, guest movement, room blocks, transport, hospitality, and multi-event timelines.",
-    "coverImage": "",
-    "coverAlt": "",
+    "coverImage": "/guides/destination-weddings.jpg",
+    "coverAlt": "Destination wedding planning scene with venue and travel details",
     "imageHint": "Add a destination wedding cover image to /public/guides/destination-weddings.jpg later.",
     "readTime": "6 min read",
     "keywords": [
@@ -282,8 +282,8 @@
       {
         "heading": "Plan the destination as a system",
         "paragraphs": [
-          "Destination weddings are harder because the location itself becomes part of the planning problem. Venues, stay, guest movement, transport windows, family arrivals, and vendor availability all become tightly connected.",
-          "That means the destination plan should be treated as one operating system, not a collection of isolated bookings."
+          "Destination weddings are harder because the location itself becomes part of the planning problem. A Destination Wedding Planner has to think about venues, stay, guest movement, transport windows, family arrivals, and vendor availability as one connected system rather than a set of isolated bookings.",
+          "Indian Wedding Destination Wedding Planning works best when the destination plan is treated as one operating system, not a collection of isolated bookings."
         ],
         "bullets": [
           "Map venues, room blocks, and transport loops together.",

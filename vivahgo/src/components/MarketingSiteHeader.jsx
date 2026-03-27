@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 export default function MarketingSiteHeader({
   activePage = "home",
@@ -11,8 +12,22 @@ export default function MarketingSiteHeader({
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const dropdownRef = useRef(null);
+  const moreButtonRef = useRef(null);
+  const [desktopMorePosition, setDesktopMorePosition] = useState({ top: 0, right: 0 });
   const firstName = session?.user?.given_name || session?.user?.name?.split(" ")[0] || "there";
   const profileInitial = firstName.trim().charAt(0).toUpperCase() || "Y";
+
+  function updateDesktopMorePosition() {
+    if (typeof window === "undefined" || !moreButtonRef.current) {
+      return;
+    }
+
+    const buttonRect = moreButtonRef.current.getBoundingClientRect();
+    setDesktopMorePosition({
+      top: buttonRect.bottom + 10,
+      right: window.innerWidth - buttonRect.right,
+    });
+  }
 
   useEffect(() => {
     if (typeof document === "undefined") {
@@ -40,6 +55,10 @@ export default function MarketingSiteHeader({
       if (window.innerWidth > 720) {
         setMobileNavOpen(false);
         setMobileMoreOpen(false);
+        if (moreOpen) {
+          updateDesktopMorePosition();
+        }
+      } else {
         setMoreOpen(false);
       }
     };
@@ -59,15 +78,26 @@ export default function MarketingSiteHeader({
     };
 
     window.addEventListener("resize", handleResize);
+    window.addEventListener("scroll", updateDesktopMorePosition, true);
     window.addEventListener("keydown", handleKeyDown);
     document.addEventListener("mousedown", handlePointerDown);
 
     return () => {
       window.removeEventListener("resize", handleResize);
+      window.removeEventListener("scroll", updateDesktopMorePosition, true);
       window.removeEventListener("keydown", handleKeyDown);
       document.removeEventListener("mousedown", handlePointerDown);
     };
-  }, []);
+  }, [moreOpen]);
+
+  useEffect(() => {
+    if (!moreOpen) {
+      return undefined;
+    }
+
+    updateDesktopMorePosition();
+    return undefined;
+  }, [moreOpen]);
 
   function closeNavigationMenus() {
     setMobileNavOpen(false);
@@ -121,29 +151,19 @@ export default function MarketingSiteHeader({
           <div className="marketing-nav-dropdown" ref={dropdownRef}>
             <button
               type="button"
+              ref={moreButtonRef}
               className={`marketing-nav-button${activePage === "careers" ? " marketing-nav-link-active" : ""}`}
               aria-expanded={moreOpen}
               aria-haspopup="menu"
-              onClick={() => setMoreOpen((current) => !current)}
+              onClick={() => {
+                if (!moreOpen) {
+                  updateDesktopMorePosition();
+                }
+                setMoreOpen((current) => !current);
+              }}
             >
               More
             </button>
-
-            {moreOpen ? (
-              <div className="marketing-nav-dropdown-menu" role="menu" aria-label="More pages">
-                <button type="button" className="marketing-nav-dropdown-action" role="menuitem" onClick={handleContactUs}>
-                  Contact Us
-                </button>
-                <a
-                  className={`marketing-nav-dropdown-link${activePage === "careers" ? " marketing-nav-dropdown-link-active" : ""}`}
-                  href="/careers"
-                  role="menuitem"
-                  onClick={() => setMoreOpen(false)}
-                >
-                  Careers
-                </a>
-              </div>
-            ) : null}
           </div>
         </nav>
 
@@ -205,6 +225,42 @@ export default function MarketingSiteHeader({
           </div>
         </>
       ) : null}
+
+      {moreOpen && typeof document !== "undefined"
+        ? createPortal(
+            <>
+              <button
+                type="button"
+                className="marketing-desktop-more-backdrop"
+                aria-label="Close more menu"
+                onClick={() => setMoreOpen(false)}
+              />
+              <div
+                className="marketing-nav-dropdown-menu marketing-nav-dropdown-menu-floating"
+                role="menu"
+                aria-label="More pages"
+                ref={dropdownRef}
+                style={{
+                  top: `${desktopMorePosition.top}px`,
+                  right: `${desktopMorePosition.right}px`,
+                }}
+              >
+                <button type="button" className="marketing-nav-dropdown-action" role="menuitem" onClick={handleContactUs}>
+                  Contact Us
+                </button>
+                <a
+                  className={`marketing-nav-dropdown-link${activePage === "careers" ? " marketing-nav-dropdown-link-active" : ""}`}
+                  href="/careers"
+                  role="menuitem"
+                  onClick={() => setMoreOpen(false)}
+                >
+                  Careers
+                </a>
+              </div>
+            </>,
+            document.body,
+          )
+        : null}
     </>
   );
 }
