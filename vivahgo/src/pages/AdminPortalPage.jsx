@@ -401,9 +401,6 @@ export default function AdminPortalPage() {
           <p className="mt-3 text-sm text-stone-600">
             {adminUser?.email || session.user?.email || 'This account'} is not approved for VivahGo staff admin.
           </p>
-          <p className="mt-2 text-sm text-stone-500">
-            Only `nikhilmundhra28@gmail.com` is pre-approved by default. That owner account can grant `editor` or `viewer` access after sign-in.
-          </p>
           <div className="mt-6 flex items-center justify-center gap-4">
             <button type="button" className="login-secondary-btn" onClick={handleLogout}>Logout</button>
             <a href="/home" className="text-sm text-rose-600 hover:underline">Back to Home</a>

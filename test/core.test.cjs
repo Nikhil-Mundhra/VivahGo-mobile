@@ -348,7 +348,6 @@ describe('core helpers', function () {
 
       const token = createGuestRsvpToken({
         ownerId: 'owner-1',
-        planId: 'plan-1',
         guestId: 'guest-1',
         version: 2,
         expiresInDays: 30,
@@ -356,10 +355,10 @@ describe('core helpers', function () {
       const payload = verifyGuestRsvpToken(token);
 
       assert.equal(payload.ownerId, 'owner-1');
-      assert.equal(payload.planId, 'plan-1');
       assert.equal(payload.guestId, 'guest-1');
       assert.equal(payload.version, 2);
       assert.ok(payload.exp > Date.now());
+      assert.ok(token.length < 64, `expected compact RSVP token, got length ${token.length}`);
     });
 
     it('rejects tampered guest RSVP tokens', function () {
@@ -367,11 +366,10 @@ describe('core helpers', function () {
 
       const token = createGuestRsvpToken({
         ownerId: 'owner-1',
-        planId: 'plan-1',
         guestId: 'guest-1',
       });
-      const [payload, signature] = token.split('.');
-      const tamperedToken = `${payload}x.${signature}`;
+      const parts = token.split('.');
+      const tamperedToken = `${parts.slice(0, -1).join('.')}x.${parts.at(-1)}`;
 
       assert.throws(() => verifyGuestRsvpToken(tamperedToken), /Invalid RSVP token/);
     });

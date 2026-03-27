@@ -103,7 +103,7 @@ describe('api/planner.js -> rsvp routes', function () {
           { id: 'plan_1', bride: 'Asha', groom: 'Rohan', date: '12 Dec 2026', venue: 'Jaipur', websiteSlug: 'asha-rohan-1' },
         ],
         guests: [
-          { id: 7, name: 'Rajesh Sharma', planId: 'plan_1', guestCount: 4, attendingGuestCount: 0, rsvp: 'pending' },
+          { id: 7, name: 'Rajesh Sharma', planId: 'plan_1', guestCount: 4, attendingGuestCount: 0, groupMembers: ['Sunaina Sharma', 'Kabir Sharma'], rsvp: 'pending' },
         ],
         events: [{ id: 1, name: 'Haldi', planId: 'plan_1', isPublicWebsiteVisible: true }],
         expenses: [],
@@ -121,6 +121,7 @@ describe('api/planner.js -> rsvp routes', function () {
       assert.equal(res.statusCode, 200);
       assert.equal(res.body.guest.name, 'Rajesh Sharma');
       assert.equal(res.body.guest.invitedGuestCount, 4);
+      assert.deepEqual(res.body.guest.groupMembers, ['Sunaina Sharma', 'Kabir Sharma']);
       assert.equal(res.body.plan.id, 'plan_1');
       assert.equal(res.body.events.length, 1);
     } finally {
@@ -169,7 +170,7 @@ describe('api/planner.js -> rsvp routes', function () {
         method: 'POST',
         headers: {},
         query: {},
-        body: { token, rsvp: 'yes', attendingGuestCount: 3 },
+        body: { token, rsvp: 'yes', attendingGuestCount: 3, groupMembers: ['Sunaina Sharma', 'Kabir Sharma', 'Extra Person'] },
       };
       const res = createRes();
 
@@ -179,7 +180,9 @@ describe('api/planner.js -> rsvp routes', function () {
       assert.equal(res.body.success, true);
       assert.equal(res.body.guest.rsvp, 'yes');
       assert.equal(res.body.guest.attendingGuestCount, 3);
+      assert.deepEqual(res.body.guest.groupMembers, ['Sunaina Sharma', 'Kabir Sharma']);
       assert.equal(updatedGuests[0].attendingGuestCount, 3);
+      assert.deepEqual(updatedGuests[0].groupMembers, ['Sunaina Sharma', 'Kabir Sharma']);
       assert.equal(updatedGuests[0].rsvp, 'yes');
       assert.equal(updatedGuests[0].rsvpTokenVersion, 2);
     } finally {

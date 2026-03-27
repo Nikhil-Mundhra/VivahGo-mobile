@@ -1,13 +1,35 @@
 import { useEffect, useState } from "react";
 import { fetchGuestRsvpDetails, submitGuestRsvp } from "../api";
 
+function clampAttendingGuestCount(value, invitedGuestCount, fallback = 1) {
+  const parsed = parseInt(value, 10);
+  if (!Number.isFinite(parsed)) {
+    return Math.min(invitedGuestCount, Math.max(1, fallback));
+  }
+
+  return Math.min(invitedGuestCount, Math.max(1, parsed));
+}
+
+function buildGroupMemberFields(count, existingMembers = []) {
+  const totalFields = Math.max(0, count - 1);
+  return Array.from({ length: totalFields }, (_, index) => String(existingMembers[index] || ""));
+}
+
+function normalizeGroupMembersForSubmit(groupMembers, count) {
+  return buildGroupMemberFields(count, groupMembers)
+    .map((member) => member.trim())
+    .filter(Boolean);
+}
+
 export default function GuestRsvpPage({ rsvpToken = "" }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [selectedRsvp, setSelectedRsvp] = useState("yes");
-  const [attendingGuestCount, setAttendingGuestCount] = useState(1);
+  const [attendingGuestCountInput, setAttendingGuestCountInput] = useState("1");
+  const [groupMembers, setGroupMembers] = useState([]);
+  const [showGroupMembersForm, setShowGroupMembersForm] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
@@ -24,7 +46,11 @@ export default function GuestRsvpPage({ rsvpToken = "" }) {
 
         setData(result);
         setSelectedRsvp(result?.guest?.rsvp === "no" ? "no" : "yes");
-        setAttendingGuestCount(Math.max(1, Number(result?.guest?.attendingGuestCount) || Number(result?.guest?.invitedGuestCount) || 1));
+        const invitedGuestCount = Math.max(1, Number(result?.guest?.invitedGuestCount) || 1);
+        const nextAttendingGuestCount = Math.max(1, Number(result?.guest?.attendingGuestCount) || invitedGuestCount);
+        setAttendingGuestCountInput(String(nextAttendingGuestCount));
+        setGroupMembers(buildGroupMemberFields(nextAttendingGuestCount, result?.guest?.groupMembers));
+        setShowGroupMembersForm(Array.isArray(result?.guest?.groupMembers) && result.guest.groupMembers.some(Boolean));
       } catch (err) {
         if (!cancelled) {
           setError(err.message || "Could not load this RSVP page.");
@@ -56,12 +82,20 @@ export default function GuestRsvpPage({ rsvpToken = "" }) {
       return;
     }
 
+    const invitedGuestCount = Math.max(1, Number(data?.guest?.invitedGuestCount) || 1);
+    const resolvedAttendingGuestCount = clampAttendingGuestCount(
+      attendingGuestCountInput,
+      invitedGuestCount,
+      Number(data?.guest?.attendingGuestCount) || invitedGuestCount
+    );
+
     try {
       setSaving(true);
       setError("");
       const result = await submitGuestRsvp(rsvpToken, {
         rsvp: selectedRsvp,
-        attendingGuestCount: selectedRsvp === "yes" ? attendingGuestCount : 0,
+        attendingGuestCount: selectedRsvp === "yes" ? resolvedAttendingGuestCount : 0,
+        groupMembers: selectedRsvp === "yes" ? normalizeGroupMembersForSubmit(groupMembers, resolvedAttendingGuestCount) : [],
       });
       setData(current => current ? {
         ...current,
@@ -70,6 +104,11 @@ export default function GuestRsvpPage({ rsvpToken = "" }) {
           ...result.guest,
         },
       } : current);
+      setAttendingGuestCountInput(String(result?.guest?.attendingGuestCount || resolvedAttendingGuestCount));
+      setGroupMembers(buildGroupMemberFields(
+        Math.max(1, Number(result?.guest?.attendingGuestCount) || resolvedAttendingGuestCount),
+        result?.guest?.groupMembers
+      ));
       setSubmitted(true);
     } catch (err) {
       setError(err.message || "Could not save your RSVP.");
@@ -102,6 +141,41 @@ export default function GuestRsvpPage({ rsvpToken = "" }) {
   const events = Array.isArray(data?.events) ? data.events : [];
   const coupleNames = [wedding.bride || plan.bride || "", wedding.groom || plan.groom || ""].filter(Boolean).join(" & ") || "Wedding Celebration";
   const invitedGuestCount = Math.max(1, Number(guest.invitedGuestCount) || 1);
+  const resolvedAttendingGuestCount = clampAttendingGuestCount(
+    attendingGuestCountInput,
+    invitedGuestCount,
+    Number(guest.attendingGuestCount) || invitedGuestCount
+  );
+
+  function handleAttendingGuestCountChange(event) {
+    const nextValue = event.target.value.replace(/[^0-9]/g, "");
+    setAttendingGuestCountInput(nextValue);
+
+    if (!nextValue) {
+      setGroupMembers([]);
+      setShowGroupMembersForm(false);
+      return;
+    }
+
+    const nextCount = clampAttendingGuestCount(nextValue, invitedGuestCount, resolvedAttendingGuestCount);
+    setGroupMembers((current) => buildGroupMemberFields(nextCount, current));
+    if (nextCount <= 1) {
+      setShowGroupMembersForm(false);
+    }
+  }
+
+  function handleAttendingGuestCountBlur() {
+    const nextCount = clampAttendingGuestCount(attendingGuestCountInput, invitedGuestCount, resolvedAttendingGuestCount);
+    setAttendingGuestCountInput(String(nextCount));
+    setGroupMembers((current) => buildGroupMemberFields(nextCount, current));
+    if (nextCount <= 1) {
+      setShowGroupMembersForm(false);
+    }
+  }
+
+  function handleGroupMemberChange(index, value) {
+    setGroupMembers((current) => current.map((member, memberIndex) => memberIndex === index ? value : member));
+  }
 
   return (
     <div style={styles.page}>
@@ -179,12 +253,46 @@ export default function GuestRsvpPage({ rsvpToken = "" }) {
                     type="number"
                     min="1"
                     max={String(invitedGuestCount)}
-                    value={attendingGuestCount}
-                    onChange={(event) => setAttendingGuestCount(Math.min(invitedGuestCount, Math.max(1, Number(event.target.value) || 1)))}
+                    value={attendingGuestCountInput}
+                    onChange={handleAttendingGuestCountChange}
+                    onBlur={handleAttendingGuestCountBlur}
                     style={styles.input}
                     inputMode="numeric"
                   />
                 </label>
+              ) : null}
+
+              {selectedRsvp === "yes" && resolvedAttendingGuestCount > 1 ? (
+                <div style={styles.disclosure}>
+                  <button
+                    type="button"
+                    onClick={() => setShowGroupMembersForm((current) => !current)}
+                    aria-expanded={showGroupMembersForm}
+                    style={styles.disclosureButton}
+                  >
+                    <span>{showGroupMembersForm ? "▾" : "▸"}</span>
+                    <span>{showGroupMembersForm ? "Hide Names Of Those Attending" : "Add names of those attending"}</span>
+                  </button>
+                  {showGroupMembersForm ? (
+                    <div style={styles.groupMembersList}>
+                      {groupMembers.map((member, index) => (
+                        <label key={`rsvp-group-member-${index}`} style={styles.field}>
+                          <span style={styles.fieldLabel}>Guest {index + 2}</span>
+                          <input
+                            type="text"
+                            value={member}
+                            onChange={(event) => handleGroupMemberChange(index, event.target.value)}
+                            style={styles.input}
+                            placeholder={`Guest ${index + 2} name`}
+                          />
+                        </label>
+                      ))}
+                      <p style={styles.helperText}>
+                        Add names for the rest of your attending group if you would like them included on this RSVP.
+                      </p>
+                    </div>
+                  ) : null}
+                </div>
               ) : null}
 
               {error ? <p style={styles.error}>{error}</p> : null}
@@ -364,6 +472,8 @@ const styles = {
     justifyContent: "space-between",
     gap: 12,
     marginBottom: 18,
+    textAlign: "center",
+    justifyContent: "center",
   },
   sectionKicker: {
     margin: 0,
@@ -453,6 +563,37 @@ const styles = {
     fontSize: 16,
     color: "#2d1a15",
     background: "#fffdf9",
+  },
+  disclosure: {
+    display: "grid",
+    gap: 12,
+  },
+  disclosureButton: {
+    padding: 0,
+    border: "none",
+    background: "transparent",
+    color: "#7d2512",
+    fontSize: 14,
+    fontWeight: 700,
+    cursor: "pointer",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    justifySelf: "flex-start",
+  },
+  groupMembersList: {
+    display: "grid",
+    gap: 12,
+    padding: 16,
+    borderRadius: 20,
+    background: "rgba(125, 37, 18, 0.04)",
+    border: "1px solid rgba(125, 37, 18, 0.1)",
+  },
+  helperText: {
+    margin: 0,
+    color: "#6b4a40",
+    fontSize: 13,
+    lineHeight: 1.6,
   },
   submitButton: {
     minHeight: 54,

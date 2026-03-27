@@ -4,7 +4,7 @@ import { initials } from "../../../utils";
 import { useSwipeDown } from "../../../hooks/useSwipeDown";
 import { useBackButtonClose } from "../../../hooks/useBackButtonClose";
 
-const DEFAULT_BULK_MESSAGE = "Hi {name}, we warmly invite you to our wedding celebrations. Please RSVP here: {rsvp_link} We look forward to your presence. 🙏💍";
+const DEFAULT_BULK_MESSAGE = "Dear {name},\n\nWith great joy, we invite you to celebrate the wedding of {couple}. Your presence would mean so much to us.\n\nPlease share your RSVP here: {rsvp_link}\n\nWith love,\n{couple}";
 
 
 const GUEST_TITLES = new Set(["mr", "mrs", "ms", "miss", "dr", "prof", "shri", "smt", "km", "kum"]);
@@ -19,7 +19,19 @@ function createGuestForm() {
     phone: "",
     rsvp: "pending",
     guestCount: 1,
+    groupMembers: [],
   };
+}
+
+function buildGroupMemberFields(guestCount, existingMembers = []) {
+  const totalFields = Math.max(0, (parseInt(guestCount, 10) || 1) - 1);
+  return Array.from({ length: totalFields }, (_, index) => String(existingMembers[index] || ""));
+}
+
+function normalizeGroupMembersForSave(groupMembers, guestCount) {
+  return buildGroupMemberFields(guestCount, groupMembers)
+    .map((member) => member.trim())
+    .filter(Boolean);
 }
 
 function getGuestNameParts(guest) {
@@ -66,6 +78,7 @@ function GuestsScreen({ guests, setGuests, planId, authToken, plannerOwnerId }) 
   const [bulkSentIds, setBulkSentIds] = useState(new Set());
   const [copySuccess, setCopySuccess] = useState(false);
   const [whatsAppError, setWhatsAppError] = useState("");
+  const [showGroupMembersForm, setShowGroupMembersForm] = useState(false);
 
   const getGuestCount = (guest) => {
     const parsed = Number(guest?.guestCount);
@@ -100,6 +113,7 @@ function GuestsScreen({ guests, setGuests, planId, authToken, plannerOwnerId }) 
     setEditingGuestId(null);
     setForm(createGuestForm());
     setFormError("");
+    setShowGroupMembersForm(false);
     setShowEditor(true);
   }
 
@@ -116,8 +130,10 @@ function GuestsScreen({ guests, setGuests, planId, authToken, plannerOwnerId }) 
       phone: guest.phone || "",
       rsvp: guest.rsvp || "pending",
       guestCount: getGuestCount(guest),
+      groupMembers: buildGroupMemberFields(getGuestCount(guest), guest.groupMembers),
     });
     setFormError("");
+    setShowGroupMembersForm(Array.isArray(guest.groupMembers) && guest.groupMembers.some(Boolean));
     setShowEditor(true);
   }
 
@@ -126,6 +142,7 @@ function GuestsScreen({ guests, setGuests, planId, authToken, plannerOwnerId }) 
     setEditingGuestId(null);
     setForm(createGuestForm());
     setFormError("");
+    setShowGroupMembersForm(false);
   }
 
   const guestSwipe = useSwipeDown(() => closeEditor());
@@ -153,6 +170,7 @@ function GuestsScreen({ guests, setGuests, planId, authToken, plannerOwnerId }) 
       lastName,
       id: editingGuestId ?? Date.now(),
       guestCount,
+      groupMembers: normalizeGroupMembersForSave(form.groupMembers, guestCount),
       planId,
       name: [title, firstName, middleName, lastName].filter(Boolean).join(" "),
     };
@@ -181,7 +199,10 @@ function GuestsScreen({ guests, setGuests, planId, authToken, plannerOwnerId }) 
       plannerOwnerId,
     });
 
-    return result?.rsvpUrl || "";
+    return {
+      rsvpUrl: result?.rsvpUrl || "",
+      coupleName: result?.coupleName || "our wedding",
+    };
   }
 
   async function sendWhatsAppReminder(guest) {
@@ -191,8 +212,8 @@ function GuestsScreen({ guests, setGuests, planId, authToken, plannerOwnerId }) 
     try {
       setWhatsAppError("");
       const guestName = getDisplayName(guest) || "there";
-      const rsvpUrl = await createRsvpLinkForGuest(guest);
-      const message = encodeURIComponent(`Hi ${guestName}, please RSVP for our wedding here: ${rsvpUrl}`);
+      const { rsvpUrl, coupleName } = await createRsvpLinkForGuest(guest);
+      const message = encodeURIComponent(`Dear ${guestName}, with great joy we invite you to celebrate the wedding of ${coupleName}. Please RSVP here: ${rsvpUrl}`);
       const url = `https://api.whatsapp.com/send/?phone=${phone}&text=${message}`;
       window.open(url, "_blank", "noopener,noreferrer");
     } catch (error) {
@@ -206,9 +227,10 @@ function GuestsScreen({ guests, setGuests, planId, authToken, plannerOwnerId }) 
     try {
       setWhatsAppError("");
       const guestName = getDisplayName(guest) || "there";
-      const rsvpUrl = await createRsvpLinkForGuest(guest);
+      const { rsvpUrl, coupleName } = await createRsvpLinkForGuest(guest);
       const personalized = bulkMessage
         .replace(/\{name\}/gi, guestName)
+        .replace(/\{couple\}/gi, coupleName)
         .replace(/\{rsvp_link\}/gi, rsvpUrl);
       const finalMessage = personalized.includes(rsvpUrl) ? personalized : `${personalized} ${rsvpUrl}`;
       const url = `https://api.whatsapp.com/send/?phone=${phone}&text=${encodeURIComponent(finalMessage)}`;
@@ -249,6 +271,29 @@ function GuestsScreen({ guests, setGuests, planId, authToken, plannerOwnerId }) 
 
   function cycleRSVP(id) {
     setGuests(gs=>gs.map(g=>g.id===id?{...g,rsvp:g.rsvp==="pending"?"yes":g.rsvp==="yes"?"no":"pending"}:g));
+  }
+
+  function updateGuestCountInput(value) {
+    setForm((current) => {
+      const nextGuestCount = value;
+      const nextGroupMembers = buildGroupMemberFields(nextGuestCount, current.groupMembers);
+      return {
+        ...current,
+        guestCount: nextGuestCount,
+        groupMembers: nextGroupMembers,
+      };
+    });
+
+    if ((parseInt(value, 10) || 1) <= 1) {
+      setShowGroupMembersForm(false);
+    }
+  }
+
+  function updateGroupMemberName(index, value) {
+    setForm((current) => ({
+      ...current,
+      groupMembers: current.groupMembers.map((member, memberIndex) => memberIndex === index ? value : member),
+    }));
   }
 
   const filtered = guests
@@ -425,10 +470,50 @@ function GuestsScreen({ guests, setGuests, planId, authToken, plannerOwnerId }) 
                 type="number"
                 min="1"
                 value={form.guestCount}
-                onChange={e=>setForm({...form,guestCount:e.target.value})}
+                onChange={e=>updateGuestCountInput(e.target.value)}
                 placeholder="1"
               />
             </div>
+            {(parseInt(form.guestCount, 10) || 1) > 1 && (
+              <div className="input-group" style={{ marginTop: -4 }}>
+                <button
+                  type="button"
+                  onClick={() => setShowGroupMembersForm((current) => !current)}
+                  aria-expanded={showGroupMembersForm}
+                  style={{
+                    padding: 0,
+                    border: "none",
+                    background: "transparent",
+                    color: "var(--color-light-text)",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
+                  <span>{showGroupMembersForm ? "▾" : "▸"}</span>
+                  <span>{showGroupMembersForm ? "Hide Additional Guest Names" : "Add Individual Guest Names"}</span>
+                </button>
+                {showGroupMembersForm && (
+                  <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
+                    {form.groupMembers.map((member, index) => (
+                      <input
+                        key={`group-member-${index}`}
+                        className="input-field"
+                        value={member}
+                        onChange={(event) => updateGroupMemberName(index, event.target.value)}
+                        placeholder={`Guest ${index + 2} name`}
+                      />
+                    ))}
+                    <div style={{ fontSize: 12, color: "var(--color-light-text)", lineHeight: 1.5 }}>
+                      Add names for the rest of this guest group if you want to keep them on the invitation record.
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
             <div className="input-group">
               <div className="input-label">Phone (optional)</div>
               <input className="input-field" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} placeholder="+91..."/>
@@ -470,7 +555,7 @@ function GuestsScreen({ guests, setGuests, planId, authToken, plannerOwnerId }) 
               <div className="modal-handle"/>
               <div className="modal-title">📲 Bulk WhatsApp Message</div>
               <div style={{marginBottom:16,padding:"10px 14px",background:"rgba(37,211,102,0.07)",border:"1px solid rgba(37,211,102,0.25)",borderRadius:12,fontSize:12.5,color:"#1a6b35",lineHeight:1.5}}>
-                Send personalized WhatsApp messages to your guests. Use <strong>{"{name}"}</strong> for the guest&apos;s name and <strong>{"{rsvp_link}"}</strong> for their RSVP link.
+                Send personalized WhatsApp messages to your guests. Use <strong>{"{name}"}</strong> for the guest&apos;s name, <strong>{"{couple}"}</strong> for the couple&apos;s names, and <strong>{"{rsvp_link}"}</strong> for their RSVP link.
               </div>
               {whatsAppError ? (
                 <div style={{marginBottom:12,color:"#B3261E",fontSize:13,fontWeight:600}}>

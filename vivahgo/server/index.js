@@ -715,6 +715,10 @@ function getRsvpTokenSecret() {
   return process.env.RSVP_TOKEN_SECRET || jwtSecret;
 }
 
+const RSVP_TOKEN_VERSION = '1';
+const RSVP_TOKEN_SIGNATURE_BYTES = 12;
+const RSVP_TOKEN_DAY_MS = 24 * 60 * 60 * 1000;
+
 function encodeRsvpTokenPart(value) {
   return Buffer.from(JSON.stringify(value)).toString('base64url');
 }
@@ -723,32 +727,104 @@ function decodeRsvpTokenPart(value) {
   return JSON.parse(Buffer.from(String(value || ''), 'base64url').toString('utf8'));
 }
 
-function createGuestRsvpToken({ ownerId, planId, guestId, version = 1, expiresInDays = 180 } = {}) {
-  const normalizedOwnerId = typeof ownerId === 'string' ? ownerId.trim() : '';
-  const normalizedPlanId = typeof planId === 'string' ? planId.trim() : '';
-  const normalizedGuestId = String(guestId || '').trim();
+function parseBase36BigInt(value) {
+  let result = 0n;
+  const normalizedValue = String(value || '').trim().toLowerCase();
 
-  if (!normalizedOwnerId || !normalizedPlanId || !normalizedGuestId) {
-    throw new Error('ownerId, planId, and guestId are required to create an RSVP token.');
+  if (!normalizedValue) {
+    throw new Error('Invalid RSVP token.');
   }
 
-  const payload = {
-    ownerId: normalizedOwnerId,
-    planId: normalizedPlanId,
-    guestId: normalizedGuestId,
-    version: Number.isFinite(Number(version)) ? Number(version) : 1,
-    exp: Date.now() + Math.max(1, Number(expiresInDays) || 180) * 24 * 60 * 60 * 1000,
-  };
-  const encodedPayload = encodeRsvpTokenPart(payload);
-  const signature = crypto
-    .createHmac('sha256', getRsvpTokenSecret())
-    .update(encodedPayload)
-    .digest('base64url');
+  for (const char of normalizedValue) {
+    const digit = char >= '0' && char <= '9'
+      ? BigInt(char.charCodeAt(0) - 48)
+      : char >= 'a' && char <= 'z'
+        ? BigInt(char.charCodeAt(0) - 87)
+        : -1n;
 
-  return `${encodedPayload}.${signature}`;
+    if (digit < 0n || digit >= 36n) {
+      throw new Error('Invalid RSVP token.');
+    }
+
+    result = (result * 36n) + digit;
+  }
+
+  return result;
 }
 
-function verifyGuestRsvpToken(token) {
+function encodeCompactRsvpId(value) {
+  const normalizedValue = String(value || '').trim();
+  if (!normalizedValue) {
+    return '';
+  }
+
+  if (/^\d+$/.test(normalizedValue)) {
+    return `n${BigInt(normalizedValue).toString(36)}`;
+  }
+
+  return `s${Buffer.from(normalizedValue, 'utf8').toString('base64url')}`;
+}
+
+function decodeCompactRsvpId(value) {
+  const normalizedValue = String(value || '').trim();
+  const kind = normalizedValue.charAt(0);
+  const encodedValue = normalizedValue.slice(1);
+
+  if (!kind || !encodedValue) {
+    throw new Error('Invalid RSVP token.');
+  }
+
+  if (kind === 'n') {
+    return parseBase36BigInt(encodedValue).toString(10);
+  }
+
+  if (kind === 's') {
+    return Buffer.from(encodedValue, 'base64url').toString('utf8');
+  }
+
+  throw new Error('Invalid RSVP token.');
+}
+
+function signRsvpTokenBody(body) {
+  return crypto
+    .createHmac('sha256', getRsvpTokenSecret())
+    .update(body)
+    .digest()
+    .subarray(0, RSVP_TOKEN_SIGNATURE_BYTES)
+    .toString('base64url');
+}
+
+function verifyRsvpTokenSignature(body, signature) {
+  const providedBuffer = Buffer.from(String(signature || ''), 'base64url');
+  const expectedBuffer = Buffer.from(signRsvpTokenBody(body), 'base64url');
+
+  if (providedBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(providedBuffer, expectedBuffer)) {
+    throw new Error('Invalid RSVP token.');
+  }
+}
+
+function createGuestRsvpToken({ ownerId, guestId, version = 1, expiresInDays = 180 } = {}) {
+  const normalizedOwnerId = typeof ownerId === 'string' ? ownerId.trim() : '';
+  const normalizedGuestId = String(guestId || '').trim();
+
+  if (!normalizedOwnerId || !normalizedGuestId) {
+    throw new Error('ownerId and guestId are required to create an RSVP token.');
+  }
+
+  const normalizedVersion = Number.isFinite(Number(version)) ? Math.max(1, Math.trunc(Number(version))) : 1;
+  const expirationDay = Math.ceil((Date.now() + (Math.max(1, Number(expiresInDays)) || 180) * RSVP_TOKEN_DAY_MS) / RSVP_TOKEN_DAY_MS);
+  const body = [
+    RSVP_TOKEN_VERSION,
+    encodeCompactRsvpId(normalizedOwnerId),
+    encodeCompactRsvpId(normalizedGuestId),
+    normalizedVersion.toString(36),
+    expirationDay.toString(36),
+  ].join('.');
+
+  return `${body}.${signRsvpTokenBody(body)}`;
+}
+
+function verifyLegacyGuestRsvpToken(token) {
   const [encodedPayload, signature] = String(token || '').split('.');
   if (!encodedPayload || !signature) {
     throw new Error('Invalid RSVP token.');
@@ -771,6 +847,47 @@ function verifyGuestRsvpToken(token) {
   }
 
   if (!Number.isFinite(payload.exp) || payload.exp < Date.now()) {
+    throw new Error('This RSVP link has expired.');
+  }
+
+  return payload;
+}
+
+function verifyGuestRsvpToken(token) {
+  const parts = String(token || '').split('.');
+  if (parts.length === 2) {
+    return verifyLegacyGuestRsvpToken(token);
+  }
+
+  if (parts.length !== 6) {
+    throw new Error('Invalid RSVP token.');
+  }
+
+  const [tokenVersion, encodedOwnerId, encodedGuestId, encodedVersion, encodedExpirationDay, signature] = parts;
+  if (tokenVersion !== RSVP_TOKEN_VERSION) {
+    throw new Error('Invalid RSVP token.');
+  }
+
+  const body = parts.slice(0, 5).join('.');
+  verifyRsvpTokenSignature(body, signature);
+
+  const expirationDay = parseInt(encodedExpirationDay, 36);
+  if (!Number.isFinite(expirationDay)) {
+    throw new Error('Invalid RSVP token.');
+  }
+
+  const payload = {
+    ownerId: decodeCompactRsvpId(encodedOwnerId),
+    guestId: decodeCompactRsvpId(encodedGuestId),
+    version: parseInt(encodedVersion, 36),
+    exp: expirationDay * RSVP_TOKEN_DAY_MS,
+  };
+
+  if (!payload.ownerId || !payload.guestId || !Number.isFinite(payload.version)) {
+    throw new Error('Invalid RSVP token.');
+  }
+
+  if (payload.exp < Date.now()) {
     throw new Error('This RSVP link has expired.');
   }
 
@@ -963,6 +1080,18 @@ function resolveAttendingGuestCount(guest, requestedCount, nextRsvp) {
   }
 
   return Math.min(invitedGuestCount, Math.max(1, Math.round(parsed)));
+}
+
+function normalizeGuestGroupMembers(groupMembers, count) {
+  const maxCount = Math.max(0, Math.trunc(Number(count) || 0));
+  if (!Array.isArray(groupMembers) || maxCount === 0) {
+    return [];
+  }
+
+  return groupMembers
+    .map((member) => String(member || '').trim())
+    .filter(Boolean)
+    .slice(0, maxCount);
 }
 
 function buildGuestRsvpLink(req, token) {
@@ -2196,13 +2325,19 @@ export function createApp(options = {}) {
       }
 
       const planner = sanitizePlanner(plannerDoc.toObject(), { ownerId: plannerDoc.googleId || '' });
-      const plan = getPlanFromPlanner(planner, payload.planId);
-      if (!plan) {
+      const guest = (planner.guests || []).find((item) => {
+        if (String(item?.id || '') !== payload.guestId) {
+          return false;
+        }
+
+        return !payload.planId || item?.planId === payload.planId;
+      });
+      if (!guest) {
         return res.status(404).json({ error: 'Wedding invitation not found.' });
       }
 
-      const guest = (planner.guests || []).find(item => item?.planId === plan.id && String(item?.id || '') === payload.guestId);
-      if (!guest) {
+      const plan = getPlanFromPlanner(planner, guest?.planId || payload.planId || planner.activePlanId);
+      if (!plan || (guest?.planId && guest.planId !== plan.id)) {
         return res.status(404).json({ error: 'Wedding invitation not found.' });
       }
 
@@ -2219,6 +2354,10 @@ export function createApp(options = {}) {
           phone: guest.phone || '',
           invitedGuestCount: Math.max(1, Number(guest.guestCount) || 1),
           attendingGuestCount: Math.max(0, Number(guest.attendingGuestCount) || 0),
+          groupMembers: normalizeGuestGroupMembers(
+            guest.groupMembers,
+            Math.max(0, Number(guest.attendingGuestCount) || Number(guest.guestCount) || 1) - 1
+          ),
           rsvp: guest.rsvp || 'pending',
         },
       });
@@ -2243,17 +2382,23 @@ export function createApp(options = {}) {
       }
 
       const planner = sanitizePlanner(plannerDoc.toObject(), { ownerId: plannerDoc.googleId || '' });
-      const plan = getPlanFromPlanner(planner, payload.planId);
-      if (!plan) {
-        return res.status(404).json({ error: 'Wedding invitation not found.' });
-      }
+      const guestIndex = (planner.guests || []).findIndex((item) => {
+        if (String(item?.id || '') !== payload.guestId) {
+          return false;
+        }
 
-      const guestIndex = (planner.guests || []).findIndex(item => item?.planId === plan.id && String(item?.id || '') === payload.guestId);
+        return !payload.planId || item?.planId === payload.planId;
+      });
       if (guestIndex < 0) {
         return res.status(404).json({ error: 'Wedding invitation not found.' });
       }
 
       const guest = planner.guests[guestIndex];
+      const plan = getPlanFromPlanner(planner, guest?.planId || payload.planId || planner.activePlanId);
+      if (!plan || (guest?.planId && guest.planId !== plan.id)) {
+        return res.status(404).json({ error: 'Wedding invitation not found.' });
+      }
+
       if ((Number(guest?.rsvpTokenVersion) || 1) !== (Number(payload.version) || 1)) {
         return res.status(400).json({ error: 'This RSVP link is no longer valid.' });
       }
@@ -2264,11 +2409,15 @@ export function createApp(options = {}) {
       }
 
       const attendingGuestCount = resolveAttendingGuestCount(guest, req.body?.attendingGuestCount, nextRsvp);
+      const nextGroupMembers = nextRsvp === 'yes'
+        ? normalizeGuestGroupMembers(req.body?.groupMembers, attendingGuestCount - 1)
+        : [];
       const nextGuests = [...(planner.guests || [])];
       nextGuests[guestIndex] = {
         ...guest,
         rsvp: nextRsvp,
         attendingGuestCount,
+        groupMembers: nextGroupMembers,
         rsvpTokenVersion: (Number(guest?.rsvpTokenVersion) || 1) + 1,
         rsvpUpdatedAt: new Date().toISOString(),
       };
@@ -2286,6 +2435,7 @@ export function createApp(options = {}) {
           name: getGuestDisplayName(guest),
           invitedGuestCount: Math.max(1, Number(guest.guestCount) || 1),
           attendingGuestCount,
+          groupMembers: nextGroupMembers,
           rsvp: nextRsvp,
         },
       });

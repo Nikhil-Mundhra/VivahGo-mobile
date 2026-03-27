@@ -115,6 +115,18 @@ function resolveAttendingGuestCount(guest, requestedCount, nextRsvp) {
   return Math.min(invitedGuestCount, Math.max(1, Math.round(parsed)));
 }
 
+function normalizeGuestGroupMembers(groupMembers, count) {
+  const maxCount = Math.max(0, Math.trunc(Number(count) || 0));
+  if (!Array.isArray(groupMembers) || maxCount === 0) {
+    return [];
+  }
+
+  return groupMembers
+    .map((member) => String(member || '').trim())
+    .filter(Boolean)
+    .slice(0, maxCount);
+}
+
 function buildGuestRsvpLink(req, token) {
   const requestOrigin = typeof req.headers?.origin === 'string' ? req.headers.origin.trim().replace(/\/$/, '') : '';
   const forwardedProto = typeof req.headers?.['x-forwarded-proto'] === 'string' ? req.headers['x-forwarded-proto'].split(',')[0].trim() : '';
@@ -422,17 +434,23 @@ async function handlePlannerRsvp(req, res) {
     }
 
     const planner = sanitizePlanner(plannerDoc.toObject(), { ownerId: plannerDoc.googleId || '' });
-    const plan = getPlanFromPlanner(planner, payload.planId);
-    if (!plan) {
-      return res.status(404).json({ error: 'Wedding invitation not found.' });
-    }
+    const guestIndex = (planner.guests || []).findIndex((item) => {
+      if (String(item?.id || '') !== payload.guestId) {
+        return false;
+      }
 
-    const guestIndex = (planner.guests || []).findIndex(item => item?.planId === plan.id && String(item?.id || '') === payload.guestId);
+      return !payload.planId || item?.planId === payload.planId;
+    });
     if (guestIndex < 0) {
       return res.status(404).json({ error: 'Wedding invitation not found.' });
     }
 
     const guest = planner.guests[guestIndex];
+    const plan = getPlanFromPlanner(planner, guest?.planId || payload.planId || planner.activePlanId);
+    if (!plan || (guest?.planId && guest.planId !== plan.id)) {
+      return res.status(404).json({ error: 'Wedding invitation not found.' });
+    }
+
     if ((Number(guest?.rsvpTokenVersion) || 1) !== (Number(payload.version) || 1)) {
       return res.status(400).json({ error: 'This RSVP link is no longer valid.' });
     }
@@ -447,6 +465,10 @@ async function handlePlannerRsvp(req, res) {
           phone: guest.phone || '',
           invitedGuestCount: Math.max(1, Number(guest.guestCount) || 1),
           attendingGuestCount: Math.max(0, Number(guest.attendingGuestCount) || 0),
+          groupMembers: normalizeGuestGroupMembers(
+            guest.groupMembers,
+            Math.max(0, Number(guest.attendingGuestCount) || Number(guest.guestCount) || 1) - 1
+          ),
           rsvp: guest.rsvp || 'pending',
         },
       });
@@ -460,11 +482,15 @@ async function handlePlannerRsvp(req, res) {
     }
 
     const attendingGuestCount = resolveAttendingGuestCount(guest, req.body?.attendingGuestCount, nextRsvp);
+    const nextGroupMembers = nextRsvp === 'yes'
+      ? normalizeGuestGroupMembers(req.body?.groupMembers, attendingGuestCount - 1)
+      : [];
     const nextGuests = [...(planner.guests || [])];
     nextGuests[guestIndex] = {
       ...guest,
       rsvp: nextRsvp,
       attendingGuestCount,
+      groupMembers: nextGroupMembers,
       rsvpTokenVersion: (Number(guest?.rsvpTokenVersion) || 1) + 1,
       rsvpUpdatedAt: new Date().toISOString(),
     };
@@ -482,6 +508,7 @@ async function handlePlannerRsvp(req, res) {
         name: getGuestDisplayName(guest),
         invitedGuestCount: Math.max(1, Number(guest.guestCount) || 1),
         attendingGuestCount,
+        groupMembers: nextGroupMembers,
         rsvp: nextRsvp,
       },
     });
