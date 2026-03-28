@@ -411,7 +411,7 @@ const DEFAULT_VENDOR_CATALOG = [
     reviewPrompt: "Tell others how the sessions felt and whether the routines were wedding-friendly.",
   },
   {
-    type: "Bride",
+    type: "Bridal & Pre-Bridal",
     subType: "Bridal Jewellery",
     emoji: "👰",
     city: "Delhi",
@@ -428,7 +428,7 @@ const DEFAULT_VENDOR_CATALOG = [
     reviewPrompt: "How was the collection quality, styling guidance, and after-sales support?",
   },
   {
-    type: "Groom",
+    type: "Groom Services",
     subType: "Sherwani",
     emoji: "🤵",
     city: "Delhi",

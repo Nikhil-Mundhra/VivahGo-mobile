@@ -7,6 +7,14 @@ import { fetchApprovedVendors } from "../../../api";
 import { useBackButtonClose } from "../../../hooks/useBackButtonClose";
 
 const VENDOR_FILTERS_SESSION_KEY = "vivahgo.vendorFilters";
+const LEGACY_VENDOR_TYPE_ALIASES = {
+  Bride: "Bridal & Pre-Bridal",
+  Groom: "Groom Services",
+};
+
+function normalizeVendorType(type) {
+  return LEGACY_VENDOR_TYPE_ALIASES[type] || type;
+}
 
 function getSavedVendorFilters() {
   if (typeof window === "undefined") {
@@ -16,7 +24,15 @@ function getSavedVendorFilters() {
   try {
     const raw = window.sessionStorage.getItem(VENDOR_FILTERS_SESSION_KEY);
     const parsed = raw ? JSON.parse(raw) : null;
-    return parsed && typeof parsed === "object" ? parsed : null;
+    if (!parsed || typeof parsed !== "object") {
+      return null;
+    }
+
+    return {
+      ...parsed,
+      activeTab: normalizeVendorType(parsed.activeTab || "All"),
+      bundledServiceFilter: normalizeVendorType(parsed.bundledServiceFilter || "all"),
+    };
   } catch {
     return null;
   }

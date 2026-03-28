@@ -499,10 +499,76 @@ body[data-route='home'] #root {
 .marketing-hero-panel {
   display: grid;
   gap: 18px;
-  justify-items: center;
   background:
     linear-gradient(180deg, rgba(255, 250, 244, 0.95) 0%, rgba(249, 232, 214, 0.88) 100%),
     var(--marketing-surface);
+}
+
+.marketing-hero-visual {
+  position: relative;
+  margin: 0;
+  overflow: hidden;
+  border-radius: 26px;
+  background: #f2e4d3;
+  border: 1px solid rgba(87, 50, 38, 0.1);
+  box-shadow: 0 22px 48px rgba(112, 55, 31, 0.16);
+}
+
+.marketing-hero-visual-inline {
+  margin-top: 8px;
+  margin-bottom: 22px;
+}
+
+.marketing-hero-visual::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  height: 34%;
+  background: linear-gradient(180deg, rgba(45, 26, 21, 0) 0%, rgba(45, 26, 21, 0.34) 100%);
+  pointer-events: none;
+}
+
+.marketing-hero-visual-image {
+  display: block;
+  width: 100%;
+  aspect-ratio: 2048 / 917;
+  object-fit: cover;
+}
+
+.marketing-hero-visual-badge {
+  position: absolute;
+  top: 18px;
+  z-index: 1;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(45, 26, 21, 0.74);
+  color: var(--marketing-on-dark);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  backdrop-filter: blur(8px);
+}
+
+.marketing-hero-visual-badge-left {
+  left: 18px;
+}
+
+.marketing-hero-visual-badge-right {
+  right: 18px;
+}
+
+.marketing-hero-visual-caption {
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  bottom: 18px;
+  z-index: 1;
+  color: var(--marketing-on-dark);
+  font-size: 0.96rem;
+  line-height: 1.55;
+  font-weight: 600;
 }
 
 .marketing-panel-card {
@@ -554,7 +620,7 @@ body[data-route='home'] #root {
 
 .marketing-panel-stack {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 18px;
   width: 100%;
 }
@@ -1190,6 +1256,24 @@ body[data-route='home'] #root {
   border: 1px solid rgba(87, 50, 38, 0.1);
   overflow: hidden;
   box-shadow: 0 18px 40px rgba(63, 31, 18, 0.08);
+}
+
+.marketing-guide-card-link {
+  text-decoration: none;
+  color: inherit;
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.marketing-guide-card-link:hover,
+.marketing-guide-card-link:focus-visible {
+  transform: translateY(-4px);
+  box-shadow: 0 24px 48px rgba(63, 31, 18, 0.14);
+  border-color: rgba(125, 37, 18, 0.2);
+}
+
+.marketing-guide-card-link:focus-visible {
+  outline: 3px solid rgba(187, 77, 40, 0.24);
+  outline-offset: 3px;
 }
 
 .marketing-guide-card-media {
@@ -2394,6 +2478,11 @@ body[data-route='home'] #root {
     border-radius: 26px;
   }
 
+  .marketing-hero-copy {
+    align-items: center;
+    text-align: center;
+  }
+
   .marketing-legal-footer {
     padding-inline: 10px;
     padding-bottom: 28px;
@@ -2411,10 +2500,39 @@ body[data-route='home'] #root {
     font-size: clamp(2.4rem, 14vw, 3.5rem);
   }
 
+  .marketing-summary {
+    margin-inline: auto;
+  }
+
+  .marketing-hero-actions {
+    justify-content: center;
+  }
+
   .marketing-proof-strip,
   .marketing-panel-stack,
   .marketing-screen-grid {
     grid-template-columns: 1fr;
+  }
+
+  .marketing-hero-visual-badge {
+    font-size: 0.68rem;
+    letter-spacing: 0.05em;
+    padding: 9px 12px;
+  }
+
+  .marketing-hero-visual-badge-left {
+    left: 12px;
+  }
+
+  .marketing-hero-visual-badge-right {
+    right: 12px;
+  }
+
+  .marketing-hero-visual-caption {
+    left: 14px;
+    right: 14px;
+    bottom: 12px;
+    font-size: 0.88rem;
   }
 
   .marketing-app-preview-dashboard,

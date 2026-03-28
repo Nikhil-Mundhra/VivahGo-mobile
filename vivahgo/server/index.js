@@ -56,8 +56,12 @@ const STAFF_ROLE_LEVEL = {
   owner: 3,
 };
 
-const VENDOR_TYPES = ['Venue', 'Photography', 'Catering', 'Wedding Invitations', 'Wedding Gifts', 'Music', 'Wedding Transportation', 'Tent House', 'Wedding Entertainment', 'Florists', 'Wedding Planners', 'Wedding Videography', 'Honeymoon', 'Wedding Decorators', 'Wedding Cakes', 'Wedding DJ', 'Pandit', 'Photobooth', 'Astrologers', 'Party Places', 'Choreographer', 'Bride', 'Groom'];
+const VENDOR_TYPES = ['Venue', 'Photography', 'Catering', 'Wedding Invitations', 'Wedding Gifts', 'Music', 'Wedding Transportation', 'Tent House', 'Wedding Entertainment', 'Florists', 'Wedding Planners', 'Wedding Videography', 'Honeymoon', 'Wedding Decorators', 'Wedding Cakes', 'Wedding DJ', 'Pandit', 'Photobooth', 'Astrologers', 'Party Places', 'Choreographer', 'Bridal & Pre-Bridal', 'Groom Services'];
 const BUNDLED_SERVICE_OPTIONS = VENDOR_TYPES.filter(type => type !== 'Honeymoon');
+const LEGACY_VENDOR_TYPE_ALIASES = {
+  Bride: 'Bridal & Pre-Bridal',
+  Groom: 'Groom Services',
+};
 const VENDOR_SUBTYPE_OPTIONS = {
   Venue: ['Wedding Lawns', 'Farmhouses', 'Hotels', 'Banquet Halls', 'Marriage Garden', 'Kalyana Mandapams', 'Wedding Resorts'],
   'Wedding Transportation': ['Guest Transport', 'Airport Transfers', 'Luxury Cars', 'Baraat Entry Vehicles'],
@@ -76,8 +80,8 @@ const VENDOR_SUBTYPE_OPTIONS = {
   Astrologers: ['Kundli Matching', 'Muhurat Consultation', 'Remedy Guidance', 'Online Consultation'],
   'Party Places': ['Cocktail Venues', 'Rooftop Venues', 'Private Dining', 'After Party Spaces'],
   Choreographer: ['Couple Choreography', 'Family Performances', 'Sangeet Concepts', 'At-Home Rehearsals'],
-  Bride: ['Bridal Jewellery', 'Bridal Makeup Artists', 'Bridal Lehenga', 'Mehndi Artists', 'Makeup Salon', 'Trousseau Packing'],
-  Groom: ['Sherwani'],
+  'Bridal & Pre-Bridal': ['Bridal Jewellery', 'Bridal Makeup Artists', 'Bridal Lehenga', 'Mehndi Artists', 'Makeup Salon', 'Trousseau Packing'],
+  'Groom Services': ['Sherwani', 'Salon'],
 };
 const MIN_BUDGET_LIMIT = 10000;
 const MAX_BUDGET_LIMIT = 5000000;
@@ -225,6 +229,8 @@ async function serializeVendorWithVerification(vendor) {
   const plain = typeof vendor?.toObject === 'function' ? vendor.toObject() : vendor;
   return {
     ...plain,
+    type: normalizeVendorType(plain?.type),
+    bundledServices: Array.isArray(plain?.bundledServices) ? plain.bundledServices.map(normalizeVendorType) : [],
     verificationStatus: normalizeVerificationStatus(plain?.verificationStatus, {
       hasDocuments: Array.isArray(plain?.verificationDocuments) && plain.verificationDocuments.length > 0,
     }),
@@ -1107,8 +1113,18 @@ function buildGuestRsvpLink(req, token) {
   return `/rsvp/${encodeURIComponent(token)}`;
 }
 
+function normalizeVendorType(type) {
+  if (typeof type !== 'string') {
+    return '';
+  }
+
+  const trimmed = type.trim();
+  return LEGACY_VENDOR_TYPE_ALIASES[trimmed] || trimmed;
+}
+
 function normalizeVendorSubtype(type, subType) {
-  const allowedSubtypes = VENDOR_SUBTYPE_OPTIONS[type] || [];
+  const normalizedType = normalizeVendorType(type);
+  const allowedSubtypes = VENDOR_SUBTYPE_OPTIONS[normalizedType] || [];
   const normalizedSubType = typeof subType === 'string' ? subType.trim() : '';
 
   if (!normalizedSubType) {
@@ -1550,14 +1566,15 @@ export function createApp(options = {}) {
       if (!businessName || typeof businessName !== 'string' || !businessName.trim()) {
         return res.status(400).json({ error: 'businessName is required.' });
       }
-      if (!VENDOR_TYPES.includes(type)) {
+      const normalizedType = normalizeVendorType(type);
+      if (!VENDOR_TYPES.includes(normalizedType)) {
         return res.status(400).json({ error: `type must be one of: ${VENDOR_TYPES.join(', ')}.` });
       }
 
       let normalizedSubType = '';
       let normalizedBudgetRange;
       try {
-        normalizedSubType = normalizeVendorSubtype(type, subType);
+        normalizedSubType = normalizeVendorSubtype(normalizedType, subType);
         normalizedBudgetRange = normalizeBudgetRange(budgetRange || {});
       } catch (error) {
         return res.status(400).json({ error: error.message });
@@ -1571,9 +1588,9 @@ export function createApp(options = {}) {
       const vendor = await VendorModel.create({
         googleId: req.auth.sub,
         businessName: businessName.trim(),
-        type,
+        type: normalizedType,
         subType: normalizedSubType,
-        bundledServices: normalizeBundledServices(type, bundledServices),
+        bundledServices: normalizeBundledServices(normalizedType, bundledServices),
         country: (country || '').trim(),
         state: (state || '').trim(),
         description: (description || '').trim(),
@@ -1618,8 +1635,12 @@ export function createApp(options = {}) {
         updates.coverageAreas = normalizeCoverageAreas(body.coverageAreas);
       }
 
+      if (typeof updates.type === 'string') {
+        updates.type = normalizeVendorType(updates.type);
+      }
+
       if (Array.isArray(body.bundledServices)) {
-        updates.bundledServices = normalizeBundledServices(updates.type || existingVendor.type, body.bundledServices);
+        updates.bundledServices = normalizeBundledServices(updates.type || normalizeVendorType(existingVendor.type), body.bundledServices);
       }
 
       if (body.budgetRange && typeof body.budgetRange === 'object') {
@@ -1635,7 +1656,7 @@ export function createApp(options = {}) {
       }
 
       try {
-        const resolvedType = updates.type || existingVendor.type;
+        const resolvedType = updates.type || normalizeVendorType(existingVendor.type);
         if ('subType' in updates || updates.type) {
           updates.subType = normalizeVendorSubtype(resolvedType, updates.subType ?? body.subType ?? '');
         }
@@ -1763,9 +1784,9 @@ export function createApp(options = {}) {
       const vendors = raw.map(vendor => ({
         id: `db_${vendor._id}`,
         name: vendor.businessName,
-        type: vendor.type,
+        type: normalizeVendorType(vendor.type),
         subType: vendor.subType || '',
-        bundledServices: Array.isArray(vendor.bundledServices) ? vendor.bundledServices : [],
+        bundledServices: Array.isArray(vendor.bundledServices) ? vendor.bundledServices.map(normalizeVendorType) : [],
         description: vendor.description || '',
         country: vendor.country || '',
         state: vendor.state || '',
@@ -1830,7 +1851,7 @@ export function createApp(options = {}) {
           id: String(vendor._id || ''),
           googleId: vendor.googleId || '',
           businessName: vendor.businessName || '',
-          type: vendor.type || '',
+          type: normalizeVendorType(vendor.type) || '',
           subType: vendor.subType || '',
           description: vendor.description || '',
           country: vendor.country || '',
@@ -1840,7 +1861,7 @@ export function createApp(options = {}) {
           website: vendor.website || '',
           googleMapsLink: vendor.googleMapsLink || '',
           coverageAreas: Array.isArray(vendor.coverageAreas) ? vendor.coverageAreas : [],
-          bundledServices: Array.isArray(vendor.bundledServices) ? vendor.bundledServices : [],
+          bundledServices: Array.isArray(vendor.bundledServices) ? vendor.bundledServices.map(normalizeVendorType) : [],
           budgetRange: vendor.budgetRange || null,
           isApproved: Boolean(vendor.isApproved),
           verificationStatus: normalizeVerificationStatus(vendor.verificationStatus, {
@@ -1912,7 +1933,7 @@ export function createApp(options = {}) {
         vendor: {
           id: String(vendor._id || ''),
           businessName: vendor.businessName || '',
-          type: vendor.type || '',
+          type: normalizeVendorType(vendor.type) || '',
           isApproved: Boolean(vendor.isApproved),
           verificationStatus: normalizeVerificationStatus(vendor.verificationStatus, {
             hasDocuments: Array.isArray(vendor.verificationDocuments) && vendor.verificationDocuments.length > 0,

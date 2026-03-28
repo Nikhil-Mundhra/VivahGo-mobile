@@ -170,7 +170,7 @@ export default function GuidesPage() {
 
           <div className="marketing-guides-grid">
             {guides.map((guide) => (
-              <article className="marketing-guide-card" key={guide.slug}>
+              <a className="marketing-guide-card marketing-guide-card-link" href={`/guides/${guide.slug}`} key={guide.slug}>
                 <div className="marketing-guide-card-media">
                   {guide.coverImage ? (
                     <img
@@ -194,13 +194,8 @@ export default function GuidesPage() {
                   </div>
                   <h3>{guide.title}</h3>
                   <p>{guide.summary}</p>
-                  <div className="marketing-guide-card-actions">
-                    <a className="marketing-secondary-action" href={`/guides/${guide.slug}`}>
-                      Open Guide
-                    </a>
-                  </div>
                 </div>
-              </article>
+              </a>
             ))}
           </div>
         </section>

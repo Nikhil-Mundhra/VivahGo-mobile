@@ -24,6 +24,8 @@ function getPreviewEmoji(type) {
     Astrologers: '🔮',
     'Party Places': '🥂',
     Choreographer: '💃',
+    'Bridal & Pre-Bridal': '👰',
+    'Groom Services': '🤵',
     Bride: '👰',
     Groom: '🤵',
   };

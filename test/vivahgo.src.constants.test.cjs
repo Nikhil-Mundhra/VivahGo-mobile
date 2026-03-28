@@ -21,8 +21,8 @@ describe('VivahGo/src/constants.js', function () {
     assert.ok(Array.isArray(mod.VENDOR_TYPES));
     assert.ok(mod.VENDOR_TYPES.includes('Venue'));
     assert.ok(mod.VENDOR_TYPES.includes('Wedding Planners'));
-    assert.ok(mod.VENDOR_TYPES.includes('Bride'));
-    assert.ok(mod.VENDOR_TYPES.includes('Groom'));
+    assert.ok(mod.VENDOR_TYPES.includes('Bridal & Pre-Bridal'));
+    assert.ok(mod.VENDOR_TYPES.includes('Groom Services'));
     assert.ok(mod.VENDOR_TYPES.includes('Wedding Transportation'));
 
     assert.match(mod.WHATSAPP_SUPPORT_NUMBER, /^\d+$/);

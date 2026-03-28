@@ -33,8 +33,8 @@ describe('VivahGo/src/data.js', function () {
     assert.ok(vendorTypes.has('Photography'));
     assert.ok(vendorTypes.has('Venue'));
     assert.ok(vendorTypes.has('Wedding Planners'));
-    assert.ok(vendorTypes.has('Bride'));
-    assert.ok(vendorTypes.has('Groom'));
+    assert.ok(vendorTypes.has('Bridal & Pre-Bridal'));
+    assert.ok(vendorTypes.has('Groom Services'));
     assert.ok(mod.DEFAULT_VENDORS.every(v => v.name.startsWith("VivahGo's Choice ")));
   });
 });

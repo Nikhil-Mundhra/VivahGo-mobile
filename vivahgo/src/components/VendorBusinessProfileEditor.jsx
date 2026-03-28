@@ -7,6 +7,14 @@ const REGISTRATION_VENDOR_TYPES = VENDOR_TYPES.filter(type => type !== 'All');
 const MIN_BUDGET_LIMIT = 10000;
 const MAX_BUDGET_LIMIT = 5000000;
 const BUDGET_STEP = 10000;
+const LEGACY_VENDOR_TYPE_ALIASES = {
+  Bride: 'Bridal & Pre-Bridal',
+  Groom: 'Groom Services',
+};
+
+function normalizeVendorType(type) {
+  return LEGACY_VENDOR_TYPE_ALIASES[type] || type;
+}
 
 function normalizeBudgetRange(range) {
   const min = Number(range?.min);
@@ -57,7 +65,7 @@ function buildInitialForm(vendor) {
 
   return {
     businessName: vendor?.businessName || '',
-    type: vendor?.type || REGISTRATION_VENDOR_TYPES[0],
+    type: normalizeVendorType(vendor?.type) || REGISTRATION_VENDOR_TYPES[0],
     subType: vendor?.subType || '',
     bundledServices: Array.isArray(vendor?.bundledServices) ? vendor.bundledServices : [],
     description: vendor?.description || '',

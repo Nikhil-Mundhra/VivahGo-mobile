@@ -55,8 +55,8 @@ export const VENDOR_TYPES = [
   "Astrologers",
   "Party Places",
   "Choreographer",
-  "Bride",
-  "Groom",
+  "Bridal & Pre-Bridal",
+  "Groom Services",
 ];
 
 export const BUNDLED_SERVICE_OPTIONS = VENDOR_TYPES.filter(type => type !== "All" && type !== "Honeymoon");
@@ -167,7 +167,7 @@ export const VENDOR_SUBTYPE_OPTIONS = {
     "Sangeet Concepts",
     "At-Home Rehearsals",
   ],
-  Bride: [
+  "Bridal & Pre-Bridal": [
     "Bridal Jewellery",
     "Bridal Makeup Artists",
     "Bridal Lehenga",
@@ -175,8 +175,9 @@ export const VENDOR_SUBTYPE_OPTIONS = {
     "Makeup Salon",
     "Trousseau Packing",
   ],
-  Groom: [
+  "Groom Services": [
     "Sherwani",
+    "Salon",
   ],
 };
 

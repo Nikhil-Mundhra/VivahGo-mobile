@@ -949,6 +949,16 @@ export default function MarketingHomePage({ page = "home" }) {
         <section className="marketing-hero">
           <div className="marketing-hero-copy">
             <p className="marketing-kicker">For Indian weddings with too many chats, lists, and opinions</p>
+            <figure className="marketing-hero-visual marketing-hero-visual-inline">
+              <img
+                src="/MainHero.png"
+                alt="A stressed couple handling scattered wedding paperwork contrasted with a calmer couple reviewing everything together on VivahGo."
+                className="marketing-hero-visual-image"
+                decoding="async"
+              />
+              <div className="marketing-hero-visual-badge marketing-hero-visual-badge-left">Before: scattered planning</div>
+              <div className="marketing-hero-visual-badge marketing-hero-visual-badge-right">After: one shared workspace</div>
+            </figure>
             <h1>Plan your entire wedding in one place. Without chaos, confusion, or constant <span className="marketing-nowrap">follow-ups</span>.</h1>
             <p className="marketing-summary">
               Manage guests, budgets, vendors, and family coordination together in a single shared workspace.
@@ -1133,32 +1143,6 @@ export default function MarketingHomePage({ page = "home" }) {
           </div>
         </section>
 
-        <section className="marketing-section marketing-search-coverage" aria-labelledby="search-coverage-title">
-          <div className="marketing-section-heading">
-            <p className="marketing-section-kicker">Search Coverage</p>
-            <h2 id="search-coverage-title">Built around real Indian wedding searches, not generic planner copy.</h2>
-            <p>
-              VivahGo already maps to {seoKeywordLibrary.sourceSummary.cultures} cultural wedding terms, {seoKeywordLibrary.sourceSummary.ceremonies} ceremony flows,
-              {` ${seoKeywordLibrary.sourceSummary.vendorTypes} vendor categories, and ${seoKeywordLibrary.sourceSummary.cities} Indian cities.`}
-              That gives the site stronger topical coverage for the way couples, parents, and planners actually search.
-            </p>
-          </div>
-
-          <div className="marketing-coverage-grid">
-            {keywordCoverageCards.map((card) => (
-              <article className="marketing-coverage-card" key={card.title}>
-                <h3>{card.title}</h3>
-                <p>{card.description}</p>
-                <div className="marketing-keyword-chip-cloud" aria-label={card.title}>
-                  {card.items.map((item) => (
-                    <span className="marketing-keyword-chip" key={item}>{item}</span>
-                  ))}
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-
         <section className="marketing-section" aria-labelledby="what-you-get-title">
           <div className="marketing-section-heading">
             <p className="marketing-section-kicker">What you get</p>
@@ -1244,23 +1228,6 @@ export default function MarketingHomePage({ page = "home" }) {
                 <summary>{item.question}</summary>
                 <p>{item.answer}</p>
               </details>
-            ))}
-          </div>
-        </section>
-
-        <section className="marketing-section marketing-keyword-library-section" aria-labelledby="keyword-library-title">
-          <div className="marketing-section-heading">
-            <p className="marketing-section-kicker">Planning Topics</p>
-            <h2 id="keyword-library-title">High-intent Indian wedding planning topics the product already covers.</h2>
-            <p>
-              The site now has a source-backed keyword library of {seoKeywordLibrary.summary.keywordCount.toLocaleString("en-IN")} search phrases built from VivahGo’s own
-              wedding templates, vendor categories, planning tasks, ceremony names, and India location coverage.
-            </p>
-          </div>
-
-          <div className="marketing-keyword-chip-cloud marketing-keyword-chip-cloud-wide" aria-label="Popular Indian wedding planning topics">
-            {seoKeywordLibrary.clusters.primary.slice(0, 18).map((keyword) => (
-              <span className="marketing-keyword-chip" key={keyword}>{formatDisplayLabel(keyword)}</span>
             ))}
           </div>
         </section>
