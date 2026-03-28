@@ -2497,7 +2497,8 @@ body[data-route='home'] #root {
   }
 
   .marketing-hero h1 {
-    font-size: clamp(2.4rem, 14vw, 3.5rem);
+    font-size: clamp(2rem, 11vw, 2.8rem);
+    line-height: 1.02;
   }
 
   .marketing-summary {
@@ -2515,17 +2516,7 @@ body[data-route='home'] #root {
   }
 
   .marketing-hero-visual-badge {
-    font-size: 0.68rem;
-    letter-spacing: 0.05em;
-    padding: 9px 12px;
-  }
-
-  .marketing-hero-visual-badge-left {
-    left: 12px;
-  }
-
-  .marketing-hero-visual-badge-right {
-    right: 12px;
+    display: none;
   }
 
   .marketing-hero-visual-caption {

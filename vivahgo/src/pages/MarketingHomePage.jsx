@@ -959,7 +959,7 @@ export default function MarketingHomePage({ page = "home" }) {
               <div className="marketing-hero-visual-badge marketing-hero-visual-badge-left">Before: scattered planning</div>
               <div className="marketing-hero-visual-badge marketing-hero-visual-badge-right">After: one shared workspace</div>
             </figure>
-            <h1>Plan your entire wedding in one place. Without chaos, confusion, or constant <span className="marketing-nowrap">follow-ups</span>.</h1>
+            <h1>Plan your entire wedding in one place. Without chaos, confusion, or constant follow‑ups.</h1>
             <p className="marketing-summary">
               Manage guests, budgets, vendors, and family coordination together in a single shared workspace.
             </p>
