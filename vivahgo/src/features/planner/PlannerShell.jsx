@@ -18,6 +18,7 @@ import NavIcon from "../../components/NavIcon";
 import MarriagePlanSelector from "./components/MarriagePlanSelector";
 import NewMarriagePlanModal from "./components/NewMarriagePlanModal";
 import PlanShareModal from "./components/PlanShareModal";
+import { clearAuthStorage } from "../../authStorage";
 import { NAV_ITEMS } from "../../constants";
 import { formatCoverageLocation, getLocationCities, getLocationCountries, getLocationStates } from "../../locationOptions";
 import {
@@ -286,8 +287,7 @@ export default function PlannerShell() {
   }
 
   function clearStoredSession() {
-    localStorage.removeItem(SESSION_STORAGE_KEY);
-    localStorage.removeItem(DEMO_PLANNER_STORAGE_KEY);
+    clearAuthStorage("planner");
   }
 
   async function refreshAccessibleWorkspaces(token) {

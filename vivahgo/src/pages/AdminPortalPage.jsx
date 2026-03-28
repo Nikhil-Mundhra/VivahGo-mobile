@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import '../styles.css';
 import GoogleLoginButton from '../components/GoogleLoginButton';
 import LoadingBar from '../components/LoadingBar';
+import { clearAuthStorage } from '../authStorage';
 import {
   addAdminStaff,
   fetchAdminApplications,
@@ -81,19 +82,35 @@ export default function AdminPortalPage() {
   const [savingStaffEmail, setSavingStaffEmail] = useState('');
   const [vendorNotesDraft, setVendorNotesDraft] = useState({});
 
+  function resetAdminState() {
+    setAdminUser(null);
+    setAccess(null);
+    setVendors([]);
+    setApplications([]);
+    setSubscribers([]);
+    setStaff([]);
+    setLoading(false);
+    setVendorsLoading(false);
+    setApplicationsLoading(false);
+    setSubscribersLoading(false);
+    setStaffLoading(false);
+    setError('');
+    setIsSigningIn(false);
+    setStaffEmail('');
+    setStaffRole('viewer');
+    setStaffActionError('');
+    setSavingVendorId('');
+    setSavingStaffEmail('');
+    setVendorNotesDraft({});
+  }
+
   useEffect(() => {
     document.title = 'VivahGo | Admin';
   }, []);
 
   useEffect(() => {
     if (!session?.token) {
-      setLoading(false);
-      setAdminUser(null);
-      setAccess(null);
-      setVendors([]);
-      setApplications([]);
-      setSubscribers([]);
-      setStaff([]);
+      resetAdminState();
       return;
     }
 
@@ -227,8 +244,9 @@ export default function AdminPortalPage() {
   }
 
   function handleLogout() {
-    window.localStorage.removeItem(SESSION_KEY);
+    clearAuthStorage('admin');
     setSession(null);
+    resetAdminState();
   }
 
   async function handleVendorApproval(vendorId, isApproved) {
@@ -358,24 +376,37 @@ export default function AdminPortalPage() {
 
   if (!session?.token) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-stone-100 via-white to-rose-50 flex items-center justify-center p-6">
-        <div className="bg-white rounded-3xl shadow-xl border border-stone-200 p-8 max-w-md w-full">
-          <div className="flex flex-col items-center text-center gap-3 mb-6">
-            <img src="/Thumbnail.png" alt="VivahGo" className="h-12" />
-            <h1 className="text-2xl font-bold text-stone-900">VivahGo Staff Admin</h1>
-            <p className="text-sm text-stone-500">
+      <div className="login-screen">
+        <div className="login-container">
+          <div className="login-header">
+            <div className="login-logo">
+              <img src="/Thumbnail.png" alt="VivahGo" className="login-logo-image" style={{ maxWidth: 140, margin: '0 auto' }} />
+            </div>
+            <h1 className="login-title">VivahGo Staff Admin</h1>
+            <p className="login-subtitle">
               Sign in with an approved staff account to review vendors and manage staff permissions.
             </p>
           </div>
-          <GoogleLoginButton onLoginSuccess={handleLoginSuccess} onLoginError={() => setError('Google login failed.')} />
+
+          <div className="login-content">
+            <div className="login-actions">
+              <div className="google-login-wrap">
+                <GoogleLoginButton onLoginSuccess={handleLoginSuccess} onLoginError={() => setError('Google login failed.')} />
+              </div>
+            </div>
+          </div>
+
           {isSigningIn && (
-            <div className="mt-4">
+            <div className="login-status">
+              <div>Signing you in with Google...</div>
               <LoadingBar label="Signing you in with Google..." compact />
             </div>
           )}
-          {error && <p className="mt-4 text-sm text-red-600 text-center">{error}</p>}
-          <div className="mt-4 text-center">
-            <a href="/home" className="text-sm text-rose-600 hover:underline">Back to Home</a>
+
+          {error && <div className="login-error">{error}</div>}
+
+          <div className="login-home-section">
+            <a href="/home" className="login-home-btn" style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }}>Back to Home</a>
           </div>
         </div>
       </div>
@@ -395,15 +426,18 @@ export default function AdminPortalPage() {
 
   if (!access?.canViewAdmin) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-stone-100 via-white to-rose-50 flex items-center justify-center p-6">
-        <div className="bg-white rounded-3xl shadow-xl border border-stone-200 p-8 max-w-lg w-full text-center">
-          <h1 className="text-2xl font-bold text-stone-900">Access denied</h1>
-          <p className="mt-3 text-sm text-stone-600">
+      <div className="login-screen">
+        <div className="login-container">
+          <div className="login-header">
+            <h1 className="login-title">Access denied</h1>
+            <p className="login-subtitle">
             {adminUser?.email || session.user?.email || 'This account'} is not approved for VivahGo staff admin.
-          </p>
-          <div className="mt-6 flex items-center justify-center gap-4">
+            </p>
+          </div>
+
+          <div className="login-actions">
             <button type="button" className="login-secondary-btn" onClick={handleLogout}>Logout</button>
-            <a href="/home" className="text-sm text-rose-600 hover:underline">Back to Home</a>
+            <a href="/home" className="login-home-btn" style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }}>Back to Home</a>
           </div>
         </div>
       </div>

@@ -21,7 +21,7 @@ export function getRouteInfo(pathname = "/") {
     : "";
 
   const bodyRoute = isMarketingHomeRoute || isPricingRoute || isGuidesRoute || guideSlug ? "home"
-    : rsvpToken ? "home"
+    : rsvpToken ? "rsvp"
     : isWeddingWebsiteRoute ? "wedding"
     : isCareersRoute ? "careers"
     : isVendorRoute ? "vendor"

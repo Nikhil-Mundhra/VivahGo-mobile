@@ -9,6 +9,7 @@ import VendorDirectoryPreview from '../components/VendorDirectoryPreview';
 import VendorBusinessProfileEditor from '../components/VendorBusinessProfileEditor';
 import VendorPortalDashboard from '../components/VendorPortalDashboard';
 import NavIcon from '../components/NavIcon';
+import { clearAuthStorage } from '../authStorage';
 import { deleteAccount, fetchVendorProfile, loginWithGoogle } from '../api';
 
 const SESSION_KEY = 'vivahgo.session';
@@ -103,11 +104,15 @@ export default function VendorPortalPage() {
   }
 
   function handleLogout() {
-    window.localStorage.removeItem(SESSION_KEY);
+    clearAuthStorage('vendor');
     setSession(null);
     setVendor(null);
+    setPreviewVendor(null);
     setLastFetchedToken(null);
     setShowSettingsMenu(false);
+    setDeleteError('');
+    setVendorLoadError('');
+    setAvatarLoadError(false);
   }
 
   async function handleDeleteAccount() {
@@ -144,7 +149,7 @@ export default function VendorPortalPage() {
       <div className="min-h-screen bg-gradient-to-br from-rose-50 to-amber-50 flex items-center justify-center p-6">
         <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full">
           <div className="flex flex-col items-center mb-6">
-            <img src="/Thumbnail.png" alt="VivahGo" className="h-12 mb-3" />
+            <img src="/Thumbnail.png" alt="VivahGo" className="login-logo-image" style={{ maxWidth: 140, margin: '0 auto 12px' }} />
             <h1 className="text-2xl font-bold text-gray-900">Vendor Portal</h1>
             <p className="text-gray-500 text-sm mt-1 text-center">
               List your business and showcase your portfolio to thousands of couples.
