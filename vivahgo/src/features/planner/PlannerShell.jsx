@@ -39,7 +39,6 @@ import { useSwipeDown } from "../../hooks/useSwipeDown";
 import { getMarketingUrl } from "../../siteUrls.js";
 
 const DEMO_PLANNER_STORAGE_KEY = "vivahgo.demoPlanner";
-const MARKETING_HOME_URL = getMarketingUrl("/");
 const PRICING_URL = getMarketingUrl("/pricing");
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const YEARS = Array.from({ length: 8 }, (_, i) => 2025 + i);
@@ -69,6 +68,7 @@ function parseWeddingLocation(value) {
 }
 
 export default function PlannerShell() {
+  const marketingHomeUrl = getMarketingUrl("/");
   const [screen, setScreen] = useState("login");
   const [tab, setTab] = useState("home");
   const [user, setUser] = useState(null);
@@ -828,7 +828,7 @@ export default function PlannerShell() {
   }
 
   function handleGoToHome() {
-    window.location.assign(MARKETING_HOME_URL);
+    window.location.assign(marketingHomeUrl);
   }
 
   async function handleGoogleLoginSuccess(credentialResponse) {
@@ -1085,6 +1085,8 @@ export default function PlannerShell() {
             hasBottomNav={false}
             onOpenTerms={openTermsModal}
             onOpenFeedback={openFeedbackModal}
+            aboutHref={marketingHomeUrl}
+            aboutLabel="Home"
           />
         </>
       )}
@@ -1207,6 +1209,8 @@ export default function PlannerShell() {
             isVisible={showDesktopFooter}
             onOpenTerms={openTermsModal}
             onOpenFeedback={openFeedbackModal}
+            aboutHref={marketingHomeUrl}
+            aboutLabel="Home"
           />
 
           {showAccountSettings && (

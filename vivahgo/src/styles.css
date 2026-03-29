@@ -2532,7 +2532,7 @@ body { background: var(--color-deep-red); }
 }
 
 .planner-login-screen .login-title {
-  max-width: 10ch;
+  max-width: 13ch;
   margin: 0;
   font-family: 'Jost', sans-serif;
   font-size: clamp(2.6rem, 4.2vw, 4.25rem);
@@ -2758,7 +2758,7 @@ body { background: var(--color-deep-red); }
   }
 
   .planner-login-screen .login-title {
-    max-width: 11ch;
+    max-width: 14ch;
     font-size: clamp(2.9rem, 4vw, 4.35rem);
   }
 
