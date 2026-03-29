@@ -96,6 +96,9 @@ describe('api/page.js', function () {
     assert.match(res.headers['Content-Security-Policy'], /default-src 'self'/);
     assert.match(res.headers['Content-Security-Policy'], /style-src 'self' 'unsafe-inline' https:\/\/fonts\.googleapis\.com/);
     assert.match(res.headers['Content-Security-Policy'], /font-src 'self' data: https:\/\/fonts\.gstatic\.com/);
+    assert.match(res.headers['Content-Security-Policy'], /script-src 'self' https:\/\/accounts\.google\.com https:\/\/apis\.google\.com https:\/\/www\.gstatic\.com https:\/\/www\.chatbase\.co/);
+    assert.match(res.headers['Content-Security-Policy'], /connect-src 'self' https: http:\/\/localhost:\* http:\/\/127\.0\.0\.1:\* ws:\/\/localhost:\* ws:\/\/127\.0\.0\.1:\* https:\/\/www\.chatbase\.co/);
+    assert.match(res.headers['Content-Security-Policy'], /frame-src 'self' https:\/\/www\.google\.com https:\/\/accounts\.google\.com https:\/\/www\.chatbase\.co/);
     assert.equal(res.headers['Strict-Transport-Security'], 'max-age=63072000; includeSubDomains; preload');
     assert.match(res.body, /VivahGo Pricing/);
     assert.match(res.body, /application\/ld\+json/);

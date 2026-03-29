@@ -66,6 +66,7 @@ function initializeChatbase(chatbotId) {
 
     const script = document.createElement("script");
     script.src = new URL("embed.min.js", CHATBASE_HOST).toString();
+    script.type = "module";
     script.id = chatbotId;
     script.domain = new URL(CHATBASE_HOST).hostname;
     document.body.appendChild(script);

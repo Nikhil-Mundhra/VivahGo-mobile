@@ -22,9 +22,9 @@ const PAGE_CONTENT_SECURITY_POLICY = [
   "img-src 'self' data: blob: https:",
   "font-src 'self' data: https://fonts.gstatic.com",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  "script-src 'self' https://accounts.google.com https://apis.google.com https://www.gstatic.com",
-  "connect-src 'self' https: http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*",
-  "frame-src 'self' https://www.google.com https://accounts.google.com",
+  "script-src 'self' https://accounts.google.com https://apis.google.com https://www.gstatic.com https://www.chatbase.co",
+  "connect-src 'self' https: http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:* https://www.chatbase.co",
+  "frame-src 'self' https://www.google.com https://accounts.google.com https://www.chatbase.co",
   "media-src 'self' blob: https:",
   "form-action 'self'",
 ].join('; ');
