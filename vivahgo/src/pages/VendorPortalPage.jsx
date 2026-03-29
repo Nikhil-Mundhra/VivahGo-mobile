@@ -9,7 +9,7 @@ import VendorDirectoryPreview from '../components/VendorDirectoryPreview';
 import VendorBusinessProfileEditor from '../components/VendorBusinessProfileEditor';
 import VendorPortalDashboard from '../components/VendorPortalDashboard';
 import NavIcon from '../components/NavIcon';
-import { clearAuthStorage, persistAuthSession, readAuthSession } from '../authStorage';
+import { clearAuthStorage, persistAuthSession, readAuthSession, revokeGoogleIdTokenConsent } from '../authStorage';
 import { deleteAccount, fetchVendorProfile, loginWithGoogle, logoutSession } from '../api';
 const VENDOR_PORTAL_SECTIONS = [
   { id: 'dashboard', label: 'Dashboard', icon: 'home' },
@@ -128,6 +128,7 @@ export default function VendorPortalPage() {
 
     try {
       await deleteAccount(session.token);
+      await revokeGoogleIdTokenConsent(session.user?.email);
       await handleLogout();
     } catch (error) {
       setDeleteError(error.message || 'Could not delete account.');

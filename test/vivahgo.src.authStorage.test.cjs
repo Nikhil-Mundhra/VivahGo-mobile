@@ -96,4 +96,32 @@ describe('VivahGo/src/authStorage.js', function () {
     assert.equal(localStorageRef.getItem(mod.authStorageKeys.DEMO_PLANNER_STORAGE_KEY), null);
     assert.equal(sessionStorageRef.getItem(mod.authStorageKeys.PLANNER_VENDOR_FILTERS_SESSION_KEY), null);
   });
+
+  it('revokes Google ID token consent on account deletion when the GIS revoke API is available', async function () {
+    const mod = await load();
+    let revokedEmail = '';
+
+    const result = await mod.revokeGoogleIdTokenConsent('user@example.com', {
+      googleRef: {
+        accounts: {
+          id: {
+            revoke(email, done) {
+              revokedEmail = email;
+              done();
+            },
+          },
+        },
+      },
+    });
+
+    assert.equal(result, true);
+    assert.equal(revokedEmail, 'user@example.com');
+  });
+
+  it('skips Google ID token consent revocation when email or GIS revoke support is unavailable', async function () {
+    const mod = await load();
+
+    assert.equal(await mod.revokeGoogleIdTokenConsent('', {}), false);
+    assert.equal(await mod.revokeGoogleIdTokenConsent('user@example.com', { googleRef: {} }), false);
+  });
 });

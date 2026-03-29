@@ -12,6 +12,14 @@ function resolveAdminRoute(req) {
   return String(req.query?.route || '').trim().toLowerCase();
 }
 
+function normalizeResumeStorageKey(value) {
+  return typeof value === 'string' ? value.trim().replace(/^\/+/, '') : '';
+}
+
+function isAllowedResumeStorageKey(key) {
+  return key.startsWith('careers/resumes/') || key.startsWith('resumes/');
+}
+
 async function resolveLean(result) {
   if (!result) {
     return null;
@@ -425,8 +433,8 @@ async function handleAdminResumeDownload(req, res) {
       return res.status(session.status).json({ error: session.error });
     }
 
-    const key = String(req.query?.key || '').trim();
-    if (!key || !key.startsWith('resumes/')) {
+    const key = normalizeResumeStorageKey(req.query?.key);
+    if (!key || !isAllowedResumeStorageKey(key)) {
       return res.status(400).json({ error: 'Invalid resume key.' });
     }
 

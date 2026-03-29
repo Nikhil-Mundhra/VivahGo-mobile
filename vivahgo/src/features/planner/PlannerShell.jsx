@@ -18,7 +18,7 @@ import NavIcon from "../../components/NavIcon";
 import MarriagePlanSelector from "./components/MarriagePlanSelector";
 import NewMarriagePlanModal from "./components/NewMarriagePlanModal";
 import PlanShareModal from "./components/PlanShareModal";
-import { clearAuthStorage, persistAuthSession, readAuthSession } from "../../authStorage";
+import { clearAuthStorage, persistAuthSession, readAuthSession, revokeGoogleIdTokenConsent } from "../../authStorage";
 import { NAV_ITEMS } from "../../constants";
 import { formatCoverageLocation, getLocationCities, getLocationCountries, getLocationStates } from "../../locationOptions";
 import {
@@ -878,6 +878,7 @@ export default function PlannerShell() {
 
   async function handleDeleteAccount() {
     await deleteAccount(authToken);
+    await revokeGoogleIdTokenConsent(user?.email);
     clearStoredSession();
     setUser(null);
     setAuthMode(null);

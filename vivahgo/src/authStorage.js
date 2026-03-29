@@ -80,6 +80,43 @@ export function clearAuthStorage(scope, options = {}) {
   }
 }
 
+export function revokeGoogleIdTokenConsent(email, options = {}) {
+  const googleRef = options.googleRef ?? (typeof window !== 'undefined' ? window.google : null);
+  const setTimeoutImpl = options.setTimeoutImpl ?? globalThis.setTimeout;
+  const clearTimeoutImpl = options.clearTimeoutImpl ?? globalThis.clearTimeout;
+  const normalizedEmail = typeof email === 'string' ? email.trim() : '';
+  const revoke = googleRef?.accounts?.id?.revoke;
+
+  if (!normalizedEmail || typeof revoke !== 'function') {
+    return Promise.resolve(false);
+  }
+
+  return new Promise((resolve) => {
+    let settled = false;
+    let timeoutId = null;
+    const finish = (result) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      if (timeoutId && typeof clearTimeoutImpl === 'function') {
+        clearTimeoutImpl(timeoutId);
+      }
+      resolve(result);
+    };
+
+    if (typeof setTimeoutImpl === 'function') {
+      timeoutId = setTimeoutImpl(() => finish(false), 1500);
+    }
+
+    try {
+      revoke.call(googleRef.accounts.id, normalizedEmail, () => finish(true));
+    } catch {
+      finish(false);
+    }
+  });
+}
+
 export const authStorageKeys = {
   COOKIE_AUTH_PLACEHOLDER,
   SESSION_STORAGE_KEY,
