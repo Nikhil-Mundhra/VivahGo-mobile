@@ -94,6 +94,8 @@ describe('api/page.js', function () {
     assert.equal(res.headers['X-Content-Type-Options'], 'nosniff');
     assert.equal(res.headers['X-Frame-Options'], 'SAMEORIGIN');
     assert.match(res.headers['Content-Security-Policy'], /default-src 'self'/);
+    assert.match(res.headers['Content-Security-Policy'], /style-src 'self' 'unsafe-inline' https:\/\/fonts\.googleapis\.com/);
+    assert.match(res.headers['Content-Security-Policy'], /font-src 'self' data: https:\/\/fonts\.gstatic\.com/);
     assert.equal(res.headers['Strict-Transport-Security'], 'max-age=63072000; includeSubDomains; preload');
     assert.match(res.body, /VivahGo Pricing/);
     assert.match(res.body, /application\/ld\+json/);
