@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import '../vendor.css';
 import '../styles.css';
 import '../marketing-home.css';
 import FeedbackModal from '../components/FeedbackModal';

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import '../vendor.css';
 import '../styles.css';
 import GoogleLoginButton from '../components/GoogleLoginButton';
 import LoadingBar from '../components/LoadingBar';

@@ -55,6 +55,7 @@ body {
 }
 
 body[data-route='home'],
+body[data-route='careers'],
 body[data-route='admin'],
 body[data-route='rsvp'] {
   color-scheme: light;
