@@ -1,4 +1,4 @@
-function LegalFooter({ hasBottomNav, isVisible = true, onOpenTerms, onOpenFeedback, aboutHref = "/home", className = "" }) {
+function LegalFooter({ hasBottomNav, isVisible = true, onOpenTerms, onOpenFeedback, aboutHref = "/", className = "" }) {
   return (
     <div
       className={`legal-footer-slot${hasBottomNav ? " legal-footer-with-nav" : ""}${isVisible ? "" : " legal-footer-slot-hidden"}${className ? ` ${className}` : ""}`}

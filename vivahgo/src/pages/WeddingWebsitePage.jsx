@@ -4,8 +4,10 @@ import { fetchPublicWeddingWebsite } from "../api";
 import { readAuthSession } from "../authStorage";
 import { daysUntil } from "../utils";
 import { usePageSeo } from "../seo.js";
+import { getPlannerUrl } from "../siteUrls.js";
 
 const DEMO_PLANNER_STORAGE_KEY = "vivahgo.demoPlanner";
+const PLANNER_HOME_URL = getPlannerUrl("/");
 
 function getStoredPlannerData() {
   try {
@@ -140,7 +142,7 @@ export default function WeddingWebsitePage({ websiteSlug = "" }) {
               ? "This public wedding page could not be found. Please check the link or ask the couple for the latest website URL."
               : "Open this page from the VivahGo app on your device to preview your wedding website with your events, venues, and schedule."}
           </p>
-          <a href="/" style={styles.appLink}>Open VivahGo →</a>
+          <a href={PLANNER_HOME_URL} style={styles.appLink}>Open VivahGo →</a>
         </div>
       </div>
     );
@@ -249,7 +251,7 @@ export default function WeddingWebsitePage({ websiteSlug = "" }) {
       {/* Footer */}
       <div style={styles.footer}>
         <div style={{ ...styles.footerBrand, color: themeStyles.textMuted }}>Created with VivahGo 💍</div>
-        <a href="/" style={styles.footerLink}>{isPublicWebsite ? "Create your own wedding workspace at VivahGo" : "Plan your wedding at vivahgo.com"}</a>
+        <a href={PLANNER_HOME_URL} style={styles.footerLink}>{isPublicWebsite ? "Create your own wedding workspace at VivahGo" : "Plan your wedding with VivahGo Planner"}</a>
       </div>
     </div>
   );

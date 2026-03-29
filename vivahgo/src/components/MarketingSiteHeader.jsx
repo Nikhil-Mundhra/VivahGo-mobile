@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { getPlannerUrl } from "../siteUrls.js";
 
 export default function MarketingSiteHeader({
   activePage = "home",
@@ -8,6 +9,7 @@ export default function MarketingSiteHeader({
   primaryCtaLabel = "Start Planning Now",
   mobileCtaLabel = "Plan Now",
 }) {
+  const plannerUrl = getPlannerUrl("/");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -139,7 +141,7 @@ export default function MarketingSiteHeader({
           <span />
         </button>
 
-        <a className="marketing-brand" href="/home" aria-label="VivahGo home page">
+        <a className="marketing-brand" href="/" aria-label="VivahGo home page">
           <img
             src="/header-logo.png"
             alt="VivahGo"
@@ -150,7 +152,7 @@ export default function MarketingSiteHeader({
         </a>
 
         <nav className="marketing-nav marketing-page-toggle" aria-label="Marketing pages">
-          <a className={activePage === "home" ? "marketing-nav-link-active" : ""} href="/home">Home</a>
+          <a className={activePage === "home" ? "marketing-nav-link-active" : ""} href="/">Home</a>
           <a className={activePage === "pricing" ? "marketing-nav-link-active" : ""} href="/pricing">Pricing</a>
           <a className={activePage === "guides" ? "marketing-nav-link-active" : ""} href="/guides">Guides</a>
 
@@ -177,7 +179,7 @@ export default function MarketingSiteHeader({
           <a className="marketing-header-link-button" href="/vendor">
             For Vendors
           </a>
-          <a className="marketing-auth-button" href="/">
+          <a className="marketing-auth-button" href={plannerUrl}>
             <span className="marketing-auth-button-label marketing-auth-button-label-desktop">{primaryCtaLabel}</span>
             <span className="marketing-auth-button-label marketing-auth-button-label-mobile">{mobileCtaLabel}</span>
             {session?.user && (
@@ -206,7 +208,7 @@ export default function MarketingSiteHeader({
             onClick={closeNavigationMenus}
           />
           <div id="marketing-mobile-menu" className="marketing-mobile-menu marketing-mobile-menu-open">
-            <a href="/home" onClick={closeNavigationMenus}>Home</a>
+            <a href="/" onClick={closeNavigationMenus}>Home</a>
             <a href="/pricing" onClick={closeNavigationMenus}>Pricing</a>
             <a href="/guides" onClick={closeNavigationMenus}>Guides</a>
             <div className="marketing-mobile-menu-group">

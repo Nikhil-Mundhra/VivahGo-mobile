@@ -31,11 +31,14 @@ describe('api/page.js', function () {
 
   it('builds marketing metadata for home, pricing, guides, and careers pages', function () {
     const req = { headers: { host: 'vivahgo.com', 'x-forwarded-proto': 'https' } };
+    const plannerReq = { headers: { host: 'planner.vivahgo.com', 'x-forwarded-proto': 'https' } };
 
-    assert.equal(buildMarketingMetadata(req, 'home').canonicalPath, '/home');
-    assert.equal(buildMarketingMetadata(req, 'pricing').canonicalPath, '/pricing');
-    assert.equal(buildMarketingMetadata(req, 'guides').canonicalPath, '/guides');
-    assert.equal(buildMarketingMetadata(req, 'careers').canonicalPath, '/careers');
+    assert.equal(buildMarketingMetadata(req, 'home').canonicalUrl, 'https://vivahgo.com/');
+    assert.equal(buildMarketingMetadata(req, 'pricing').canonicalUrl, 'https://vivahgo.com/pricing');
+    assert.equal(buildMarketingMetadata(req, 'guides').canonicalUrl, 'https://vivahgo.com/guides');
+    assert.equal(buildMarketingMetadata(req, 'careers').canonicalUrl, 'https://vivahgo.com/careers');
+    assert.equal(buildMarketingMetadata(plannerReq, 'home').canonicalUrl, 'https://vivahgo.com/');
+    assert.equal(buildMarketingMetadata(plannerReq, 'pricing').canonicalUrl, 'https://vivahgo.com/pricing');
   });
 
   it('builds guide metadata for a valid guide slug and noindexes missing guides', function () {
@@ -101,6 +104,7 @@ describe('api/page.js', function () {
     assert.match(res.headers['Content-Security-Policy'], /frame-src 'self' https:\/\/www\.google\.com https:\/\/accounts\.google\.com https:\/\/www\.chatbase\.co/);
     assert.equal(res.headers['Strict-Transport-Security'], 'max-age=63072000; includeSubDomains; preload');
     assert.match(res.body, /VivahGo Pricing/);
+    assert.match(res.body, /<link rel="canonical" href="https:\/\/vivahgo\.com\/pricing"/);
     assert.match(res.body, /application\/ld\+json/);
   });
 

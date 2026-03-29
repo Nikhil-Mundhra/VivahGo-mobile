@@ -1,5 +1,8 @@
 import { useState } from "react";
 import { useBackButtonClose } from "../../../hooks/useBackButtonClose";
+import { getMarketingUrl } from "../../../siteUrls.js";
+
+const PRICING_URL = getMarketingUrl("/pricing");
 
 function AccountScreen({ user, authMode, subscription, onClose, onLogout, onDeleteAccount, onStartOnboarding }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -135,7 +138,7 @@ function AccountScreen({ user, authMode, subscription, onClose, onLogout, onDele
                 {tier !== "studio" && (
                   <a
                     className="btn-secondary"
-                    href="/pricing"
+                    href={PRICING_URL}
                     style={{ display: "block", textAlign: "center", textDecoration: "none", marginTop: 10 }}
                   >
                     View Plans
@@ -145,7 +148,7 @@ function AccountScreen({ user, authMode, subscription, onClose, onLogout, onDele
             ) : (
               <a
                 className="btn-primary"
-                href="/pricing"
+                href={PRICING_URL}
                 style={{ display: "block", textAlign: "center", textDecoration: "none", marginTop: 10 }}
               >
                 Upgrade to Premium

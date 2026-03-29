@@ -1,22 +1,28 @@
+import { isLocalHostname, isPlannerHostname, normalizeHostname, shouldRenderMarketingHomeAtRoot } from "./siteUrls.js";
+
 export function normalizePathname(pathname = "/") {
   return pathname.replace(/\/+$/, "") || "/";
 }
 
-export function getRouteInfo(pathname = "/") {
+export function getRouteInfo(pathname = "/", options = {}) {
   const normalizedPathname = normalizePathname(pathname);
-  const isMarketingHomeRoute = /^\/home\/?$/.test(pathname);
-  const isPricingRoute = /^\/pricing\/?$/.test(pathname);
-  const isGuidesRoute = /^\/guides\/?$/.test(pathname);
+  const normalizedHostname = normalizeHostname(options.hostname || "");
+  const isRootMarketingHomeRoute = normalizedPathname === "/" && shouldRenderMarketingHomeAtRoot(normalizedHostname);
+  const isLocalPlannerRoute = isLocalHostname(normalizedHostname) && normalizedPathname === "/planner";
+  const isMarketingHomeAliasRoute = normalizedPathname === "/home" && !isPlannerHostname(normalizedHostname);
+  const isMarketingHomeRoute = isRootMarketingHomeRoute || isMarketingHomeAliasRoute;
+  const isPricingRoute = normalizedPathname === "/pricing";
+  const isGuidesRoute = normalizedPathname === "/guides";
   const guideMatch = normalizedPathname.match(/^\/guides\/([^/]+)$/);
   const guideSlug = guideMatch ? decodeURIComponent(guideMatch[1]) : "";
-  const isCareersRoute = /^\/careers\/?$/.test(pathname);
-  const isWeddingWebsiteRoute = /^\/wedding\/?$/.test(pathname);
+  const isCareersRoute = normalizedPathname === "/careers";
+  const isWeddingWebsiteRoute = normalizedPathname === "/wedding";
   const rsvpMatch = normalizedPathname.match(/^\/rsvp\/([^/]+)$/);
-  const rsvpToken = rsvpMatch ? decodeURIComponent(rsvpMatch[1]) : '';
-  const isVendorRoute = /^\/vendor\/?$/.test(pathname);
-  const isAdminRoute = /^\/admin\/?$/.test(pathname);
+  const rsvpToken = rsvpMatch ? decodeURIComponent(rsvpMatch[1]) : "";
+  const isVendorRoute = normalizedPathname === "/vendor";
+  const isAdminRoute = normalizedPathname === "/admin";
   const publicWeddingSlugMatch = normalizedPathname.match(/^\/([^/.][^/]*)$/);
-  const publicWeddingSlug = publicWeddingSlugMatch && !["home", "pricing", "guides", "rsvp", "vendor", "wedding", "admin", "careers"].includes(publicWeddingSlugMatch[1].toLowerCase())
+  const publicWeddingSlug = publicWeddingSlugMatch && !["home", "planner", "pricing", "guides", "rsvp", "vendor", "wedding", "admin", "careers"].includes(publicWeddingSlugMatch[1].toLowerCase())
     ? decodeURIComponent(publicWeddingSlugMatch[1])
     : "";
 
@@ -31,6 +37,9 @@ export function getRouteInfo(pathname = "/") {
 
   return {
     normalizedPathname,
+    normalizedHostname,
+    isRootMarketingHomeRoute,
+    isLocalPlannerRoute,
     isMarketingHomeRoute,
     isPricingRoute,
     isGuidesRoute,

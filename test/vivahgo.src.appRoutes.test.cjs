@@ -30,6 +30,24 @@ describe('VivahGo/src/appRoutes.js', function () {
     assert.equal(mod.getRouteInfo('/admin').isAdminRoute, true);
   });
 
+  it('uses hostname-aware routing for main-site and planner root paths', async function () {
+    const mod = await load();
+
+    assert.equal(mod.getRouteInfo('/', { hostname: 'vivahgo.com' }).bodyRoute, 'home');
+    assert.equal(mod.getRouteInfo('/', { hostname: 'vivahgo.com' }).isMarketingHomeRoute, true);
+    assert.equal(mod.getRouteInfo('/home', { hostname: 'vivahgo.com' }).isMarketingHomeRoute, true);
+
+    assert.equal(mod.getRouteInfo('/', { hostname: 'planner.vivahgo.com' }).bodyRoute, 'app');
+    assert.equal(mod.getRouteInfo('/', { hostname: 'planner.vivahgo.com' }).isMarketingHomeRoute, false);
+    assert.equal(mod.getRouteInfo('/home', { hostname: 'planner.vivahgo.com' }).bodyRoute, 'app');
+    assert.equal(mod.getRouteInfo('/home', { hostname: 'planner.vivahgo.com' }).isMarketingHomeRoute, false);
+
+    assert.equal(mod.getRouteInfo('/', { hostname: 'localhost' }).bodyRoute, 'home');
+    assert.equal(mod.getRouteInfo('/', { hostname: 'localhost' }).isMarketingHomeRoute, true);
+    assert.equal(mod.getRouteInfo('/planner', { hostname: 'localhost' }).bodyRoute, 'app');
+    assert.equal(mod.getRouteInfo('/planner', { hostname: 'localhost' }).publicWeddingSlug, '');
+  });
+
   it('preserves public wedding slug detection', async function () {
     const mod = await load();
 

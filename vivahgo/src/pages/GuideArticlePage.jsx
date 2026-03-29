@@ -7,7 +7,11 @@ import TermsConditionsModal from "../components/TermsConditionsModal";
 import MarketingSiteHeader from "../components/MarketingSiteHeader.jsx";
 import { readAuthSession } from "../authStorage";
 import { DEFAULT_SITE_URL, usePageSeo } from "../seo.js";
+import { getMarketingUrl, getPlannerUrl } from "../siteUrls.js";
 import guides from "../content/guides.json";
+
+const MARKETING_HOME_URL = getMarketingUrl("/");
+const PLANNER_HOME_URL = getPlannerUrl("/");
 
 function findGuideBySlug(slug = "") {
   return guides.find((guide) => guide.slug === slug) || null;
@@ -41,7 +45,7 @@ export default function GuideArticlePage({ guideSlug = "" }) {
       ? {
         title: `${guide.title} | VivahGo Guides`,
         description: guide.seoDescription,
-        path: `/guides/${guide.slug}`,
+        canonicalUrl: getMarketingUrl(`/guides/${guide.slug}`),
         structuredData: [
           {
             "@context": "https://schema.org",
@@ -71,7 +75,7 @@ export default function GuideArticlePage({ guideSlug = "" }) {
                 "@type": "ListItem",
                 position: 1,
                 name: "Home",
-                item: `${DEFAULT_SITE_URL}/home`,
+                item: MARKETING_HOME_URL,
               },
               {
                 "@type": "ListItem",
@@ -220,7 +224,7 @@ export default function GuideArticlePage({ guideSlug = "" }) {
           </div>
 
           <div className="marketing-hero-actions marketing-guide-cta">
-            <a className="marketing-primary-action" href="/">
+            <a className="marketing-primary-action" href={PLANNER_HOME_URL}>
               Open VivahGo Planner
             </a>
             <a className="marketing-secondary-action" href="/pricing">

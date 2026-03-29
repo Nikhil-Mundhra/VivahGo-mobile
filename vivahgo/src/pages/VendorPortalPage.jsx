@@ -11,6 +11,11 @@ import VendorPortalDashboard from '../components/VendorPortalDashboard';
 import NavIcon from '../components/NavIcon';
 import { clearAuthStorage, persistAuthSession, readAuthSession, revokeGoogleIdTokenConsent } from '../authStorage';
 import { deleteAccount, fetchVendorProfile, loginWithGoogle, logoutSession } from '../api';
+import { getMarketingUrl, getPlannerUrl } from '../siteUrls.js';
+
+const MARKETING_HOME_URL = getMarketingUrl('/');
+const PLANNER_HOME_URL = getPlannerUrl('/');
+
 const VENDOR_PORTAL_SECTIONS = [
   { id: 'dashboard', label: 'Dashboard', icon: 'home' },
   { id: 'preview', label: 'Live Preview', icon: 'vendors' },
@@ -161,7 +166,7 @@ export default function VendorPortalPage() {
             </div>
           )}
           <div className="mt-4 text-center">
-            <a href="/home" className="text-sm text-rose-600 hover:underline">← Back to Home</a>
+            <a href={MARKETING_HOME_URL} className="text-sm text-rose-600 hover:underline">← Back to Home</a>
           </div>
         </div>
       </div>
@@ -196,7 +201,7 @@ export default function VendorPortalPage() {
     <div className="min-h-screen bg-gradient-to-br from-rose-50 to-amber-50">
       <header className="bg-white shadow-sm border-b border-gray-100 px-3 py-4 sm:px-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <a href="/home" className="vendor-home-pill">
+          <a href={MARKETING_HOME_URL} className="vendor-home-pill">
             <img src="/Thumbnail.png" alt="VivahGo" className="h-8 w-8 rounded-full object-cover" />
             <span className="vendor-home-pill-text">Home</span>
           </a>
@@ -228,7 +233,7 @@ export default function VendorPortalPage() {
                 </div>
               )}
             </div>
-            <a href="/" className="vendor-planner-pill">
+            <a href={PLANNER_HOME_URL} className="vendor-planner-pill">
               <span className="vendor-planner-pill-text">Open Planner</span>
               {session.user?.picture && !avatarLoadError ? (
                 <img

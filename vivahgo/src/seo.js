@@ -1,6 +1,7 @@
 import { useEffect } from "react";
+import { MARKETING_SITE_URL } from "./siteUrls.js";
 
-export const DEFAULT_SITE_URL = "https://vivahgo.com";
+export const DEFAULT_SITE_URL = MARKETING_SITE_URL;
 export const DEFAULT_SEO_IMAGE_PATH = "/social-preview.jpg";
 const LOCAL_HOST_PATTERN = /^(localhost|127(?:\.\d{1,3}){3})$/;
 

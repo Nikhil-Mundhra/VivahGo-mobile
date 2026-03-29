@@ -36,6 +36,14 @@
     { "source": "/api/subscription/confirm", "destination": "/api/subscription?op=confirm" },
     { "source": "/api/subscription/portal", "destination": "/api/subscription?op=portal" },
     { "source": "/api/subscription/webhook", "destination": "/api/subscription?op=webhook" },
+    {
+      "source": "/",
+      "has": [
+        { "type": "host", "value": "planner.vivahgo.com" }
+      ],
+      "destination": "/index.html"
+    },
+    { "source": "/", "destination": "/api/page?route=home" },
     { "source": "/home", "destination": "/api/page?route=home" },
     { "source": "/pricing", "destination": "/api/page?route=pricing" },
     { "source": "/guides", "destination": "/api/page?route=guides" },

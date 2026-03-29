@@ -1,6 +1,8 @@
 import { Suspense, lazy, useEffect } from "react";
 import { getRouteInfo } from "./appRoutes.js";
+import { CHATBASE_CHATBOT_ID, initializeChatbase, removeChatbaseArtifacts, shouldShowChatbaseForRoute } from "./chatbase.js";
 import { usePageSeo } from "./seo.js";
+import { getMarketingUrl, getPlannerUrl } from "./siteUrls.js";
 
 const PlannerPage = lazy(() => import("./pages/PlannerPage.jsx"));
 const MarketingHomePage = lazy(() => import("./pages/MarketingHomePage.jsx"));
@@ -11,111 +13,45 @@ const GuestRsvpPage = lazy(() => import("./pages/GuestRsvpPage.jsx"));
 const WeddingWebsitePage = lazy(() => import("./pages/WeddingWebsitePage.jsx"));
 const VendorPortalPage = lazy(() => import("./pages/VendorPortalPage.jsx"));
 const AdminPortalPage = lazy(() => import("./pages/AdminPortalPage.jsx"));
-const CHATBASE_CHATBOT_ID = import.meta.env.VITE_CHATBASE_CHATBOT_ID
-  || import.meta.env.NEXT_PUBLIC_CHATBASE_CHATBOT_ID
-  || import.meta.env.NEXT_PUBLIC_CHATBASE_CHATBOT_CHATBOT_ID;
-const CHATBASE_HOST = import.meta.env.VITE_CHATBASE_HOST
-  || import.meta.env.NEXT_PUBLIC_CHATBASE_HOST
-  || import.meta.env.NEXT_PUBLIC_CHATBASE_CHATBOT_CHATBASE_HOST
-  || "https://www.chatbase.co/";
 
 function PageFallback() {
   return <div className="app-page-fallback" aria-hidden="true" />;
 }
 
-function removeChatbaseArtifacts(chatbotId) {
-  if (typeof document === "undefined") {
-    return;
-  }
-
-  if (chatbotId) {
-    document.getElementById(chatbotId)?.remove();
-  }
-
-  document.querySelectorAll('iframe[src*="chatbase.co"]').forEach((node) => node.remove());
-  document.querySelectorAll('[id^="chatbase-"], [class*="chatbase"]').forEach((node) => node.remove());
-}
-
-function initializeChatbase(chatbotId) {
-  if (!chatbotId || typeof window === "undefined" || typeof document === "undefined") {
-    return undefined;
-  }
-
-  if (!window.chatbase || window.chatbase("getState") !== "initialized") {
-    const queueingChatbase = (...args) => {
-      if (!queueingChatbase.q) {
-        queueingChatbase.q = [];
-      }
-      queueingChatbase.q.push(args);
-    };
-
-    window.chatbase = new Proxy(queueingChatbase, {
-      get(target, prop) {
-        if (prop === "q") {
-          return target.q;
-        }
-        return (...args) => target(prop, ...args);
-      },
-    });
-  }
-
-  const onLoad = () => {
-    if (document.getElementById(chatbotId)) {
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = new URL("embed.min.js", CHATBASE_HOST).toString();
-    script.type = "module";
-    script.id = chatbotId;
-    script.domain = new URL(CHATBASE_HOST).hostname;
-    document.body.appendChild(script);
-  };
-
-  if (document.readyState === "complete") {
-    onLoad();
-    return undefined;
-  }
-
-  window.addEventListener("load", onLoad);
-  return () => {
-    window.removeEventListener("load", onLoad);
-  };
-}
-
 export default function App() {
   const pathname = typeof window !== "undefined" ? window.location.pathname : "/";
-  const routeInfo = getRouteInfo(pathname);
-  const shouldShowChatbase = routeInfo.isMarketingHomeRoute || routeInfo.isPricingRoute;
+  const hostname = typeof window !== "undefined" ? window.location.hostname : "";
+  const routeInfo = getRouteInfo(pathname, { hostname });
+  const shouldShowChatbase = shouldShowChatbaseForRoute(routeInfo);
   const fallbackSeo = routeInfo.isMarketingHomeRoute
     ? {
       title: "VivahGo | Indian Wedding Planner App for Cultural Weddings",
       description: "VivahGo is an Indian wedding planner app for cultural weddings with checklist tracking, budgets, guest lists, vendors, RSVPs, ceremonies, and wedding websites.",
-      path: "/home",
+      canonicalUrl: getMarketingUrl("/"),
     }
     : routeInfo.isPricingRoute
       ? {
         title: "VivahGo Pricing | Plans for Couples and Planners",
         description: "Compare Indian wedding planner app pricing for couples, families, planners, and studios managing guests, budgets, vendors, RSVPs, and wedding websites.",
-        path: "/pricing",
+        canonicalUrl: getMarketingUrl("/pricing"),
       }
       : routeInfo.isGuidesRoute
         ? {
           title: "VivahGo Guides | Indian Wedding Planning Resources",
           description: "Browse Indian wedding planning guides for checklists, budgets, guest lists, vendor coordination, cultural wedding timelines, and destination weddings.",
-          path: "/guides",
+          canonicalUrl: getMarketingUrl("/guides"),
         }
       : routeInfo.guideSlug
         ? {
           title: "VivahGo Guide",
           description: "An Indian wedding planning guide from VivahGo.",
-          path: `/guides/${routeInfo.guideSlug}`,
+          canonicalUrl: getMarketingUrl(`/guides/${routeInfo.guideSlug}`),
         }
       : routeInfo.isCareersRoute
         ? {
           title: "VivahGo Careers | Join the Team",
           description: "Explore careers at VivahGo and help build better wedding planning tools for couples and planners.",
-          path: "/careers",
+          canonicalUrl: getMarketingUrl("/careers"),
         }
         : routeInfo.isWeddingWebsiteRoute
           ? {
@@ -155,7 +91,7 @@ export default function App() {
                   : {
                     title: "VivahGo Planner | Shared Wedding Workspace",
                     description: "Manage your wedding checklist, guests, budget, events, and vendors from one workspace.",
-                    path: "/",
+                    canonicalUrl: getPlannerUrl("/"),
                     noindex: true,
                   };
 

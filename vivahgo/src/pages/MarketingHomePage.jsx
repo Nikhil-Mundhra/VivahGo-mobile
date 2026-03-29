@@ -17,6 +17,7 @@ import { persistAuthSession, readAuthSession } from "../authStorage";
 import { confirmCheckoutPayment, createCheckoutSession, getCheckoutQuote, getSubscriptionStatus, loginWithGoogle } from "../api";
 import { createDemoPlanner } from "../plannerDefaults";
 import { DEFAULT_SITE_URL, usePageSeo } from "../seo.js";
+import { getMarketingUrl, getPlannerUrl } from "../siteUrls.js";
 import seoKeywordLibrary from "../generated/seo-keywords.json";
 
 const DEMO_PLANNER = createDemoPlanner();
@@ -124,6 +125,9 @@ const coverageTopics = [
   ...seoKeywordLibrary.clusters.primary.slice(0, 8),
   ...seoKeywordLibrary.clusters.cultural.slice(0, 4),
 ];
+const MARKETING_HOME_URL = getMarketingUrl("/");
+const PLANNER_HOME_URL = getPlannerUrl("/");
+
 function formatDisplayLabel(value = "") {
   return String(value)
     .split(/\s+/)
@@ -176,7 +180,7 @@ const homeStructuredData = [
     "@context": "https://schema.org",
     "@type": "Organization",
     name: "VivahGo",
-    url: `${DEFAULT_SITE_URL}/home`,
+    url: MARKETING_HOME_URL,
     logo: `${DEFAULT_SITE_URL}/logo.svg`,
     description: "Indian wedding planning software for couples, families, and planners managing ceremonies, guests, budgets, vendors, and wedding websites.",
     keywords: structuredDataKeywords.join(", "),
@@ -186,7 +190,7 @@ const homeStructuredData = [
     "@context": "https://schema.org",
     "@type": "WebSite",
     name: "VivahGo",
-    url: `${DEFAULT_SITE_URL}/home`,
+    url: MARKETING_HOME_URL,
     description: "Wedding planning software for Indian weddings with shared tasks, budgets, guests, vendors, and event management.",
     inLanguage: "en-IN",
     keywords: structuredDataKeywords.join(", "),
@@ -195,7 +199,7 @@ const homeStructuredData = [
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
     name: "VivahGo",
-    url: `${DEFAULT_SITE_URL}/home`,
+    url: MARKETING_HOME_URL,
     applicationCategory: "BusinessApplication",
     operatingSystem: "Web",
     description: "Indian wedding planner app for cultural weddings with checklists, budgets, vendor coordination, guest RSVP tracking, and wedding websites.",
@@ -343,13 +347,13 @@ export default function MarketingHomePage({ page = "home" }) {
     ? {
       title: "VivahGo Pricing | Plans for Couples and Planners",
       description: "Compare Indian wedding planner app pricing for couples, families, planners, and studios managing guests, budgets, vendors, RSVPs, and wedding websites.",
-      path: "/pricing",
+      canonicalUrl: getMarketingUrl("/pricing"),
       structuredData: pricingStructuredData,
     }
     : {
       title: "VivahGo | Indian Wedding Planner App for Cultural Weddings",
       description: "VivahGo is an Indian wedding planner app for cultural weddings with checklist tracking, budgets, guest lists, vendors, RSVPs, ceremonies, and wedding websites.",
-      path: "/home",
+      canonicalUrl: MARKETING_HOME_URL,
       structuredData: homeStructuredData,
     };
 
@@ -564,9 +568,9 @@ export default function MarketingHomePage({ page = "home" }) {
               </ul>
               {plan.name === "Starter" ? (
                 hasActivePaidPlan ? null : (
-                <a
+                  <a
                   className="marketing-price-action marketing-price-action-ghost"
-                  href="/"
+                  href={PLANNER_HOME_URL}
                 >
                   Start Your Wedding Plan Free
                 </a>
@@ -589,7 +593,7 @@ export default function MarketingHomePage({ page = "home" }) {
                     return (
                       <a
                         className={`marketing-price-action ${plan.featured ? "marketing-price-action-featured" : "marketing-price-action-ghost"}`}
-                        href="/"
+                        href={PLANNER_HOME_URL}
                       >
                         {buttonLabel}
                       </a>
@@ -711,7 +715,7 @@ export default function MarketingHomePage({ page = "home" }) {
               <p>Create your wedding workspace today.</p>
             </div>
             <div className="marketing-hero-actions marketing-final-actions">
-              <a className="marketing-primary-action" href="/">
+              <a className="marketing-primary-action" href={PLANNER_HOME_URL}>
                 Start for free
               </a>
             </div>
@@ -910,7 +914,7 @@ export default function MarketingHomePage({ page = "home" }) {
             </p>
 
             <div className="marketing-hero-actions">
-              <a className="marketing-primary-action" href="/">
+              <a className="marketing-primary-action" href={PLANNER_HOME_URL}>
                 {isSignedIn ? "Start planning your wedding for free" : "Create Your Wedding Workspace"}
               </a>
             </div>
@@ -1005,7 +1009,7 @@ export default function MarketingHomePage({ page = "home" }) {
                 <span>Couples, parents, and planners can work from the same source of truth.</span>
               </div>
             </div>
-            <a className="marketing-primary-action" href="/">
+            <a className="marketing-primary-action" href={PLANNER_HOME_URL}>
               {isSignedIn ? "Start planning your wedding for free" : "Start Your Wedding Plan Free"}
             </a>
           </div>
@@ -1082,7 +1086,7 @@ export default function MarketingHomePage({ page = "home" }) {
           </div>
 
           <div className="marketing-hero-actions marketing-product-cta">
-            <a className="marketing-primary-action" href="/">
+            <a className="marketing-primary-action" href={PLANNER_HOME_URL}>
               Try it free in 2 minutes
             </a>
           </div>
@@ -1183,7 +1187,7 @@ export default function MarketingHomePage({ page = "home" }) {
             <p>Create your wedding workspace today.</p>
           </div>
           <div className="marketing-hero-actions marketing-final-actions">
-            <a className="marketing-primary-action" href="/">
+            <a className="marketing-primary-action" href={PLANNER_HOME_URL}>
               Start for free
             </a>
             <a className="marketing-secondary-action marketing-secondary-action-gold" href="/pricing">

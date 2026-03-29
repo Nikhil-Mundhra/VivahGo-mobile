@@ -21,6 +21,9 @@ import {
   updateAdminStaff,
   updateAdminVendorApproval,
 } from '../api';
+import { getMarketingUrl } from '../siteUrls.js';
+
+const MARKETING_HOME_URL = getMarketingUrl('/');
 
 const ADMIN_PORTAL_SECTIONS = [
   {
@@ -1242,7 +1245,7 @@ export default function AdminPortalPage() {
           {error && <div className="login-error">{error}</div>}
 
           <div className="login-home-section">
-            <a href="/home" className="login-home-btn" style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }}>Back to Home</a>
+            <a href={MARKETING_HOME_URL} className="login-home-btn" style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }}>Back to Home</a>
           </div>
         </div>
       </div>
@@ -1273,7 +1276,7 @@ export default function AdminPortalPage() {
 
           <div className="login-actions">
             <button type="button" className="login-secondary-btn" onClick={handleLogout}>Logout</button>
-            <a href="/home" className="login-home-btn" style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }}>Back to Home</a>
+            <a href={MARKETING_HOME_URL} className="login-home-btn" style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }}>Back to Home</a>
           </div>
         </div>
       </div>
@@ -1293,7 +1296,7 @@ export default function AdminPortalPage() {
 
           <div className="login-actions">
             <button type="button" className="login-secondary-btn" onClick={handleLogout}>Logout</button>
-            <a href="/home" className="login-home-btn" style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }}>Back to Home</a>
+            <a href={MARKETING_HOME_URL} className="login-home-btn" style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }}>Back to Home</a>
           </div>
         </div>
       </div>
@@ -1313,7 +1316,7 @@ export default function AdminPortalPage() {
               {access.role}
             </span>
             <span className="text-sm text-stone-500">{adminUser?.email || session.user?.email}</span>
-            <a href="/home" className="text-sm text-rose-600 hover:underline">Home</a>
+            <a href={MARKETING_HOME_URL} className="text-sm text-rose-600 hover:underline">Home</a>
             <button type="button" className="login-secondary-btn" onClick={handleLogout}>Logout</button>
           </div>
         </div>

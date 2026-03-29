@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const DEFAULT_ROUTES = ['/home', '/pricing', '/guides', '/guides/wedding-budget-planner', '/careers'];
+const DEFAULT_ROUTES = ['/', '/pricing', '/guides', '/guides/wedding-budget-planner', '/careers'];
 const REQUIRED_META_KEYS = [
   'description',
   'robots',
@@ -19,8 +19,8 @@ function printUsage() {
   console.log('');
   console.log('Examples:');
   console.log('  npm run verify:seo -- https://vivahgo.com');
-  console.log('  npm run verify:seo -- https://vivahgo.com /home /pricing /careers /asha-rohan-1');
-  console.log('  SEO_VERIFY_BASE_URL=https://vivahgo.com npm run verify:seo -- /home /pricing');
+  console.log('  npm run verify:seo -- https://vivahgo.com / /pricing /careers /asha-rohan-1');
+  console.log('  SEO_VERIFY_BASE_URL=https://vivahgo.com npm run verify:seo -- / /pricing');
 }
 
 function normalizeBaseUrl(value) {

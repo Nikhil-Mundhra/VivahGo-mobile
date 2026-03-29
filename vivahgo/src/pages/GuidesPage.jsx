@@ -7,7 +7,11 @@ import TermsConditionsModal from "../components/TermsConditionsModal";
 import MarketingSiteHeader from "../components/MarketingSiteHeader.jsx";
 import { readAuthSession } from "../authStorage";
 import { DEFAULT_SITE_URL, usePageSeo } from "../seo.js";
+import { getMarketingUrl, getPlannerUrl } from "../siteUrls.js";
 import guides from "../content/guides.json";
+
+const MARKETING_HOME_URL = getMarketingUrl("/");
+const PLANNER_HOME_URL = getPlannerUrl("/");
 
 const guideFaqs = [
   {
@@ -55,7 +59,7 @@ const guideStructuredData = [
         "@type": "ListItem",
         position: 1,
         name: "Home",
-        item: `${DEFAULT_SITE_URL}/home`,
+        item: MARKETING_HOME_URL,
       },
       {
         "@type": "ListItem",
@@ -98,7 +102,7 @@ export default function GuidesPage() {
   usePageSeo({
     title: "VivahGo Guides | Indian Wedding Planning Resources",
     description: "Browse Indian wedding planning guides for checklists, budgets, guest lists, vendor coordination, cultural wedding timelines, and destination weddings.",
-    path: "/guides",
+    canonicalUrl: getMarketingUrl("/guides"),
     structuredData: guideStructuredData,
   });
 
@@ -135,7 +139,7 @@ export default function GuidesPage() {
             </p>
 
             <div className="marketing-hero-actions">
-              <a className="marketing-primary-action" href="/">
+              <a className="marketing-primary-action" href={PLANNER_HOME_URL}>
                 Start Planning Free
               </a>
               <a className="marketing-secondary-action marketing-secondary-action-gold" href="/pricing">

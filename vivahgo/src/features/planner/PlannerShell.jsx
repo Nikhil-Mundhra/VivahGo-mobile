@@ -36,8 +36,11 @@ import {
 } from "../../api";
 import { DEFAULT_WEBSITE_SETTINGS, EMPTY_WEDDING, EXPECTED_GUEST_OPTIONS, buildWeddingWebsitePath, createBlankPlanner, createDemoPlanner, hasWeddingProfile, normalizePlanner, generatePlanId, createTemplatePlanCollections, normalizeCustomTemplates } from "../../plannerDefaults";
 import { useSwipeDown } from "../../hooks/useSwipeDown";
+import { getMarketingUrl } from "../../siteUrls.js";
 
 const DEMO_PLANNER_STORAGE_KEY = "vivahgo.demoPlanner";
+const MARKETING_HOME_URL = getMarketingUrl("/");
+const PRICING_URL = getMarketingUrl("/pricing");
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const YEARS = Array.from({ length: 8 }, (_, i) => 2025 + i);
 
@@ -825,7 +828,7 @@ export default function PlannerShell() {
   }
 
   function handleGoToHome() {
-    window.location.assign("/home");
+    window.location.assign(MARKETING_HOME_URL);
   }
 
   async function handleGoogleLoginSuccess(credentialResponse) {
@@ -1230,7 +1233,7 @@ export default function PlannerShell() {
                 </p>
                 <a
                   className="btn-primary"
-                  href="/pricing"
+                  href={PRICING_URL}
                   style={{ display: "block", textAlign: "center", textDecoration: "none" }}
                   onClick={() => setShowUpgradePrompt(false)}
                 >
