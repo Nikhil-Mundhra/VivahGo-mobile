@@ -21,6 +21,20 @@ const defaultWebsiteSettings = {
   scheduleTitle: 'Wedding Calendar',
 };
 
+const defaultReminderSettings = {
+  enabled: false,
+  eventDayBefore: true,
+  eventHoursBefore: true,
+  paymentThreeDaysBefore: true,
+  paymentDayOf: true,
+};
+
+const defaultNotificationPreferences = {
+  browserPushEnabled: false,
+  eventReminders: true,
+  paymentReminders: true,
+};
+
 const ROLE_LEVEL = {
   viewer: 1,
   editor: 2,
@@ -428,6 +442,24 @@ function getUserModel() {
       subscriptionTier: { type: String, enum: ['starter', 'premium', 'studio'], default: 'starter' },
       subscriptionStatus: { type: String, enum: ['active', 'inactive', 'canceled', 'past_due'], default: 'active' },
       subscriptionCurrentPeriodEnd: { type: Date, default: null },
+      notificationPreferences: {
+        type: mongoose.Schema.Types.Mixed,
+        default: () => ({ ...defaultNotificationPreferences }),
+      },
+      notificationDevices: {
+        type: [
+          {
+            token: { type: String, required: true, trim: true },
+            platform: { type: String, enum: ['web', 'android', 'ios'], default: 'web' },
+            deviceLabel: { type: String, default: '', trim: true },
+            appVersion: { type: String, default: '', trim: true },
+            createdAt: { type: Date, default: () => new Date() },
+            lastSeenAt: { type: Date, default: () => new Date() },
+            disabledAt: { type: Date, default: null },
+          },
+        ],
+        default: [],
+      },
       isVendor: { type: Boolean, default: false },
       vendorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Vendor', default: null },
     },
@@ -534,6 +566,10 @@ function getPlannerModel() {
             budget: String,
             guests: String,
             template: String,
+            reminderSettings: {
+              type: mongoose.Schema.Types.Mixed,
+              default: () => ({ ...defaultReminderSettings }),
+            },
             collaborators: {
               type: [
                 {
@@ -599,6 +635,31 @@ function getBillingReceiptModel() {
   return mongoose.models.BillingReceipt || mongoose.model('BillingReceipt', schema);
 }
 
+function getReminderJobModel() {
+  const schema = new mongoose.Schema(
+    {
+      ownerGoogleId: { type: String, required: true, index: true },
+      recipientEmail: { type: String, required: true, trim: true, lowercase: true, index: true },
+      planId: { type: String, required: true, trim: true, index: true },
+      type: { type: String, enum: ['event_day_before', 'event_hours_before', 'payment_three_days_before', 'payment_day_of'], required: true },
+      entityId: { type: String, required: true, trim: true },
+      title: { type: String, required: true, trim: true, maxlength: 140 },
+      body: { type: String, required: true, trim: true, maxlength: 300 },
+      clickPath: { type: String, default: '/', trim: true, maxlength: 300 },
+      scheduledFor: { type: Date, required: true, index: true },
+      status: { type: String, enum: ['pending', 'processing', 'sent', 'failed', 'canceled', 'skipped'], default: 'pending', index: true },
+      dedupeKey: { type: String, required: true, trim: true, unique: true, index: true },
+      meta: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
+      processingStartedAt: { type: Date, default: null },
+      processedAt: { type: Date, default: null },
+      lastError: { type: String, default: '', trim: true, maxlength: 500 },
+    },
+    { timestamps: true, minimize: false }
+  );
+
+  return mongoose.models.ReminderJob || mongoose.model('ReminderJob', schema);
+}
+
 function getCareerApplicationModel() {
   const schema = new mongoose.Schema(
     {
@@ -661,6 +722,7 @@ function buildEmptyPlanner(options = {}) {
         budget: '',
         guests: '',
         template: 'blank',
+        reminderSettings: { ...defaultReminderSettings },
         collaborators: ownerEmail
           ? [
             {
@@ -781,6 +843,30 @@ function sanitizeCollaborators(value, ownerEmail, ownerId) {
   return [...byEmail.values()];
 }
 
+function sanitizeReminderSettings(value) {
+  const source = isRecord(value) ? value : {};
+  return {
+    ...defaultReminderSettings,
+    ...source,
+    enabled: Boolean(source.enabled),
+    eventDayBefore: source.eventDayBefore !== false,
+    eventHoursBefore: source.eventHoursBefore !== false,
+    paymentThreeDaysBefore: source.paymentThreeDaysBefore !== false,
+    paymentDayOf: source.paymentDayOf !== false,
+  };
+}
+
+function sanitizeNotificationPreferences(value) {
+  const source = isRecord(value) ? value : {};
+  return {
+    ...defaultNotificationPreferences,
+    ...source,
+    browserPushEnabled: Boolean(source.browserPushEnabled),
+    eventReminders: source.eventReminders !== false,
+    paymentReminders: source.paymentReminders !== false,
+  };
+}
+
 function sanitizeMarriages(value) {
   if (!Array.isArray(value)) {
     return [];
@@ -801,6 +887,7 @@ function sanitizeMarriages(value) {
         ...defaultWebsiteSettings,
         ...(isRecord(marriage.websiteSettings) ? marriage.websiteSettings : {}),
       },
+      reminderSettings: sanitizeReminderSettings(marriage.reminderSettings),
       template: marriage.template || 'blank',
       collaborators: sanitizeCollaborators(marriage.collaborators),
       createdAt: marriage.createdAt || new Date(),
@@ -960,6 +1047,7 @@ function sanitizePlanner(payload = {}, options = {}) {
       guests: '',
       websiteSlug: '',
       websiteSettings: { ...defaultWebsiteSettings },
+      reminderSettings: { ...defaultReminderSettings },
       template: 'blank',
       collaborators: sanitizeCollaborators([], ownerEmail, ownerId),
       createdAt: new Date(),
@@ -1021,6 +1109,7 @@ function normalizePlannerOwnership(planner, ownerEmail, ownerId) {
 
   planner.marriages = planner.marriages.map(marriage => ({
     ...marriage,
+    reminderSettings: sanitizeReminderSettings(marriage.reminderSettings),
     collaborators: sanitizeCollaborators(marriage.collaborators, ownerEmail, ownerId),
   }));
 
@@ -1306,6 +1395,7 @@ module.exports = {
   getSubscriptionTier,
   getUserModel,
   getVendorModel,
+  getReminderJobModel,
   handlePreflight,
   hasPlanRole,
   hasStaffRole,
@@ -1317,7 +1407,9 @@ module.exports = {
   resetRateLimitBuckets,
   requireCsrfProtection,
   resolveStaffRole,
+  sanitizeNotificationPreferences,
   sanitizePlanner,
+  sanitizeReminderSettings,
   SESSION_COOKIE_NAME,
   setSecurityHeaders,
   setCorsHeaders,

@@ -79,7 +79,7 @@ const plans = [
     monthlyPrice: 2000,
     yearlyPrice: 1600,
     description: "Best for active planning with more family involvement and tighter coordination.",
-    features: ["Everything in Starter", "Unlimited Wedding Workspaces", "Personalized Wedding Website", "Advanced workspace management"],
+    features: ["Everything in Starter", "Unlimited Wedding Workspaces", "Personalized Wedding Website", "Real Scheduled Reminders", "Advanced workspace management"],
     featured: true,
   },
   {

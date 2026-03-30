@@ -54,6 +54,14 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    notificationPreferences: {
+      type: mongoose.Schema.Types.Mixed,
+      default: () => ({}),
+    },
+    notificationDevices: {
+      type: [mongoose.Schema.Types.Mixed],
+      default: [],
+    },
     isVendor: {
       type: Boolean,
       default: false,

@@ -1,10 +1,29 @@
 import { useState } from "react";
 import { useBackButtonClose } from "../../../hooks/useBackButtonClose";
+import { DEFAULT_REMINDER_SETTINGS } from "../../../plannerDefaults";
 import { getMarketingUrl } from "../../../siteUrls.js";
 
 const PRICING_URL = getMarketingUrl("/pricing");
 
-function AccountScreen({ user, authMode, subscription, onClose, onLogout, onDeleteAccount, onStartOnboarding }) {
+function AccountScreen({
+  user,
+  authMode,
+  subscription,
+  activePlan,
+  planAccess,
+  notificationPreferences,
+  notificationSupport,
+  notificationError,
+  isUpdatingNotifications,
+  onClose,
+  onLogout,
+  onDeleteAccount,
+  onStartOnboarding,
+  onEnableBrowserNotifications,
+  onDisableBrowserNotifications,
+  onSaveNotificationPreferences,
+  onUpdateReminderSettings,
+}) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
@@ -24,6 +43,13 @@ function AccountScreen({ user, authMode, subscription, onClose, onLogout, onDele
   const activeUntilLabel = subscription?.currentPeriodEnd && tier !== "starter"
     ? new Date(subscription.currentPeriodEnd).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
     : "";
+  const isPaidPlan = tier === "premium" || tier === "studio";
+  const reminderSettings = {
+    ...DEFAULT_REMINDER_SETTINGS,
+    ...(activePlan?.reminderSettings || {}),
+  };
+  const canConfigureScheduledReminders = !isDemo && Boolean(planAccess?.canEdit) && isPaidPlan;
+  const browserPushConnected = Boolean(notificationPreferences?.browserPushEnabled);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -154,6 +180,168 @@ function AccountScreen({ user, authMode, subscription, onClose, onLogout, onDele
                 Upgrade to Premium
               </a>
             )}
+          </div>
+        )}
+
+        {!isDemo && (
+          <div style={{
+            marginBottom: 20, paddingBottom: 20,
+            borderBottom: "1px solid rgba(212,175,55,0.15)",
+          }}>
+            <div style={{
+              fontSize: 11, fontWeight: 700,
+              color: "var(--color-gold)", textTransform: "uppercase",
+              letterSpacing: 1, marginBottom: 10,
+            }}>
+              Notifications
+            </div>
+            <div style={{
+              borderRadius: 14,
+              padding: "14px 16px",
+              background: "rgba(212,175,55,0.08)",
+              border: "1px solid rgba(212,175,55,0.18)",
+            }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--color-crimson)" }}>
+                Browser notifications
+              </div>
+              <div style={{ fontSize: 12, color: "var(--color-light-text)", marginTop: 6, lineHeight: 1.5 }}>
+                {notificationSupport?.configured
+                  ? browserPushConnected
+                    ? "This browser is connected for planner reminders."
+                    : notificationSupport?.permission === "denied"
+                      ? "Browser permission is blocked. Update your browser settings to enable reminders."
+                      : "Connect this browser to receive Premium planner reminders."
+                  : "Firebase web messaging is not configured yet."}
+              </div>
+              <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                {!browserPushConnected ? (
+                  <button className="btn-primary" onClick={onEnableBrowserNotifications} disabled={isUpdatingNotifications || !notificationSupport?.configured}>
+                    {isUpdatingNotifications ? "Connecting..." : "Enable Browser Notifications"}
+                  </button>
+                ) : (
+                  <button className="btn-secondary" onClick={onDisableBrowserNotifications} disabled={isUpdatingNotifications}>
+                    {isUpdatingNotifications ? "Disconnecting..." : "Disconnect This Browser"}
+                  </button>
+                )}
+              </div>
+              <label style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginTop: 14, fontSize: 13, color: "var(--color-dark-text)" }}>
+                <span>Event reminders</span>
+                <input
+                  type="checkbox"
+                  checked={notificationPreferences?.eventReminders !== false}
+                  onChange={(event) => onSaveNotificationPreferences?.({ eventReminders: event.target.checked })}
+                  disabled={isUpdatingNotifications}
+                />
+              </label>
+              <label style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginTop: 10, fontSize: 13, color: "var(--color-dark-text)" }}>
+                <span>Payment reminders</span>
+                <input
+                  type="checkbox"
+                  checked={notificationPreferences?.paymentReminders !== false}
+                  onChange={(event) => onSaveNotificationPreferences?.({ paymentReminders: event.target.checked })}
+                  disabled={isUpdatingNotifications}
+                />
+              </label>
+              {notificationError ? (
+                <div style={{ color: "#b91c1c", fontSize: 12, marginTop: 12 }}>
+                  {notificationError}
+                </div>
+              ) : null}
+            </div>
+          </div>
+        )}
+
+        {!isDemo && activePlan && (
+          <div style={{
+            marginBottom: 20, paddingBottom: 20,
+            borderBottom: "1px solid rgba(212,175,55,0.15)",
+          }}>
+            <div style={{
+              fontSize: 11, fontWeight: 700,
+              color: "var(--color-gold)", textTransform: "uppercase",
+              letterSpacing: 1, marginBottom: 10,
+            }}>
+              Active Plan Reminders
+            </div>
+            <div style={{
+              borderRadius: 14,
+              padding: "14px 16px",
+              background: "rgba(139,26,26,0.05)",
+              border: "1px solid rgba(139,26,26,0.12)",
+            }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--color-crimson)" }}>
+                {(activePlan?.bride || "Bride")} &amp; {(activePlan?.groom || "Groom")}
+              </div>
+              <div style={{ fontSize: 12, color: "var(--color-light-text)", marginTop: 6, lineHeight: 1.5 }}>
+                Real scheduled reminders are part of Premium and Studio.
+              </div>
+
+              {canConfigureScheduledReminders ? (
+                <>
+                  <label style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginTop: 14, fontSize: 13, color: "var(--color-dark-text)" }}>
+                    <span>Enable scheduled reminders for this plan</span>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(reminderSettings.enabled)}
+                      onChange={(event) => onUpdateReminderSettings?.({ enabled: event.target.checked })}
+                    />
+                  </label>
+                  <label style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginTop: 10, fontSize: 13, color: "var(--color-dark-text)" }}>
+                    <span>Event reminder: 1 day before</span>
+                    <input
+                      type="checkbox"
+                      checked={reminderSettings.eventDayBefore !== false}
+                      onChange={(event) => onUpdateReminderSettings?.({ eventDayBefore: event.target.checked })}
+                      disabled={!reminderSettings.enabled}
+                    />
+                  </label>
+                  <label style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginTop: 10, fontSize: 13, color: "var(--color-dark-text)" }}>
+                    <span>Event reminder: 3 hours before</span>
+                    <input
+                      type="checkbox"
+                      checked={reminderSettings.eventHoursBefore !== false}
+                      onChange={(event) => onUpdateReminderSettings?.({ eventHoursBefore: event.target.checked })}
+                      disabled={!reminderSettings.enabled}
+                    />
+                  </label>
+                  <label style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginTop: 10, fontSize: 13, color: "var(--color-dark-text)" }}>
+                    <span>Payment reminder: 3 days before</span>
+                    <input
+                      type="checkbox"
+                      checked={reminderSettings.paymentThreeDaysBefore !== false}
+                      onChange={(event) => onUpdateReminderSettings?.({ paymentThreeDaysBefore: event.target.checked })}
+                      disabled={!reminderSettings.enabled}
+                    />
+                  </label>
+                  <label style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginTop: 10, fontSize: 13, color: "var(--color-dark-text)" }}>
+                    <span>Payment reminder: day of due date</span>
+                    <input
+                      type="checkbox"
+                      checked={reminderSettings.paymentDayOf !== false}
+                      onChange={(event) => onUpdateReminderSettings?.({ paymentDayOf: event.target.checked })}
+                      disabled={!reminderSettings.enabled}
+                    />
+                  </label>
+                </>
+              ) : (
+                <>
+                  <div style={{ fontSize: 12, color: "var(--color-light-text)", marginTop: 14, lineHeight: 1.5 }}>
+                    {isPaidPlan
+                      ? "You can receive reminders on this plan, but only editors and owners can change the schedule."
+                      : "Upgrade this workspace owner to Premium to unlock real scheduled reminders for events and budget payments."}
+                  </div>
+                  {tier === "starter" ? (
+                    <a
+                      className="btn-primary"
+                      href={PRICING_URL}
+                      style={{ display: "block", textAlign: "center", textDecoration: "none", marginTop: 12 }}
+                    >
+                      Unlock Premium Reminders
+                    </a>
+                  ) : null}
+                </>
+              )}
+            </div>
           </div>
         )}
 

@@ -19,6 +19,14 @@ export const DEFAULT_WEBSITE_SETTINGS = {
   scheduleTitle: 'Wedding Calendar',
 };
 
+export const DEFAULT_REMINDER_SETTINGS = {
+  enabled: false,
+  eventDayBefore: true,
+  eventHoursBefore: true,
+  paymentThreeDaysBefore: true,
+  paymentDayOf: true,
+};
+
 export const WEDDING_WEBSITE_THEMES = [
   { id: 'royal-maroon', name: 'Royal Maroon' },
   { id: 'garden-sage', name: 'Garden Sage' },
@@ -470,6 +478,7 @@ export function createBlankMarriagePlan(planId = null) {
     budget: '',
     websiteSlug: '',
     websiteSettings: { ...DEFAULT_WEBSITE_SETTINGS },
+    reminderSettings: { ...DEFAULT_REMINDER_SETTINGS },
     template: 'blank',
     collaborators: [],
     createdAt: new Date(),
@@ -490,6 +499,7 @@ export function createDemoMarriagePlan() {
     budget: '6500000',
     websiteSlug: 'aarohi-kabir-1',
     websiteSettings: { ...DEFAULT_WEBSITE_SETTINGS },
+    reminderSettings: { ...DEFAULT_REMINDER_SETTINGS, enabled: true },
     template: 'punjabi',
     collaborators: [],
     createdAt: new Date(),
@@ -561,6 +571,15 @@ export function normalizePlanner(planner) {
           ...DEFAULT_WEBSITE_SETTINGS,
           ...(marriage.websiteSettings && typeof marriage.websiteSettings === 'object' ? marriage.websiteSettings : {}),
         },
+        reminderSettings: {
+          ...DEFAULT_REMINDER_SETTINGS,
+          ...(marriage.reminderSettings && typeof marriage.reminderSettings === 'object' ? marriage.reminderSettings : {}),
+          enabled: Boolean(marriage.reminderSettings?.enabled),
+          eventDayBefore: marriage.reminderSettings?.eventDayBefore !== false,
+          eventHoursBefore: marriage.reminderSettings?.eventHoursBefore !== false,
+          paymentThreeDaysBefore: marriage.reminderSettings?.paymentThreeDaysBefore !== false,
+          paymentDayOf: marriage.reminderSettings?.paymentDayOf !== false,
+        },
         collaborators: Array.isArray(marriage.collaborators)
           ? marriage.collaborators
             .filter(item => item && typeof item === 'object' && typeof item.email === 'string' && item.email.trim())
@@ -589,6 +608,7 @@ export function normalizePlanner(planner) {
       budget: planner.wedding.budget || '',
       websiteSlug: '',
       websiteSettings: { ...DEFAULT_WEBSITE_SETTINGS },
+      reminderSettings: { ...DEFAULT_REMINDER_SETTINGS },
       template: 'blank',
       collaborators: [],
       createdAt: new Date(),

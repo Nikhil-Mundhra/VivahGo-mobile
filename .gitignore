@@ -3,3 +3,4 @@ coverage/
 config/subscription-coupons.local.json
 .vercel
 .env*.local
+env.vercel

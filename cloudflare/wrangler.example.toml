@@ -1,0 +1,10 @@
+name = "vivahgo-reminder-dispatcher"
+main = "reminder-dispatcher.js"
+compatibility_date = "2026-03-30"
+
+[triggers]
+crons = ["*/5 * * * *"]
+
+[vars]
+PLANNER_DISPATCH_URL = "https://planner.vivahgo.com/api/planner/internal/reminder-dispatch"
+REMINDER_DISPATCH_LIMIT = "25"

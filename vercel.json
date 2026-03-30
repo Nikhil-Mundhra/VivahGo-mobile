@@ -29,6 +29,8 @@
     { "source": "/api/planner/rsvp", "destination": "/api/planner?route=rsvp" },
     { "source": "/api/planner/me/rsvp-link", "destination": "/api/planner?route=rsvp-link" },
     { "source": "/api/planner/me/collaborators", "destination": "/api/planner?route=collaborators" },
+    { "source": "/api/planner/me/notifications", "destination": "/api/planner?route=notifications" },
+    { "source": "/api/planner/internal/reminder-dispatch", "destination": "/api/planner?route=reminder-dispatch" },
     { "source": "/api/planner/me", "destination": "/api/planner?route=me" },
     { "source": "/api/subscription/status", "destination": "/api/subscription?op=status" },
     { "source": "/api/subscription/quote", "destination": "/api/subscription?op=quote" },

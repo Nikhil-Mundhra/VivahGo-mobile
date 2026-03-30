@@ -12,6 +12,7 @@ const PLAN_PERKS = {
   premium: [
     "Unlimited wedding workspaces",
     "Personalized wedding website",
+    "Real scheduled reminders",
     "Advanced workspace management",
   ],
   studio: [

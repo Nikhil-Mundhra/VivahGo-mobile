@@ -141,6 +141,30 @@ describe('core helpers', function () {
       assert.equal(result.marriages[0].websiteSettings.scheduleTitle, 'Wedding Calendar');
     });
 
+    it('normalizes per-plan reminder settings', function () {
+      const result = sanitizePlanner({
+        marriages: [
+          {
+            id: 'plan_reminders',
+            reminderSettings: {
+              enabled: true,
+              eventDayBefore: false,
+              paymentDayOf: false,
+            },
+          },
+        ],
+        activePlanId: 'plan_reminders',
+      });
+
+      assert.deepEqual(result.marriages[0].reminderSettings, {
+        enabled: true,
+        eventDayBefore: false,
+        eventHoursBefore: true,
+        paymentThreeDaysBefore: true,
+        paymentDayOf: false,
+      });
+    });
+
     it('keeps normalized custom templates on the planner', function () {
       const result = sanitizePlanner({
         customTemplates: [
@@ -496,6 +520,13 @@ describe('core helpers', function () {
       assert.deepEqual(result.guests, []);
       assert.deepEqual(result.vendors, []);
       assert.deepEqual(result.tasks, []);
+      assert.deepEqual(result.marriages[0].reminderSettings, {
+        enabled: false,
+        eventDayBefore: true,
+        eventHoursBefore: true,
+        paymentThreeDaysBefore: true,
+        paymentDayOf: true,
+      });
     });
 
     it('returns a fresh copy each call (no shared references)', function () {

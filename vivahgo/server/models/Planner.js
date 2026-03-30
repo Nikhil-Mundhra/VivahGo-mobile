@@ -49,6 +49,10 @@ const plannerSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.Mixed,
             default: () => ({}),
           },
+          reminderSettings: {
+            type: mongoose.Schema.Types.Mixed,
+            default: () => ({}),
+          },
           template: String, // 'blank', 'traditional', 'modern', 'minimalist', 'adventure'
           collaborators: {
             type: [collaboratorSchema],

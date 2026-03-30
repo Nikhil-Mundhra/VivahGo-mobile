@@ -14,6 +14,7 @@ describe('VivahGo/server/models/Planner.js', function () {
     assert.ok(Planner.schema.path('events'));
     assert.ok(Planner.schema.path('expenses'));
     assert.ok(Planner.schema.path('tasks'));
+    assert.ok(Planner.schema.path('marriages.reminderSettings'));
   });
 
   it('applies array/object defaults for planner sections', async function () {

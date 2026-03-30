@@ -6,6 +6,7 @@ import express from 'express';
 import fs from 'node:fs';
 import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
+import { createRequire } from 'node:module';
 import { OAuth2Client } from 'google-auth-library';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -20,6 +21,9 @@ import BillingReceipt from './models/BillingReceipt.js';
 import b2Helpers from '../../api/_lib/b2.js';
 import careersAdminHelpers from '../../api/_lib/careers-admin.js';
 import r2Helpers from '../../api/_lib/r2.js';
+
+const require = createRequire(import.meta.url);
+const plannerHandler = require('../../api/planner.js');
 
 const port = Number(process.env.PORT || 4000);
 const mongoUri = process.env.MONGODB_URI;
@@ -47,6 +51,14 @@ const defaultWebsiteSettings = {
   heroTagline: 'You are invited to celebrate',
   welcomeMessage: '',
   scheduleTitle: 'Wedding Calendar',
+};
+
+const defaultReminderSettings = {
+  enabled: false,
+  eventDayBefore: true,
+  eventHoursBefore: true,
+  paymentThreeDaysBefore: true,
+  paymentDayOf: true,
 };
 
 const ROLE_LEVEL = {
@@ -467,6 +479,7 @@ export function buildEmptyPlanner(options = {}) {
         guests: '',
         websiteSlug: '',
         websiteSettings: { ...defaultWebsiteSettings },
+        reminderSettings: { ...defaultReminderSettings },
         template: 'blank',
         collaborators: ownerEmail
           ? [
@@ -540,6 +553,19 @@ function sanitizeCollaborators(value, ownerEmail, ownerId) {
   return [...byEmail.values()];
 }
 
+function sanitizeReminderSettings(value) {
+  const source = isRecord(value) ? value : {};
+  return {
+    ...defaultReminderSettings,
+    ...source,
+    enabled: Boolean(source.enabled),
+    eventDayBefore: source.eventDayBefore !== false,
+    eventHoursBefore: source.eventHoursBefore !== false,
+    paymentThreeDaysBefore: source.paymentThreeDaysBefore !== false,
+    paymentDayOf: source.paymentDayOf !== false,
+  };
+}
+
 function slugifyWeddingNamePart(value) {
   return String(value || '')
     .trim()
@@ -565,7 +591,7 @@ function extractSlugCounter(slug, baseSlug) {
   return match ? Number(match[1]) : null;
 }
 
-async function assignWeddingWebsiteSlugs(planner, ownerId = '', plannerModel = Planner) {
+async function _assignWeddingWebsiteSlugs(planner, ownerId = '', plannerModel = Planner) {
   if (!planner || !Array.isArray(planner.marriages)) {
     return planner;
   }
@@ -635,6 +661,7 @@ function sanitizeMarriages(value, ownerEmail, ownerId) {
         ...defaultWebsiteSettings,
         ...(isRecord(marriage.websiteSettings) ? marriage.websiteSettings : {}),
       },
+      reminderSettings: sanitizeReminderSettings(marriage.reminderSettings),
       template: marriage.template || 'blank',
       collaborators: sanitizeCollaborators(marriage.collaborators, ownerEmail, ownerId),
       createdAt: marriage.createdAt || new Date(),
@@ -715,6 +742,7 @@ export function sanitizePlanner(payload = {}, options = {}) {
       guests: '',
       websiteSlug: '',
       websiteSettings: { ...defaultWebsiteSettings },
+      reminderSettings: { ...defaultReminderSettings },
       template: 'blank',
       collaborators: sanitizeCollaborators([], ownerEmail, ownerId),
       createdAt: new Date(),
@@ -2620,92 +2648,9 @@ export function createApp(options = {}) {
     }
   });
 
-  app.get('/api/planner/me', (req, res, next) => authMiddleware(req, res, next, injectedJwtSecret), async (req, res) => {
-    try {
-      req.auth.plannerOwnerId = req.query?.plannerOwnerId || '';
-      const plannerDoc = await resolvePlannerForSession(PlannerModel, req.auth);
-      if (!plannerDoc) {
-        return res.status(404).json({ error: 'Planner not found.' });
-      }
-      const email = normalizeEmail(req.auth.email);
-      const ownerId = plannerDoc.googleId || req.auth.sub;
-      const normalized = normalizePlannerOwnership(plannerDoc.toObject(), email, ownerId);
-      const activePlan = getPlanFromPlanner(normalized, normalized.activePlanId);
-      const role = getCollaboratorRoleForPlan(activePlan, email) || (ownerId === req.auth.sub ? 'owner' : null);
+  app.get('/api/planner/me', (req, res) => plannerHandler.handlePlannerMe(req, res));
 
-      if (!role) {
-        return res.status(403).json({ error: 'You do not have access to this plan.' });
-      }
-
-      return res.json({
-        planner: sanitizePlanner(normalized, { ownerEmail: findOwnerEmail(activePlan) || email, ownerId }),
-        plannerOwnerId: ownerId,
-        access: {
-          role,
-          canManageSharing: role === 'owner',
-          canEdit: role === 'owner' || role === 'editor',
-        },
-      });
-    } catch (error) {
-      console.error('Failed to load planner:', error);
-      return res.status(500).json({ error: 'Failed to load planner data.' });
-    }
-  });
-
-  app.put('/api/planner/me', (req, res, next) => authMiddleware(req, res, next, injectedJwtSecret), async (req, res) => {
-    try {
-      req.auth.plannerOwnerId = req.query?.plannerOwnerId || req.body?.plannerOwnerId || '';
-      const plannerDoc = await resolvePlannerForSession(PlannerModel, req.auth);
-      if (!plannerDoc) {
-        return res.status(404).json({ error: 'Planner not found.' });
-      }
-      const email = normalizeEmail(req.auth.email);
-      const ownerId = plannerDoc.googleId || req.auth.sub;
-      const normalizedCurrent = normalizePlannerOwnership(plannerDoc.toObject(), email, ownerId);
-      const currentPlan = getPlanFromPlanner(normalizedCurrent, normalizedCurrent.activePlanId);
-      const ownerEmail = findOwnerEmail(currentPlan) || email;
-      const sanitizedPlanner = sanitizePlanner(req.body?.planner, { ownerEmail, ownerId });
-      const planner = await assignWeddingWebsiteSlugs(sanitizedPlanner, ownerId, PlannerModel);
-      const nextPlan = getPlanFromPlanner(planner, planner.activePlanId);
-
-      const ownerFallback = !email && ownerId === req.auth.sub;
-      if (!ownerFallback && !hasPlanRole(nextPlan, email, 'editor')) {
-        return res.status(403).json({ error: 'You have view-only access to this plan.' });
-      }
-
-      // Subscription gate: Starter users may only have one plan
-      const currentPlanCount = Array.isArray(normalizedCurrent.marriages) ? normalizedCurrent.marriages.length : 0;
-      const nextPlanCount = Array.isArray(planner.marriages) ? planner.marriages.length : 0;
-      if (nextPlanCount > currentPlanCount) {
-        const tier = await getUserSubscriptionTier(UserModel, req.auth.sub);
-        if (tier === 'starter' && nextPlanCount > 1) {
-          return res.status(403).json({ error: 'Starter plan supports 1 wedding. Upgrade to Premium for unlimited plans.', code: 'UPGRADE_REQUIRED' });
-        }
-      }
-
-      const updatedPlanner = await PlannerModel.findOneAndUpdate(
-        { _id: plannerDoc._id || ownerId },
-        {
-          $set: {
-            ...planner,
-          },
-        },
-        {
-          new: true,
-          upsert: true,
-          setDefaultsOnInsert: true,
-        }
-      );
-
-      return res.json({
-        planner: sanitizePlanner(updatedPlanner.toObject(), { ownerEmail, ownerId }),
-        plannerOwnerId: ownerId,
-      });
-    } catch (error) {
-      console.error('Failed to save planner:', error);
-      return res.status(500).json({ error: 'Failed to save planner data.' });
-    }
-  });
+  app.put('/api/planner/me', (req, res) => plannerHandler.handlePlannerMe(req, res));
 
   app.get('/api/planner/public', async (req, res) => {
     try {
@@ -3153,6 +3098,16 @@ export function createApp(options = {}) {
     }
   });
 
+  app.all('/api/planner/me/notifications', (req, res) => {
+    req.query = { ...(req.query || {}), route: 'notifications' };
+    return plannerHandler(req, res);
+  });
+
+  app.all('/api/planner/internal/reminder-dispatch', (req, res) => {
+    req.query = { ...(req.query || {}), route: 'reminder-dispatch' };
+    return plannerHandler(req, res);
+  });
+
   // ── Subscription routes ──────────────────────────────────────────────────
 
   app.get('/api/subscription/status', (req, res, next) => authMiddleware(req, res, next, injectedJwtSecret), async (req, res) => {
@@ -3560,7 +3515,7 @@ async function persistReceiptAndSubscription({ BillingReceiptModel, UserModel, a
   }
 }
 
-async function getUserSubscriptionTier(UserModel, googleId) {
+async function _getUserSubscriptionTier(UserModel, googleId) {
   if (typeof UserModel?.findOne !== 'function') {
     return 'starter';
   }

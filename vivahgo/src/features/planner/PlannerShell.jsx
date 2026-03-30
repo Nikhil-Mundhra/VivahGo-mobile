@@ -25,23 +25,33 @@ import {
   addPlanCollaborator,
   deleteAccount,
   fetchAccessiblePlanners,
+  fetchPlannerNotificationSettings,
   fetchPlanCollaborators,
   fetchPlanner,
   getSubscriptionStatus,
   loginWithGoogle,
   logoutSession,
+  registerPlannerNotificationToken,
   removePlanCollaborator,
+  removePlannerNotificationToken,
+  savePlannerNotificationSettings,
   savePlanner,
   updatePlanCollaboratorRole,
 } from "../../api";
-import { DEFAULT_WEBSITE_SETTINGS, EMPTY_WEDDING, EXPECTED_GUEST_OPTIONS, buildWeddingWebsitePath, createBlankPlanner, createDemoPlanner, hasWeddingProfile, normalizePlanner, generatePlanId, createTemplatePlanCollections, normalizeCustomTemplates } from "../../plannerDefaults";
+import { DEFAULT_REMINDER_SETTINGS, DEFAULT_WEBSITE_SETTINGS, EMPTY_WEDDING, EXPECTED_GUEST_OPTIONS, buildWeddingWebsitePath, createBlankPlanner, createDemoPlanner, hasWeddingProfile, normalizePlanner, generatePlanId, createTemplatePlanCollections, normalizeCustomTemplates } from "../../plannerDefaults";
 import { useSwipeDown } from "../../hooks/useSwipeDown";
 import { getMarketingUrl } from "../../siteUrls.js";
+import { getBrowserNotificationSupport, removeBrowserPushToken, requestBrowserPushToken, subscribeToForegroundMessages } from "../../firebaseMessaging.js";
 
 const DEMO_PLANNER_STORAGE_KEY = "vivahgo.demoPlanner";
 const PRICING_URL = getMarketingUrl("/pricing");
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const YEARS = Array.from({ length: 8 }, (_, i) => 2025 + i);
+const DEFAULT_NOTIFICATION_PREFERENCES = {
+  browserPushEnabled: false,
+  eventReminders: true,
+  paymentReminders: true,
+};
 
 function parseDateStr(str) {
   const [day = "", month = "", year = ""] = (str || "").split(" ");
@@ -115,6 +125,10 @@ export default function PlannerShell() {
   const [subscription, setSubscription] = useState({ tier: "starter", status: "active", currentPeriodEnd: null });
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
   const [upgradePromptMessage, setUpgradePromptMessage] = useState("");
+  const [notificationPreferences, setNotificationPreferences] = useState(DEFAULT_NOTIFICATION_PREFERENCES);
+  const [notificationSupport, setNotificationSupport] = useState({ supported: false, configured: false, permission: "default" });
+  const [notificationError, setNotificationError] = useState("");
+  const [isUpdatingNotifications, setIsUpdatingNotifications] = useState(false);
   const weddingSwipe = useSwipeDown(() => closeWeddingDetailsEditor());
   const weddingLocationCountries = getLocationCountries();
   const weddingLocationStates = getLocationStates(weddingDetailsForm.country);
@@ -253,7 +267,7 @@ export default function PlannerShell() {
     });
   }, [user?.email]);
 
-  function syncWebsiteSlugsFromPlanner(nextPlanner) {
+  function syncPlanMetadataFromPlanner(nextPlanner) {
     const normalized = normalizePlanner(nextPlanner);
 
     setMarriages(current => {
@@ -264,9 +278,17 @@ export default function PlannerShell() {
           return plan;
         }
 
-        if ((serverPlan.websiteSlug || "") !== (plan.websiteSlug || "")) {
+        const nextReminderSettings = serverPlan.reminderSettings || { ...DEFAULT_REMINDER_SETTINGS };
+        const websiteChanged = (serverPlan.websiteSlug || "") !== (plan.websiteSlug || "");
+        const reminderChanged = JSON.stringify(plan.reminderSettings || DEFAULT_REMINDER_SETTINGS) !== JSON.stringify(nextReminderSettings);
+
+        if (websiteChanged || reminderChanged) {
           didChange = true;
-          return { ...plan, websiteSlug: serverPlan.websiteSlug || "" };
+          return {
+            ...plan,
+            websiteSlug: serverPlan.websiteSlug || "",
+            reminderSettings: nextReminderSettings,
+          };
         }
 
         return plan;
@@ -289,6 +311,39 @@ export default function PlannerShell() {
       // Non-fatal: default to starter if status fetch fails
     }
   }
+
+  async function refreshBrowserNotificationState() {
+    try {
+      const support = await getBrowserNotificationSupport();
+      setNotificationSupport(support);
+    } catch {
+      setNotificationSupport({ supported: false, configured: false, permission: "default" });
+    }
+  }
+
+  const fetchAndApplyNotificationSettings = useCallback(async (token) => {
+    if (!token) {
+      setNotificationPreferences(DEFAULT_NOTIFICATION_PREFERENCES);
+      return;
+    }
+
+    try {
+      const response = await fetchPlannerNotificationSettings(token);
+      setNotificationPreferences({
+        ...DEFAULT_NOTIFICATION_PREFERENCES,
+        ...(response?.notificationPreferences || {}),
+      });
+    } catch {
+      setNotificationPreferences(DEFAULT_NOTIFICATION_PREFERENCES);
+    } finally {
+      try {
+        const support = await getBrowserNotificationSupport();
+        setNotificationSupport(support);
+      } catch {
+        setNotificationSupport({ supported: false, configured: false, permission: "default" });
+      }
+    }
+  }, []);
 
   function persistSession(session) {
     return persistAuthSession(session);
@@ -384,6 +439,7 @@ export default function PlannerShell() {
       budget: formData.budget,
       template: formData.template,
       websiteSettings: { ...DEFAULT_WEBSITE_SETTINGS },
+      reminderSettings: { ...DEFAULT_REMINDER_SETTINGS },
       collaborators: user?.email
         ? [{ email: normalizeEmail(user.email), role: "owner", addedBy: user.id || "", addedAt: new Date() }]
         : [],
@@ -595,6 +651,113 @@ export default function PlannerShell() {
     )));
   }
 
+  function updateActiveMarriageReminderSettings(nextSettings) {
+    if (!activePlanId || !planAccess.canEdit) {
+      return;
+    }
+
+    setMarriages(current => current.map(plan => (
+      plan.id === activePlanId
+        ? {
+          ...plan,
+          reminderSettings: {
+            ...DEFAULT_REMINDER_SETTINGS,
+            ...(plan.reminderSettings || {}),
+            ...nextSettings,
+          },
+        }
+        : plan
+    )));
+  }
+
+  async function handleSaveNotificationPreferences(nextPartial) {
+    if (!authToken) {
+      return;
+    }
+
+    const nextPreferences = {
+      ...DEFAULT_NOTIFICATION_PREFERENCES,
+      ...notificationPreferences,
+      ...nextPartial,
+    };
+
+    try {
+      setIsUpdatingNotifications(true);
+      setNotificationError("");
+      setNotificationPreferences(nextPreferences);
+      const response = await savePlannerNotificationSettings(authToken, nextPreferences);
+      setNotificationPreferences({
+        ...DEFAULT_NOTIFICATION_PREFERENCES,
+        ...(response?.notificationPreferences || nextPreferences),
+      });
+    } catch (error) {
+      setNotificationError(error.message || "Could not save notification preferences.");
+    } finally {
+      setIsUpdatingNotifications(false);
+    }
+  }
+
+  async function handleEnableBrowserNotifications() {
+    if (!authToken) {
+      return;
+    }
+
+    try {
+      setIsUpdatingNotifications(true);
+      setNotificationError("");
+      const token = await requestBrowserPushToken();
+      const response = await registerPlannerNotificationToken(authToken, {
+        token,
+        platform: "web",
+        deviceLabel: typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 80) : "web-browser",
+      });
+      setNotificationPreferences({
+        ...DEFAULT_NOTIFICATION_PREFERENCES,
+        ...(response?.notificationPreferences || notificationPreferences),
+      });
+      await refreshBrowserNotificationState();
+    } catch (error) {
+      setNotificationError(error.message || "Could not enable browser notifications.");
+      await refreshBrowserNotificationState();
+    } finally {
+      setIsUpdatingNotifications(false);
+    }
+  }
+
+  async function handleDisableBrowserNotifications() {
+    if (!authToken) {
+      return;
+    }
+
+    try {
+      setIsUpdatingNotifications(true);
+      setNotificationError("");
+      let token = "";
+      try {
+        token = await requestBrowserPushToken();
+      } catch {
+        token = "";
+      }
+      await removeBrowserPushToken().catch(() => false);
+      const response = token
+        ? await removePlannerNotificationToken(authToken, { token })
+        : await savePlannerNotificationSettings(authToken, {
+          ...notificationPreferences,
+          browserPushEnabled: false,
+        });
+      setNotificationPreferences({
+        ...DEFAULT_NOTIFICATION_PREFERENCES,
+        ...(response?.notificationPreferences || notificationPreferences),
+        browserPushEnabled: false,
+      });
+      await refreshBrowserNotificationState();
+    } catch (error) {
+      setNotificationError(error.message || "Could not disconnect browser notifications.");
+    } finally {
+      setIsUpdatingNotifications(false);
+    }
+  }
+
   useEffect(() => {
     if (typeof window === "undefined") {
       return undefined;
@@ -619,6 +782,21 @@ export default function PlannerShell() {
   useEffect(() => {
     setAvatarLoadError(false);
   }, [user?.picture]);
+
+  useEffect(() => {
+    getBrowserNotificationSupport()
+      .then((support) => setNotificationSupport(support))
+      .catch(() => setNotificationSupport({ supported: false, configured: false, permission: "default" }));
+
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const requestedTab = new URLSearchParams(window.location.search).get("tab");
+    if (requestedTab && NAV_ITEMS.some((item) => item.id === requestedTab)) {
+      setTab(requestedTab);
+    }
+  }, []);
 
   useEffect(() => {
     const scrollHost = contentAreaRef.current;
@@ -720,6 +898,7 @@ export default function PlannerShell() {
             setAuthMode("demo");
             setUser(session.user || null);
             applyPlanner(savedPlanner || createDemoPlanner());
+            setNotificationPreferences(DEFAULT_NOTIFICATION_PREFERENCES);
             setRequiresOnboarding(false);
             setScreen("splash");
           }
@@ -738,6 +917,7 @@ export default function PlannerShell() {
             setPlannerOwnerId(resolvedOwnerId || session.plannerOwnerId || session.user?.id || "");
             await refreshAccessibleWorkspaces(session.token);
             await fetchAndApplySubscription(session.token);
+            await fetchAndApplyNotificationSettings(session.token);
             setScreen(nextRequiresOnboarding ? "splash" : "app");
           }
           return;
@@ -760,7 +940,29 @@ export default function PlannerShell() {
     return () => {
       cancelled = true;
     };
-  }, [applyPlanner]);
+  }, [applyPlanner, fetchAndApplyNotificationSettings]);
+
+  useEffect(() => {
+    let unsubscribe = () => {};
+    let isActive = true;
+
+    subscribeToForegroundMessages((payload) => {
+      if (!isActive || typeof Notification === "undefined" || Notification.permission !== "granted") {
+        return;
+      }
+
+      const title = payload?.notification?.title || "VivahGo reminder";
+      const body = payload?.notification?.body || "You have an upcoming planner reminder.";
+      new Notification(title, { body });
+    }).then((nextUnsubscribe) => {
+      unsubscribe = typeof nextUnsubscribe === "function" ? nextUnsubscribe : () => {};
+    }).catch(() => {});
+
+    return () => {
+      isActive = false;
+      unsubscribe();
+    };
+  }, [authToken]);
 
   useEffect(() => {
     if (isBootstrapping || !authToken) {
@@ -798,7 +1000,7 @@ export default function PlannerShell() {
         setSaveState("saving");
         const response = await savePlanner(authToken, planner, plannerOwnerId);
         if (response?.planner) {
-          syncWebsiteSlugsFromPlanner(response.planner);
+          syncPlanMetadataFromPlanner(response.planner);
         }
         setSaveState("saved");
       } catch (error) {
@@ -831,6 +1033,7 @@ export default function PlannerShell() {
     persistSession({ mode: "demo", user: demoUser });
     localStorage.setItem(DEMO_PLANNER_STORAGE_KEY, JSON.stringify(demoPlanner));
     setLoginError("");
+    setNotificationPreferences(DEFAULT_NOTIFICATION_PREFERENCES);
     setRequiresOnboarding(false);
     setTab("home");
     setScreen("splash");
@@ -856,6 +1059,7 @@ export default function PlannerShell() {
       setPlannerOwnerId(resolvedOwnerId || authenticatedUser.id || "");
       await refreshAccessibleWorkspaces(nextSession?.token);
       await fetchAndApplySubscription(nextSession?.token);
+      await fetchAndApplyNotificationSettings(nextSession?.token);
       setTab("home");
       setSaveState("idle");
       setScreen("splash");
@@ -884,6 +1088,7 @@ export default function PlannerShell() {
     setAuthToken("");
     setPlannerOwnerId("");
     setAccessibleWorkspaces([]);
+    setNotificationPreferences(DEFAULT_NOTIFICATION_PREFERENCES);
     applyPlanner(createBlankPlanner());
     setRequiresOnboarding(false);
     setTab("home");
@@ -900,6 +1105,7 @@ export default function PlannerShell() {
     setAuthToken("");
     setPlannerOwnerId("");
     setAccessibleWorkspaces([]);
+    setNotificationPreferences(DEFAULT_NOTIFICATION_PREFERENCES);
     applyPlanner(createBlankPlanner());
     setRequiresOnboarding(false);
     setTab("home");
@@ -1233,8 +1439,18 @@ export default function PlannerShell() {
               user={user}
               authMode={authMode}
               subscription={subscription}
+              activePlan={activeMarriage}
+              planAccess={planAccess}
+              notificationPreferences={notificationPreferences}
+              notificationSupport={notificationSupport}
+              notificationError={notificationError}
+              isUpdatingNotifications={isUpdatingNotifications}
               onClose={closeAccountSettings}
               onStartOnboarding={handleStartOnboardingFromDemo}
+              onEnableBrowserNotifications={handleEnableBrowserNotifications}
+              onDisableBrowserNotifications={handleDisableBrowserNotifications}
+              onSaveNotificationPreferences={handleSaveNotificationPreferences}
+              onUpdateReminderSettings={updateActiveMarriageReminderSettings}
               onLogout={() => { closeAccountSettings(); handleLogout(); }}
               onDeleteAccount={handleDeleteAccount}
             />

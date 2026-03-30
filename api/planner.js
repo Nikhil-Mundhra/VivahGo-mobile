@@ -1,3 +1,5 @@
+const crypto = require('crypto');
+
 const {
   applyRateLimit,
   assignWeddingWebsiteSlugs,
@@ -7,18 +9,23 @@ const {
   getCollaboratorRoleForPlan,
   getPlannerModel,
   getPlanFromPlanner,
+  getReminderJobModel,
   getSubscriptionTier,
+  getUserModel,
   handlePreflight,
   hasPlanRole,
   normalizeEmail,
   normalizePlannerOwnership,
   normalizeRole,
   requireCsrfProtection,
+  sanitizeNotificationPreferences,
   sanitizePlanner,
+  sanitizeReminderSettings,
   setCorsHeaders,
   verifyGuestRsvpToken,
   verifySession,
 } = require('./_lib/core');
+const { sendFcmNotification } = require('./_lib/fcm');
 
 /******************************************************************************
  * Shared Helpers
@@ -146,6 +153,550 @@ function buildGuestRsvpLink(req, token) {
   return `/rsvp/${encodeURIComponent(token)}`;
 }
 
+const REMINDER_DISPATCH_MAX_JOBS = 25;
+const REMINDER_STALE_PROCESSING_MS = 10 * 60 * 1000;
+const IST_OFFSET_MINUTES = 330;
+const IST_DEFAULT_EVENT_HOUR = 10;
+const IST_DEFAULT_PAYMENT_HOUR = 9;
+const MONTH_INDEX = {
+  jan: 0,
+  january: 0,
+  feb: 1,
+  february: 1,
+  mar: 2,
+  march: 2,
+  apr: 3,
+  april: 3,
+  may: 4,
+  jun: 5,
+  june: 5,
+  jul: 6,
+  july: 6,
+  aug: 7,
+  august: 7,
+  sep: 8,
+  sept: 8,
+  september: 8,
+  oct: 9,
+  october: 9,
+  nov: 10,
+  november: 10,
+  dec: 11,
+  december: 11,
+};
+
+function isPaidReminderTier(tier) {
+  return tier === 'premium' || tier === 'studio';
+}
+
+function buildNotificationClickPath(tab = 'home') {
+  const safeTab = ['home', 'events', 'budget', 'guests', 'tasks'].includes(tab) ? tab : 'home';
+  return `/?tab=${encodeURIComponent(safeTab)}`;
+}
+
+function sanitizePlanReminderSettingsForTier(value, tier) {
+  const next = sanitizeReminderSettings(value);
+  if (!isPaidReminderTier(tier)) {
+    return { ...next, enabled: false };
+  }
+  return next;
+}
+
+function applyReminderTierGate(planner, tier) {
+  return {
+    ...planner,
+    marriages: (planner.marriages || []).map(plan => ({
+      ...plan,
+      reminderSettings: sanitizePlanReminderSettingsForTier(plan.reminderSettings, tier),
+    })),
+  };
+}
+
+function getReminderDispatchSecret() {
+  return String(process.env.REMINDER_DISPATCH_SECRET || '').trim();
+}
+
+function hasReminderDispatchAccess(req) {
+  const configuredSecret = getReminderDispatchSecret();
+  if (!configuredSecret) {
+    return false;
+  }
+
+  const bearerHeader = typeof req.headers?.authorization === 'string' ? req.headers.authorization.trim() : '';
+  const bearerValue = bearerHeader.toLowerCase().startsWith('bearer ')
+    ? bearerHeader.slice(7).trim()
+    : '';
+  const headerSecret = typeof req.headers?.['x-reminder-secret'] === 'string' ? req.headers['x-reminder-secret'].trim() : '';
+
+  return headerSecret === configuredSecret || bearerValue === configuredSecret;
+}
+
+function buildIstDate(year, monthIndex, day, hour = IST_DEFAULT_EVENT_HOUR, minute = 0) {
+  if (![year, monthIndex, day, hour, minute].every(Number.isFinite)) {
+    return null;
+  }
+
+  const utcMillis = Date.UTC(year, monthIndex, day, hour, minute) - (IST_OFFSET_MINUTES * 60 * 1000);
+  return new Date(utcMillis);
+}
+
+function parseEventDate(value) {
+  const normalized = String(value || '').trim().replace(/\s+/g, ' ');
+  if (!normalized) {
+    return null;
+  }
+
+  const isoMatch = normalized.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoMatch) {
+    return {
+      year: Number(isoMatch[1]),
+      monthIndex: Number(isoMatch[2]) - 1,
+      day: Number(isoMatch[3]),
+    };
+  }
+
+  const parts = normalized.split(' ');
+  if (parts.length !== 3) {
+    return null;
+  }
+
+  const day = Number(parts[0]);
+  const monthIndex = MONTH_INDEX[String(parts[1] || '').trim().toLowerCase()];
+  const year = Number(parts[2]);
+  if (!Number.isFinite(day) || !Number.isFinite(year) || !Number.isInteger(monthIndex)) {
+    return null;
+  }
+
+  return { year, monthIndex, day };
+}
+
+function parseEventTime(value, fallbackHour = IST_DEFAULT_EVENT_HOUR) {
+  const normalized = String(value || '').trim();
+  if (!normalized) {
+    return { hour: fallbackHour, minute: 0 };
+  }
+
+  const match = normalized.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) {
+    return { hour: fallbackHour, minute: 0 };
+  }
+
+  let hour = Number(match[1]) % 12;
+  const minute = Number(match[2]);
+  const meridiem = String(match[3] || '').toUpperCase();
+  if (meridiem === 'PM') {
+    hour += 12;
+  }
+
+  return {
+    hour,
+    minute: Number.isFinite(minute) ? minute : 0,
+  };
+}
+
+function parseEventScheduledAt(event) {
+  const dateParts = parseEventDate(event?.date);
+  if (!dateParts) {
+    return null;
+  }
+
+  const timeParts = parseEventTime(event?.time, IST_DEFAULT_EVENT_HOUR);
+  return buildIstDate(dateParts.year, dateParts.monthIndex, dateParts.day, timeParts.hour, timeParts.minute);
+}
+
+function parseExpenseScheduledAt(expense) {
+  const dateParts = parseEventDate(expense?.expenseDate);
+  if (!dateParts) {
+    return null;
+  }
+
+  return buildIstDate(dateParts.year, dateParts.monthIndex, dateParts.day, IST_DEFAULT_PAYMENT_HOUR, 0);
+}
+
+function buildReminderDedupeKey(parts) {
+  return crypto.createHash('sha1').update(parts.join('|')).digest('hex');
+}
+
+function getPlanRecipientEmails(plan, ownerEmail = '') {
+  const recipients = new Set();
+  const normalizedOwnerEmail = normalizeEmail(ownerEmail);
+
+  if (normalizedOwnerEmail) {
+    recipients.add(normalizedOwnerEmail);
+  }
+
+  for (const collaborator of Array.isArray(plan?.collaborators) ? plan.collaborators : []) {
+    const email = normalizeEmail(collaborator?.email);
+    if (email) {
+      recipients.add(email);
+    }
+  }
+
+  return [...recipients];
+}
+
+function buildEventReminderJobs(planner, plan, ownerId, recipientEmail, now) {
+  const settings = sanitizeReminderSettings(plan?.reminderSettings);
+  if (!settings.enabled) {
+    return [];
+  }
+
+  const jobs = [];
+  const planEvents = (planner.events || []).filter(event => event?.planId === plan.id);
+
+  for (const event of planEvents) {
+    const scheduledAt = parseEventScheduledAt(event);
+    if (!scheduledAt || Number.isNaN(scheduledAt.getTime())) {
+      continue;
+    }
+
+    if (scheduledAt <= now) {
+      continue;
+    }
+
+    const eventName = String(event?.name || 'Wedding event').trim() || 'Wedding event';
+    const venue = String(event?.venue || '').trim();
+
+    if (settings.eventDayBefore) {
+      const triggerAt = new Date(scheduledAt.getTime() - (24 * 60 * 60 * 1000));
+      if (triggerAt > now) {
+        jobs.push({
+          ownerGoogleId: ownerId,
+          recipientEmail,
+          planId: plan.id,
+          type: 'event_day_before',
+          entityId: String(event.id || eventName),
+          title: `${eventName} tomorrow`,
+          body: venue ? `${eventName} is tomorrow at ${venue}.` : `${eventName} is tomorrow.`,
+          clickPath: buildNotificationClickPath('events'),
+          scheduledFor: triggerAt,
+          dedupeKey: buildReminderDedupeKey([ownerId, recipientEmail, plan.id, 'event_day_before', String(event.id || eventName), triggerAt.toISOString()]),
+          meta: {
+            eventName,
+            venue,
+            eventDate: event?.date || '',
+            eventTime: event?.time || '',
+          },
+        });
+      }
+    }
+
+    if (settings.eventHoursBefore) {
+      const triggerAt = new Date(scheduledAt.getTime() - (3 * 60 * 60 * 1000));
+      if (triggerAt > now) {
+        jobs.push({
+          ownerGoogleId: ownerId,
+          recipientEmail,
+          planId: plan.id,
+          type: 'event_hours_before',
+          entityId: String(event.id || eventName),
+          title: `${eventName} in 3 hours`,
+          body: venue ? `${eventName} starts soon at ${venue}.` : `${eventName} starts in 3 hours.`,
+          clickPath: buildNotificationClickPath('events'),
+          scheduledFor: triggerAt,
+          dedupeKey: buildReminderDedupeKey([ownerId, recipientEmail, plan.id, 'event_hours_before', String(event.id || eventName), triggerAt.toISOString()]),
+          meta: {
+            eventName,
+            venue,
+            eventDate: event?.date || '',
+            eventTime: event?.time || '',
+          },
+        });
+      }
+    }
+  }
+
+  return jobs;
+}
+
+function buildPaymentReminderJobs(planner, plan, ownerId, recipientEmail, now) {
+  const settings = sanitizeReminderSettings(plan?.reminderSettings);
+  if (!settings.enabled) {
+    return [];
+  }
+
+  const jobs = [];
+  const planExpenses = (planner.expenses || []).filter(expense => expense?.planId === plan.id);
+
+  for (const expense of planExpenses) {
+    const scheduledAt = parseExpenseScheduledAt(expense);
+    if (!scheduledAt || Number.isNaN(scheduledAt.getTime())) {
+      continue;
+    }
+
+    if (scheduledAt <= now) {
+      continue;
+    }
+
+    const expenseName = String(expense?.name || 'Payment').trim() || 'Payment';
+
+    if (settings.paymentThreeDaysBefore) {
+      const triggerAt = new Date(scheduledAt.getTime() - (3 * 24 * 60 * 60 * 1000));
+      if (triggerAt > now) {
+        jobs.push({
+          ownerGoogleId: ownerId,
+          recipientEmail,
+          planId: plan.id,
+          type: 'payment_three_days_before',
+          entityId: String(expense.id || expenseName),
+          title: `${expenseName} due in 3 days`,
+          body: `A planned payment is coming up soon in your wedding budget.`,
+          clickPath: buildNotificationClickPath('budget'),
+          scheduledFor: triggerAt,
+          dedupeKey: buildReminderDedupeKey([ownerId, recipientEmail, plan.id, 'payment_three_days_before', String(expense.id || expenseName), triggerAt.toISOString()]),
+          meta: {
+            expenseName,
+            amount: Number(expense?.amount || 0),
+            expenseDate: expense?.expenseDate || '',
+          },
+        });
+      }
+    }
+
+    if (settings.paymentDayOf) {
+      const triggerAt = new Date(scheduledAt.getTime());
+      if (triggerAt > now) {
+        jobs.push({
+          ownerGoogleId: ownerId,
+          recipientEmail,
+          planId: plan.id,
+          type: 'payment_day_of',
+          entityId: String(expense.id || expenseName),
+          title: `${expenseName} is due today`,
+          body: `Review the budget and payment status for today’s due item.`,
+          clickPath: buildNotificationClickPath('budget'),
+          scheduledFor: triggerAt,
+          dedupeKey: buildReminderDedupeKey([ownerId, recipientEmail, plan.id, 'payment_day_of', String(expense.id || expenseName), triggerAt.toISOString()]),
+          meta: {
+            expenseName,
+            amount: Number(expense?.amount || 0),
+            expenseDate: expense?.expenseDate || '',
+          },
+        });
+      }
+    }
+  }
+
+  return jobs;
+}
+
+async function rebuildReminderJobsForPlanner(planner, ownerId, ownerEmail, tier) {
+  const ReminderJob = getReminderJobModel();
+  if (ReminderJob?.db?.readyState !== 1) {
+    return { count: 0 };
+  }
+
+  await ReminderJob.deleteMany({ ownerGoogleId: ownerId });
+
+  if (!isPaidReminderTier(tier)) {
+    return { count: 0 };
+  }
+
+  const now = new Date();
+  const jobs = [];
+
+  for (const plan of Array.isArray(planner?.marriages) ? planner.marriages : []) {
+    const reminderSettings = sanitizePlanReminderSettingsForTier(plan.reminderSettings, tier);
+    if (!reminderSettings.enabled) {
+      continue;
+    }
+
+    const recipients = getPlanRecipientEmails({ ...plan, reminderSettings }, findOwnerEmail(plan, ownerEmail));
+    for (const recipientEmail of recipients) {
+      jobs.push(...buildEventReminderJobs(planner, { ...plan, reminderSettings }, ownerId, recipientEmail, now));
+      jobs.push(...buildPaymentReminderJobs(planner, { ...plan, reminderSettings }, ownerId, recipientEmail, now));
+    }
+  }
+
+  if (!jobs.length) {
+    return { count: 0 };
+  }
+
+  await ReminderJob.insertMany(jobs, { ordered: false });
+  return { count: jobs.length };
+}
+
+async function claimNextReminderJob(ReminderJob) {
+  const now = new Date();
+  const staleCutoff = new Date(now.getTime() - REMINDER_STALE_PROCESSING_MS);
+
+  return ReminderJob.findOneAndUpdate(
+    {
+      scheduledFor: { $lte: now },
+      $or: [
+        { status: 'pending' },
+        { status: 'processing', processingStartedAt: { $lte: staleCutoff } },
+      ],
+    },
+    {
+      $set: {
+        status: 'processing',
+        processingStartedAt: now,
+        lastError: '',
+      },
+    },
+    {
+      sort: { scheduledFor: 1, createdAt: 1 },
+      new: true,
+    }
+  );
+}
+
+async function disableNotificationToken(User, userId, token) {
+  await User.updateOne(
+    { _id: userId, 'notificationDevices.token': token },
+    {
+      $set: {
+        'notificationDevices.$.disabledAt': new Date(),
+        'notificationDevices.$.lastSeenAt': new Date(),
+      },
+    }
+  );
+}
+
+async function processReminderJob(job) {
+  const User = getUserModel();
+  const ReminderJob = getReminderJobModel();
+  const ownerTier = await getSubscriptionTier(job.ownerGoogleId);
+
+  if (!isPaidReminderTier(ownerTier)) {
+    await ReminderJob.updateOne(
+      { _id: job._id },
+      { $set: { status: 'canceled', processedAt: new Date(), lastError: 'Workspace is not on a paid tier.' } }
+    );
+    return { status: 'canceled' };
+  }
+
+  const user = await User.findOne({ email: job.recipientEmail });
+  if (!user) {
+    await ReminderJob.updateOne(
+      { _id: job._id },
+      { $set: { status: 'skipped', processedAt: new Date(), lastError: 'Recipient account not found.' } }
+    );
+    return { status: 'skipped' };
+  }
+
+  const preferences = sanitizeNotificationPreferences(user.notificationPreferences);
+  const isEventJob = job.type === 'event_day_before' || job.type === 'event_hours_before';
+  const isPaymentJob = job.type === 'payment_three_days_before' || job.type === 'payment_day_of';
+  if ((isEventJob && !preferences.eventReminders) || (isPaymentJob && !preferences.paymentReminders)) {
+    await ReminderJob.updateOne(
+      { _id: job._id },
+      { $set: { status: 'skipped', processedAt: new Date(), lastError: 'Recipient opted out of this reminder type.' } }
+    );
+    return { status: 'skipped' };
+  }
+
+  const devices = Array.isArray(user.notificationDevices)
+    ? user.notificationDevices.filter(device => !device?.disabledAt && typeof device?.token === 'string' && device.token.trim())
+    : [];
+  if (!devices.length) {
+    await ReminderJob.updateOne(
+      { _id: job._id },
+      { $set: { status: 'skipped', processedAt: new Date(), lastError: 'No active push devices.' } }
+    );
+    return { status: 'skipped' };
+  }
+
+  let sentCount = 0;
+  let lastError = '';
+  for (const device of devices) {
+    try {
+      await sendFcmNotification({
+        token: device.token,
+        title: job.title,
+        body: job.body,
+        clickPath: job.clickPath || '/',
+        data: {
+          planId: job.planId,
+          reminderType: job.type,
+          entityId: job.entityId,
+        },
+      });
+      sentCount += 1;
+    } catch (error) {
+      lastError = error?.message || 'FCM send failed.';
+      if (/UNREGISTERED|INVALID_ARGUMENT/i.test(`${error?.code || ''} ${error?.message || ''}`)) {
+        await disableNotificationToken(User, user._id, device.token);
+      }
+    }
+  }
+
+  await ReminderJob.updateOne(
+    { _id: job._id },
+    {
+      $set: {
+        status: sentCount > 0 ? 'sent' : 'failed',
+        processedAt: new Date(),
+        lastError: sentCount > 0 ? '' : (lastError || 'No device accepted the push notification.'),
+      },
+    }
+  );
+
+  return { status: sentCount > 0 ? 'sent' : 'failed' };
+}
+
+async function dispatchDueReminderJobs(maxJobs = REMINDER_DISPATCH_MAX_JOBS) {
+  const ReminderJob = getReminderJobModel();
+  const limit = Math.max(1, Math.min(100, Math.trunc(Number(maxJobs) || REMINDER_DISPATCH_MAX_JOBS)));
+  const summary = {
+    processed: 0,
+    sent: 0,
+    failed: 0,
+    skipped: 0,
+    canceled: 0,
+  };
+
+  for (let index = 0; index < limit; index += 1) {
+    const job = await claimNextReminderJob(ReminderJob);
+    if (!job) {
+      break;
+    }
+
+    summary.processed += 1;
+    const result = await processReminderJob(job);
+    if (result?.status === 'sent') summary.sent += 1;
+    if (result?.status === 'failed') summary.failed += 1;
+    if (result?.status === 'skipped') summary.skipped += 1;
+    if (result?.status === 'canceled') summary.canceled += 1;
+  }
+
+  return summary;
+}
+
+function upsertNotificationDevice(user, payload) {
+  const nextToken = String(payload?.token || '').trim();
+  if (!nextToken) {
+    throw new Error('A notification token is required.');
+  }
+
+  const platform = payload?.platform === 'android' || payload?.platform === 'ios' ? payload.platform : 'web';
+  const deviceLabel = String(payload?.deviceLabel || '').trim().slice(0, 80);
+  const appVersion = String(payload?.appVersion || '').trim().slice(0, 40);
+  const devices = Array.isArray(user.notificationDevices) ? [...user.notificationDevices] : [];
+  const existingIndex = devices.findIndex(device => String(device?.token || '') === nextToken);
+  const nextDevice = {
+    token: nextToken,
+    platform,
+    deviceLabel,
+    appVersion,
+    disabledAt: null,
+    createdAt: existingIndex >= 0 ? devices[existingIndex].createdAt || new Date() : new Date(),
+    lastSeenAt: new Date(),
+  };
+
+  if (existingIndex >= 0) {
+    devices[existingIndex] = {
+      ...devices[existingIndex],
+      ...nextDevice,
+    };
+  } else {
+    devices.push(nextDevice);
+  }
+
+  return devices;
+}
+
 /******************************************************************************
  * /api/planner/me
  ******************************************************************************/
@@ -199,17 +750,18 @@ async function handlePlannerMe(req, res) {
 
     const sanitizedPlanner = sanitizePlanner(req.body?.planner, { ownerEmail: findOwnerEmail(activePlan, email), ownerId });
     const nextPlanner = await assignWeddingWebsiteSlugs(sanitizedPlanner, Planner, ownerId);
-    const nextPlan = getPlanFromPlanner(nextPlanner, nextPlanner.activePlanId);
+    const ownerTier = await getSubscriptionTier(ownerId);
+    const gatedPlanner = applyReminderTierGate(nextPlanner, ownerTier);
+    const nextPlan = getPlanFromPlanner(gatedPlanner, gatedPlanner.activePlanId);
     const ownerFallback = !email && ownerId === auth.sub;
     if (!ownerFallback && !hasPlanRole(nextPlan, email, 'editor')) {
       return res.status(403).json({ error: 'You have view-only access to this plan.' });
     }
 
     const currentPlanCount = Array.isArray(normalized.marriages) ? normalized.marriages.length : 0;
-    const nextPlanCount = Array.isArray(nextPlanner.marriages) ? nextPlanner.marriages.length : 0;
+    const nextPlanCount = Array.isArray(gatedPlanner.marriages) ? gatedPlanner.marriages.length : 0;
     if (nextPlanCount > currentPlanCount) {
-      const tier = await getSubscriptionTier(auth.sub);
-      if (tier === 'starter' && nextPlanCount > 1) {
+      if (ownerTier === 'starter' && nextPlanCount > 1) {
         return res.status(403).json({ error: 'Starter plan supports 1 wedding. Upgrade to Premium for unlimited plans.', code: 'UPGRADE_REQUIRED' });
       }
     }
@@ -218,7 +770,7 @@ async function handlePlannerMe(req, res) {
       { _id: plannerDoc._id || ownerId },
       {
         $set: {
-          ...nextPlanner,
+          ...gatedPlanner,
         },
       },
       { new: true, upsert: true, setDefaultsOnInsert: true }
@@ -226,6 +778,12 @@ async function handlePlannerMe(req, res) {
 
     const updatedOwnerId = updated.googleId || ownerId;
     const updatedNormalized = normalizePlannerOwnership(updated.toObject(), email, updatedOwnerId);
+    await rebuildReminderJobsForPlanner(
+      updatedNormalized,
+      updatedOwnerId,
+      findOwnerEmail(getPlanFromPlanner(updatedNormalized, updatedNormalized.activePlanId), email),
+      ownerTier
+    );
     return res.status(200).json({
       planner: sanitizePlanner(updatedNormalized, { ownerEmail: email, ownerId: updatedOwnerId }),
       plannerOwnerId: updatedOwnerId,
@@ -715,6 +1273,13 @@ async function handlePlannerCollaborators(req, res) {
 
     const sanitized = sanitizePlanner(updated.toObject(), { ownerEmail, ownerId: planner.googleId || plannerOwnerId });
     const updatedPlan = getPlanFromPlanner(sanitized, plan.id);
+    const ownerTier = await getSubscriptionTier(planner.googleId || plannerOwnerId);
+    await rebuildReminderJobsForPlanner(
+      applyReminderTierGate(sanitized, ownerTier),
+      planner.googleId || plannerOwnerId,
+      ownerEmail,
+      ownerTier
+    );
 
     return res.status(200).json({
       collaborators: updatedPlan?.collaborators || [],
@@ -724,6 +1289,133 @@ async function handlePlannerCollaborators(req, res) {
   } catch (err) {
     console.error('Collaborators API failed:', err);
     return res.status(500).json({ error: 'Failed to process sharing settings.' });
+  }
+}
+
+/******************************************************************************
+ * /api/planner/me/notifications
+ ******************************************************************************/
+
+async function handlePlannerNotifications(req, res) {
+  if (!['GET', 'PUT', 'POST', 'DELETE'].includes(req.method)) {
+    res.setHeader('Allow', 'GET, PUT, POST, DELETE, OPTIONS');
+    return res.status(405).json({ error: 'Method not allowed.' });
+  }
+
+  if (requireCsrfProtection(req, res)) {
+    return;
+  }
+
+  const { auth, error, status = 401 } = verifySession(req);
+  if (error) {
+    return res.status(status).json({ error });
+  }
+
+  try {
+    await connectDb();
+    const User = getUserModel();
+    const user = await User.findOne({ googleId: auth.sub });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    if (req.method === 'GET') {
+      const devices = Array.isArray(user.notificationDevices)
+        ? user.notificationDevices.filter(device => !device?.disabledAt && typeof device?.token === 'string' && device.token.trim())
+        : [];
+      return res.status(200).json({
+        notificationPreferences: sanitizeNotificationPreferences(user.notificationPreferences),
+        activeDeviceCount: devices.length,
+      });
+    }
+
+    if (req.method === 'PUT') {
+      const nextPreferences = sanitizeNotificationPreferences({
+        ...sanitizeNotificationPreferences(user.notificationPreferences),
+        ...(req.body?.notificationPreferences || {}),
+      });
+      await User.updateOne(
+        { _id: user._id },
+        { $set: { notificationPreferences: nextPreferences } }
+      );
+      return res.status(200).json({ notificationPreferences: nextPreferences });
+    }
+
+    if (req.method === 'POST') {
+      const devices = upsertNotificationDevice(user, req.body);
+      const nextPreferences = sanitizeNotificationPreferences({
+        ...sanitizeNotificationPreferences(user.notificationPreferences),
+        browserPushEnabled: devices.some(device => device?.platform === 'web' && !device?.disabledAt),
+      });
+      await User.updateOne(
+        { _id: user._id },
+        {
+          $set: {
+            notificationDevices: devices,
+            notificationPreferences: nextPreferences,
+          },
+        }
+      );
+      return res.status(200).json({
+        notificationPreferences: nextPreferences,
+        activeDeviceCount: devices.filter(device => !device?.disabledAt).length,
+      });
+    }
+
+    const nextToken = String(req.body?.token || req.query?.token || '').trim();
+    if (!nextToken) {
+      return res.status(400).json({ error: 'A notification token is required.' });
+    }
+
+    const nextDevices = (Array.isArray(user.notificationDevices) ? user.notificationDevices : [])
+      .filter(device => String(device?.token || '') !== nextToken);
+    const nextPreferences = sanitizeNotificationPreferences({
+      ...sanitizeNotificationPreferences(user.notificationPreferences),
+      browserPushEnabled: nextDevices.some(device => device?.platform === 'web' && !device?.disabledAt),
+    });
+
+    await User.updateOne(
+      { _id: user._id },
+      {
+        $set: {
+          notificationDevices: nextDevices,
+          notificationPreferences: nextPreferences,
+        },
+      }
+    );
+
+    return res.status(200).json({
+      notificationPreferences: nextPreferences,
+      activeDeviceCount: nextDevices.filter(device => !device?.disabledAt).length,
+    });
+  } catch (err) {
+    console.error('Planner notifications API failed:', err);
+    return res.status(500).json({ error: 'Failed to process notification settings.' });
+  }
+}
+
+/******************************************************************************
+ * /api/planner/internal/reminder-dispatch
+ ******************************************************************************/
+
+async function handlePlannerReminderDispatch(req, res) {
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST, OPTIONS');
+    return res.status(405).json({ error: 'Method not allowed.' });
+  }
+
+  if (!hasReminderDispatchAccess(req)) {
+    return res.status(401).json({ error: 'Dispatch authorization failed.' });
+  }
+
+  try {
+    await connectDb();
+    const summary = await dispatchDueReminderJobs(req.body?.limit);
+    return res.status(200).json(summary);
+  } catch (err) {
+    console.error('Planner reminder dispatch failed:', err);
+    return res.status(500).json({ error: 'Failed to dispatch reminder jobs.' });
   }
 }
 
@@ -764,6 +1456,14 @@ async function handler(req, res) {
     return handlePlannerCollaborators(req, res);
   }
 
+  if (route === 'notifications') {
+    return handlePlannerNotifications(req, res);
+  }
+
+  if (route === 'reminder-dispatch') {
+    return handlePlannerReminderDispatch(req, res);
+  }
+
   res.setHeader('Allow', 'OPTIONS');
   return res.status(404).json({ error: 'Planner route not found.' });
 }
@@ -772,6 +1472,8 @@ module.exports = handler;
 module.exports.handlePlannerAccess = handlePlannerAccess;
 module.exports.handlePlannerCollaborators = handlePlannerCollaborators;
 module.exports.handlePlannerMe = handlePlannerMe;
+module.exports.handlePlannerNotifications = handlePlannerNotifications;
 module.exports.handlePlannerPublic = handlePlannerPublic;
+module.exports.handlePlannerReminderDispatch = handlePlannerReminderDispatch;
 module.exports.handlePlannerRsvp = handlePlannerRsvp;
 module.exports.handlePlannerRsvpLink = handlePlannerRsvpLink;

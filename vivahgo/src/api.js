@@ -220,6 +220,34 @@ export function fetchPlanCollaborators(token, planId, plannerOwnerId) {
   });
 }
 
+export function fetchPlannerNotificationSettings(token) {
+  return request('/planner/me/notifications', { token });
+}
+
+export function savePlannerNotificationSettings(token, notificationPreferences) {
+  return request('/planner/me/notifications', {
+    method: 'PUT',
+    token,
+    body: { notificationPreferences },
+  });
+}
+
+export function registerPlannerNotificationToken(token, payload) {
+  return request('/planner/me/notifications', {
+    method: 'POST',
+    token,
+    body: payload,
+  });
+}
+
+export function removePlannerNotificationToken(token, payload) {
+  return request('/planner/me/notifications', {
+    method: 'DELETE',
+    token,
+    body: payload,
+  });
+}
+
 export function addPlanCollaborator(token, payload) {
   return request(withOwnerQuery('/planner/me/collaborators', payload?.plannerOwnerId), {
     method: 'POST',
