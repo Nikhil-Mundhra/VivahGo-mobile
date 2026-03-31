@@ -251,6 +251,29 @@ describe('api/page.js', function () {
     assert.match(res.body, /https:\/\/vivahgo\.com\/wedding-planner-app/);
   });
 
+  it('redirects missing query pages to the marketing home', async function () {
+    const handler = createPageHandler({
+      loadHtmlTemplate: async () => {
+        throw new Error('html template should not load for redirects');
+      },
+      plannerHandlers: {},
+    });
+    const req = {
+      method: 'GET',
+      headers: { host: 'vivahgo.com', 'x-forwarded-proto': 'https' },
+      query: { route: 'query', slug: 'missing-page' },
+    };
+    const res = createRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 302);
+    assert.equal(res.headers.Location, '/');
+    assert.equal(res.headers['Cache-Control'], 'no-store');
+    assert.equal(res.body, null);
+    assert.equal(res.ended, true);
+  });
+
   it('renders guide html and returns 404 for an unknown guide slug', async function () {
     const handler = createPageHandler({
       loadHtmlTemplate: async () => '<!doctype html><html><head><script type="module" src="/assets/app.js"></script></head><body><div id="root"></div></body></html>',

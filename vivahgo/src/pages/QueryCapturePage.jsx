@@ -20,6 +20,29 @@ function findQueryPageBySlug(slug = "") {
   return QUERY_PAGE_BY_SLUG.get(slug) || null;
 }
 
+function isRenderableQueryPage(page) {
+  if (!page || typeof page !== "object") {
+    return false;
+  }
+
+  const hasTitle = Boolean(String(page.title || "").trim());
+  const hasSlug = Boolean(String(page.slug || "").trim());
+  const hasHero = [page.heroTitle, page.heroSummary, page.heroBody].some((value) => Boolean(String(value || "").trim()));
+  const hasHighlights = Array.isArray(page.highlights) && page.highlights.some((item) => (
+    Boolean(String(item?.title || "").trim()) || Boolean(String(item?.description || "").trim())
+  ));
+  const hasSections = Array.isArray(page.sections) && page.sections.some((section) => (
+    Boolean(String(section?.heading || "").trim())
+    || (Array.isArray(section?.paragraphs) && section.paragraphs.some((paragraph) => Boolean(String(paragraph || "").trim())))
+    || (Array.isArray(section?.bullets) && section.bullets.some((bullet) => Boolean(String(bullet || "").trim())))
+  ));
+  const hasFaqs = Array.isArray(page.faqs) && page.faqs.some((item) => (
+    Boolean(String(item?.question || "").trim()) || Boolean(String(item?.answer || "").trim())
+  ));
+
+  return hasTitle && hasSlug && (hasHero || hasHighlights || hasSections || hasFaqs);
+}
+
 function buildStructuredData(page, relatedGuides, relatedPages) {
   const canonicalUrl = getMarketingUrl(`/${page.slug}`);
 
@@ -97,7 +120,10 @@ export default function QueryCapturePage({ pageSlug = "" }) {
   const [session, setSession] = useState(() => readAuthSession());
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
-  const page = useMemo(() => findQueryPageBySlug(pageSlug), [pageSlug]);
+  const page = useMemo(() => {
+    const nextPage = findQueryPageBySlug(pageSlug);
+    return isRenderableQueryPage(nextPage) ? nextPage : null;
+  }, [pageSlug]);
   const relatedPages = useMemo(
     () => (page?.relatedPageSlugs || []).map((slug) => QUERY_PAGE_BY_SLUG.get(slug)).filter(Boolean),
     [page]
@@ -106,6 +132,13 @@ export default function QueryCapturePage({ pageSlug = "" }) {
     () => (page?.relatedGuideSlugs || []).map((slug) => GUIDE_BY_SLUG.get(slug)).filter(Boolean),
     [page]
   );
+  const useCases = useMemo(
+    () => (page?.useCases || []).filter((item) => Boolean(String(item?.title || "").trim() || String(item?.description || "").trim())),
+    [page]
+  );
+  const finalPrimaryLabel = page?.finalPrimaryLabel || "Start Planning Free";
+  const finalSecondaryLabel = page?.finalSecondaryLabel || "Read More Guides";
+  const finalSecondaryHref = page?.finalSecondaryHref || "/guides";
 
   usePageSeo(
     page
@@ -116,10 +149,9 @@ export default function QueryCapturePage({ pageSlug = "" }) {
         structuredData: buildStructuredData(page, relatedGuides, relatedPages),
       }
       : {
-        title: "Page Not Found | VivahGo",
-        description: "The requested planning page could not be found.",
-        path: `/${pageSlug}`,
-        noindex: true,
+        title: "VivahGo | Wedding Planner App for Indian Weddings",
+        description: "VivahGo is a wedding planner app for Indian weddings that helps couples, families, and planners manage checklists, budgets, guests, vendors, RSVPs, timelines, and wedding websites in one shared workspace.",
+        canonicalUrl: MARKETING_HOME_URL,
       }
   );
 
@@ -141,33 +173,19 @@ export default function QueryCapturePage({ pageSlug = "" }) {
     };
   }, []);
 
+  useEffect(() => {
+    if (!page || typeof window === "undefined") {
+      if (typeof window !== "undefined") {
+        window.location.replace(MARKETING_HOME_URL);
+      }
+      return undefined;
+    }
+
+    return undefined;
+  }, [page]);
+
   if (!page) {
-    return (
-      <div className="marketing-home-shell">
-        <MarketingSiteHeader activePage="home" session={session} onContactUs={() => setShowFeedbackModal(true)} />
-        <main className="marketing-main">
-          <section className="marketing-section marketing-pricing-page-intro">
-            <div className="marketing-section-heading">
-              <p className="marketing-section-kicker">Page Not Found</p>
-              <h1>This planning page is not available.</h1>
-              <p>Return to the homepage or browse the guides to find the right planning resource.</p>
-            </div>
-            <div className="marketing-hero-actions marketing-final-actions">
-              <a className="marketing-primary-action" href="/">Back to Home</a>
-              <a className="marketing-secondary-action" href="/guides">Browse Guides</a>
-            </div>
-          </section>
-        </main>
-        <LegalFooter
-          className="marketing-legal-footer"
-          hasBottomNav={false}
-          onOpenTerms={() => setShowTermsModal(true)}
-          onOpenFeedback={() => setShowFeedbackModal(true)}
-        />
-        {showTermsModal && <TermsConditionsModal onClose={() => setShowTermsModal(false)} />}
-        {showFeedbackModal && <FeedbackModal onClose={() => setShowFeedbackModal(false)} />}
-      </div>
-    );
+    return null;
   }
 
   return (
@@ -208,6 +226,24 @@ export default function QueryCapturePage({ pageSlug = "" }) {
             ))}
           </div>
         </section>
+
+        {useCases.length ? (
+          <section className="marketing-section" aria-labelledby="query-page-use-cases-title">
+            <div className="marketing-section-heading">
+              <p className="marketing-section-kicker">Best For</p>
+              <h2 id="query-page-use-cases-title">Who gets the most value from this workflow.</h2>
+            </div>
+
+            <div className="marketing-feature-grid">
+              {useCases.map((item) => (
+                <article className="marketing-feature-card marketing-feature-card-left" key={item.title}>
+                  <h3>{item.title}</h3>
+                  <p>{item.description}</p>
+                </article>
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         {page.sections.map((section) => (
           <section className="marketing-section" key={section.heading}>
@@ -293,15 +329,15 @@ export default function QueryCapturePage({ pageSlug = "" }) {
 
         <section className="marketing-section marketing-final-cta">
           <div className="marketing-section-heading">
-            <h2 className="marketing-final-cta-title">Turn this planning topic into a working wedding system.</h2>
-            <p>Move from reading about the workflow to running it inside a shared VivahGo workspace.</p>
+            <h2 className="marketing-final-cta-title">{page.finalCtaTitle || "Turn this planning topic into a working wedding system."}</h2>
+            <p>{page.finalCtaBody || "Move from reading about the workflow to running it inside a shared VivahGo workspace."}</p>
           </div>
           <div className="marketing-hero-actions marketing-final-actions">
             <a className="marketing-primary-action" href={PLANNER_HOME_URL}>
-              Start Planning Free
+              {finalPrimaryLabel}
             </a>
-            <a className="marketing-secondary-action marketing-secondary-action-gold" href="/guides">
-              Read More Guides
+            <a className="marketing-secondary-action marketing-secondary-action-gold" href={finalSecondaryHref}>
+              {finalSecondaryLabel}
             </a>
           </div>
         </section>

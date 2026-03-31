@@ -565,11 +565,34 @@ function buildGuideSnapshot(guide) {
           </div>
         </section>
       </main>
-    </div>`;
+      </div>`;
+}
+
+function isRenderableQueryPage(page) {
+  if (!page || typeof page !== 'object') {
+    return false;
+  }
+
+  const hasTitle = Boolean(String(page.title || '').trim());
+  const hasSlug = Boolean(String(page.slug || '').trim());
+  const hasHero = [page.heroTitle, page.heroSummary, page.heroBody].some((value) => Boolean(String(value || '').trim()));
+  const hasHighlights = Array.isArray(page.highlights) && page.highlights.some((item) => (
+    Boolean(String(item?.title || '').trim()) || Boolean(String(item?.description || '').trim())
+  ));
+  const hasSections = Array.isArray(page.sections) && page.sections.some((section) => (
+    Boolean(String(section?.heading || '').trim())
+    || (Array.isArray(section?.paragraphs) && section.paragraphs.some((paragraph) => Boolean(String(paragraph || '').trim())))
+    || (Array.isArray(section?.bullets) && section.bullets.some((bullet) => Boolean(String(bullet || '').trim())))
+  ));
+  const hasFaqs = Array.isArray(page.faqs) && page.faqs.some((item) => (
+    Boolean(String(item?.question || '').trim()) || Boolean(String(item?.answer || '').trim())
+  ));
+
+  return hasTitle && hasSlug && (hasHero || hasHighlights || hasSections || hasFaqs);
 }
 
 function buildQueryPageSnapshot(page) {
-  if (!page) {
+  if (!isRenderableQueryPage(page)) {
     return `
       <div class="marketing-home-shell" data-seo-snapshot="query-missing">
         <main class="marketing-main">
@@ -592,6 +615,11 @@ function buildQueryPageSnapshot(page) {
             <article class="marketing-feature-card marketing-feature-card-left">
               <h3>${escapeHtml(item.title)}</h3>
               <p>${escapeHtml(item.description)}</p>
+            </article>`).join('');
+  const useCaseMarkup = (page.useCases || []).filter((item) => item && (item.title || item.description)).map((item) => `
+            <article class="marketing-feature-card marketing-feature-card-left">
+              <h3>${escapeHtml(item.title || '')}</h3>
+              <p>${escapeHtml(item.description || '')}</p>
             </article>`).join('');
   const sectionMarkup = page.sections.map((section) => `
             <section class="marketing-guide-subsection">
@@ -646,6 +674,16 @@ function buildQueryPageSnapshot(page) {
           </div>
         </section>
 
+        ${useCaseMarkup ? `
+        <section class="marketing-section" aria-labelledby="seo-query-use-cases-title">
+          <div class="marketing-section-heading">
+            <p class="marketing-section-kicker">Best For</p>
+            <h2 id="seo-query-use-cases-title">Who gets the most value from this workflow.</h2>
+          </div>
+          <div class="marketing-feature-grid">${useCaseMarkup}
+          </div>
+        </section>` : ''}
+
         <section class="marketing-section marketing-guide-section">
           <div class="marketing-guide-body">${sectionMarkup}
           </div>
@@ -676,6 +714,17 @@ function buildQueryPageSnapshot(page) {
           </div>
           <div class="marketing-guides-grid">${relatedGuideMarkup}
           </div>
+        </section>
+
+        <section class="marketing-section marketing-final-cta">
+          <div class="marketing-section-heading">
+            <h2 class="marketing-final-cta-title">${escapeHtml(page.finalCtaTitle || 'Turn this planning topic into a working wedding system.')}</h2>
+            <p>${escapeHtml(page.finalCtaBody || 'Move from reading about the workflow to running it inside a shared VivahGo workspace.')}</p>
+          </div>
+          ${renderSnapshotActions([
+            { href: 'https://planner.vivahgo.com/', label: page.finalPrimaryLabel || 'Start Planning Free', className: 'marketing-primary-action' },
+            { href: page.finalSecondaryHref || '/guides', label: page.finalSecondaryLabel || 'Read More Guides', className: 'marketing-secondary-action marketing-secondary-action-gold' },
+          ])}
         </section>
       </main>
     </div>`;
@@ -768,10 +817,18 @@ async function getRouteData(req, plannerHandlers = plannerModule) {
   if (route === 'query') {
     const slug = String(req.query?.slug || '').trim();
     const page = QUERY_PAGE_BY_SLUG.get(slug) || null;
+    if (!isRenderableQueryPage(page)) {
+      return {
+        route,
+        statusCode: 302,
+        redirectTo: '/',
+        payload: { error: 'Planning page not found.' },
+      };
+    }
     return {
       route,
-      statusCode: page ? 200 : 404,
-      payload: page ? { page } : { error: 'Planning page not found.' },
+      statusCode: 200,
+      payload: { page },
     };
   }
 
@@ -1027,7 +1084,7 @@ function buildGuideMetadata(req, slug, payload, statusCode) {
 
 function buildQueryPageMetadata(req, slug, payload, statusCode) {
   const page = payload?.page || QUERY_PAGE_BY_SLUG.get(slug) || null;
-  if (statusCode !== 200 || !page) {
+  if (statusCode !== 200 || !isRenderableQueryPage(page)) {
     return {
       title: 'Page Not Found | VivahGo',
       description: payload?.error || 'The requested planning page could not be found.',
@@ -1182,6 +1239,26 @@ function sendHtmlResponse(res, statusCode, html, cacheControl) {
   return html;
 }
 
+function sendRedirectResponse(res, statusCode, location, cacheControl) {
+  setSecurityHeaders(null, res, { contentSecurityPolicy: PAGE_CONTENT_SECURITY_POLICY });
+  res.setHeader('Location', location);
+  if (cacheControl) {
+    res.setHeader('Cache-Control', cacheControl);
+  }
+
+  if (typeof res.status === 'function') {
+    res.status(statusCode);
+  } else {
+    res.statusCode = statusCode;
+  }
+
+  if (typeof res.end === 'function') {
+    return res.end();
+  }
+
+  return null;
+}
+
 function getCacheControl(route) {
   if (route === 'rsvp') {
     return 'no-store';
@@ -1207,8 +1284,12 @@ function createPageHandler(options = {}) {
     }
 
     try {
-      const htmlTemplate = await loadHtmlTemplate();
       const routeData = await getRouteData(req, plannerHandlers);
+      if (routeData?.redirectTo) {
+        return sendRedirectResponse(res, routeData.statusCode || 302, routeData.redirectTo, 'no-store');
+      }
+
+      const htmlTemplate = await loadHtmlTemplate();
       const meta = resolveMetadata(req, routeData);
       const htmlWithMeta = injectMetadataIntoHtml(htmlTemplate, meta, req);
       const html = injectRootMarkupIntoHtml(htmlWithMeta, buildRouteSnapshot(routeData));
