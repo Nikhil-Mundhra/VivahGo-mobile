@@ -136,9 +136,18 @@ export default function QueryCapturePage({ pageSlug = "" }) {
     () => (page?.useCases || []).filter((item) => Boolean(String(item?.title || "").trim() || String(item?.description || "").trim())),
     [page]
   );
+  const heroPrimaryLabel = page?.heroPrimaryLabel || "Start Planning Free";
+  const heroPrimaryHref = page?.heroPrimaryHref || PLANNER_HOME_URL;
+  const heroPrimaryDownload = Boolean(page?.heroPrimaryDownload);
+  const heroSecondaryLabel = page?.heroSecondaryLabel || "See Pricing";
+  const heroSecondaryHref = page?.heroSecondaryHref || "/pricing";
+  const heroSecondaryDownload = Boolean(page?.heroSecondaryDownload);
   const finalPrimaryLabel = page?.finalPrimaryLabel || "Start Planning Free";
+  const finalPrimaryHref = page?.finalPrimaryHref || PLANNER_HOME_URL;
+  const finalPrimaryDownload = Boolean(page?.finalPrimaryDownload);
   const finalSecondaryLabel = page?.finalSecondaryLabel || "Read More Guides";
   const finalSecondaryHref = page?.finalSecondaryHref || "/guides";
+  const finalSecondaryDownload = Boolean(page?.finalSecondaryDownload);
 
   usePageSeo(
     page
@@ -201,11 +210,11 @@ export default function QueryCapturePage({ pageSlug = "" }) {
             <p className="marketing-summary">{page.heroBody}</p>
 
             <div className="marketing-hero-actions">
-              <a className="marketing-primary-action" href={PLANNER_HOME_URL}>
-                Start Planning Free
+              <a className="marketing-primary-action" href={heroPrimaryHref} download={heroPrimaryDownload || undefined}>
+                {heroPrimaryLabel}
               </a>
-              <a className="marketing-secondary-action marketing-secondary-action-gold" href="/pricing">
-                See Pricing
+              <a className="marketing-secondary-action marketing-secondary-action-gold" href={heroSecondaryHref} download={heroSecondaryDownload || undefined}>
+                {heroSecondaryLabel}
               </a>
             </div>
           </div>
@@ -333,10 +342,10 @@ export default function QueryCapturePage({ pageSlug = "" }) {
             <p>{page.finalCtaBody || "Move from reading about the workflow to running it inside a shared VivahGo workspace."}</p>
           </div>
           <div className="marketing-hero-actions marketing-final-actions">
-            <a className="marketing-primary-action" href={PLANNER_HOME_URL}>
+            <a className="marketing-primary-action" href={finalPrimaryHref} download={finalPrimaryDownload || undefined}>
               {finalPrimaryLabel}
             </a>
-            <a className="marketing-secondary-action marketing-secondary-action-gold" href={finalSecondaryHref}>
+            <a className="marketing-secondary-action marketing-secondary-action-gold" href={finalSecondaryHref} download={finalSecondaryDownload || undefined}>
               {finalSecondaryLabel}
             </a>
           </div>

@@ -197,7 +197,7 @@ function renderSnapshotActions(actions) {
   }
 
   return `<div class="marketing-hero-actions">${safeActions.map((action) => (
-    `<a class="${escapeAttribute(action.className || 'marketing-secondary-action')}" href="${escapeAttribute(action.href)}">${escapeHtml(action.label)}</a>`
+    `<a class="${escapeAttribute(action.className || 'marketing-secondary-action')}" href="${escapeAttribute(action.href)}"${action.download ? ' download' : ''}>${escapeHtml(action.label)}</a>`
   )).join('')}</div>`;
 }
 
@@ -425,7 +425,7 @@ function buildHomeSnapshot() {
           <div class="marketing-section-heading">
             <p class="marketing-section-kicker">Planning Pages</p>
             <h2 id="seo-home-query-pages-title">Explore dedicated pages for the exact planning workflow you need.</h2>
-            <p>Jump directly into checklist planning, budgeting, guest tracking, vendor coordination, and broader wedding planner app workflows.</p>
+            <p>Jump directly into checklist planning, budgeting, guest tracking, vendor coordination, free templates, and planner-specific workflows.</p>
           </div>
           <div class="marketing-guides-grid">${queryPageMarkup}
           </div>
@@ -659,8 +659,8 @@ function buildQueryPageSnapshot(page) {
             <p class="marketing-summary">${escapeHtml(page.heroSummary)}</p>
             <p class="marketing-summary">${escapeHtml(page.heroBody)}</p>
             ${renderSnapshotActions([
-              { href: 'https://planner.vivahgo.com/', label: 'Start Planning Free', className: 'marketing-primary-action' },
-              { href: '/pricing', label: 'See Pricing', className: 'marketing-secondary-action marketing-secondary-action-gold' },
+              { href: page.heroPrimaryHref || 'https://planner.vivahgo.com/', label: page.heroPrimaryLabel || 'Start Planning Free', className: 'marketing-primary-action', download: page.heroPrimaryDownload },
+              { href: page.heroSecondaryHref || '/pricing', label: page.heroSecondaryLabel || 'See Pricing', className: 'marketing-secondary-action marketing-secondary-action-gold', download: page.heroSecondaryDownload },
             ])}
           </div>
         </section>
@@ -722,8 +722,8 @@ function buildQueryPageSnapshot(page) {
             <p>${escapeHtml(page.finalCtaBody || 'Move from reading about the workflow to running it inside a shared VivahGo workspace.')}</p>
           </div>
           ${renderSnapshotActions([
-            { href: 'https://planner.vivahgo.com/', label: page.finalPrimaryLabel || 'Start Planning Free', className: 'marketing-primary-action' },
-            { href: page.finalSecondaryHref || '/guides', label: page.finalSecondaryLabel || 'Read More Guides', className: 'marketing-secondary-action marketing-secondary-action-gold' },
+            { href: page.finalPrimaryHref || 'https://planner.vivahgo.com/', label: page.finalPrimaryLabel || 'Start Planning Free', className: 'marketing-primary-action', download: page.finalPrimaryDownload },
+            { href: page.finalSecondaryHref || '/guides', label: page.finalSecondaryLabel || 'Read More Guides', className: 'marketing-secondary-action marketing-secondary-action-gold', download: page.finalSecondaryDownload },
           ])}
         </section>
       </main>

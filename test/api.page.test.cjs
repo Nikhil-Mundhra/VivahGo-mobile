@@ -121,6 +121,9 @@ describe('api/page.js', function () {
           heroTitle: 'The wedding planner app that keeps your wedding organized.',
           heroSummary: 'Summary.',
           heroBody: 'Body copy.',
+          heroPrimaryLabel: 'Download free CSV',
+          heroPrimaryHref: '/templates/wedding-budget-template.csv',
+          heroPrimaryDownload: true,
           highlights: [{ title: 'One workspace', description: 'Description.' }],
           sections: [{ heading: 'Why it matters', paragraphs: ['Paragraph body.'], bullets: ['Bullet item.'] }],
           faqs: [{ question: 'Who is it for?', answer: 'Couples and planners.' }],
@@ -136,6 +139,8 @@ describe('api/page.js', function () {
     assert.match(guideSnapshot, /Watch pending balances/);
     assert.match(querySnapshot, /The wedding planner app that keeps your wedding organized/);
     assert.match(querySnapshot, /Bullet item/);
+    assert.match(querySnapshot, /download/);
+    assert.match(querySnapshot, /\/templates\/wedding-budget-template\.csv/);
   });
 
   it('builds wedding and rsvp metadata from planner payloads', function () {
@@ -249,6 +254,27 @@ describe('api/page.js', function () {
     assert.match(res.body, /VivahGo Wedding Planner App/);
     assert.match(res.body, /The wedding planner app that keeps your entire wedding organized in one place/);
     assert.match(res.body, /https:\/\/vivahgo\.com\/wedding-planner-app/);
+  });
+
+  it('renders template query page html with a downloadable csv action', async function () {
+    const handler = createPageHandler({
+      loadHtmlTemplate: async () => '<!doctype html><html><head><script type="module" src="/assets/app.js"></script></head><body><div id="root"></div></body></html>',
+      plannerHandlers: {},
+    });
+    const req = {
+      method: 'GET',
+      headers: { host: 'vivahgo.com', 'x-forwarded-proto': 'https' },
+      query: { route: 'query', slug: 'free-wedding-budget-template' },
+    };
+    const res = createRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.match(res.body, /Free Wedding Budget Template/);
+    assert.match(res.body, /Download free CSV/);
+    assert.match(res.body, /href="\/templates\/wedding-budget-template\.csv"/);
+    assert.match(res.body, /download/);
   });
 
   it('redirects missing query pages to the marketing home', async function () {

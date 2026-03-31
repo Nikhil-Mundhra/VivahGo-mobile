@@ -193,7 +193,7 @@ const coverageTopics = [
   ...seoKeywordLibrary.clusters.primary.slice(0, 8),
   ...seoKeywordLibrary.clusters.cultural.slice(0, 4),
 ];
-const queryCapturePages = queryPages.slice(0, 5);
+const queryCapturePages = queryPages;
 const MARKETING_HOME_URL = getMarketingUrl("/");
 const PLANNER_HOME_URL = getPlannerUrl("/");
 
@@ -1185,7 +1185,7 @@ export default function MarketingHomePage({ page = "home" }) {
           <div className="marketing-section-heading">
             <p className="marketing-section-kicker">Planning Pages</p>
             <h2 id="query-capture-pages-title">Explore dedicated pages for the exact planning workflow you need.</h2>
-            <p>These focused pages make it easier to jump straight into checklist planning, budgeting, guest tracking, vendor coordination, and broader wedding planning workflows.</p>
+            <p>These focused pages make it easier to jump straight into checklist planning, budgeting, guest tracking, vendor coordination, free templates, and planner-specific workflows.</p>
           </div>
 
           <div className="marketing-guides-grid">

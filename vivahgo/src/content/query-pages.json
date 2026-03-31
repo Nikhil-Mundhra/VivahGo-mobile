@@ -132,7 +132,7 @@
     "relatedPageSlugs": [
       "wedding-checklist-app",
       "guest-list-rsvp-app",
-      "wedding-vendor-manager-app"
+      "for-wedding-planners"
     ],
     "finalCtaTitle": "Start with one shared wedding workspace.",
     "finalCtaBody": "If you want fewer follow-up calls and more clarity, move your checklist, budget, guest list, vendors, and timeline into one live wedding planning system.",
@@ -413,7 +413,7 @@
     ],
     "relatedPageSlugs": [
       "wedding-planner-app",
-      "wedding-checklist-app",
+      "free-wedding-budget-template",
       "wedding-vendor-manager-app"
     ],
     "finalCtaTitle": "See your real wedding budget, not just the optimistic version.",
@@ -554,7 +554,7 @@
     ],
     "relatedPageSlugs": [
       "wedding-planner-app",
-      "wedding-checklist-app",
+      "wedding-guest-list-template",
       "wedding-vendor-manager-app"
     ],
     "finalCtaTitle": "Turn your guest list into a planning asset.",
@@ -703,5 +703,468 @@
     "finalPrimaryLabel": "Start your vendor tracker",
     "finalSecondaryLabel": "Read the vendor guide",
     "finalSecondaryHref": "/guides/vendor-coordination"
+  },
+  {
+    "slug": "free-wedding-budget-template",
+    "title": "Free Wedding Budget Template",
+    "seoTitle": "Free Wedding Budget Template | VivahGo for Indian Wedding Budget Planning",
+    "seoDescription": "Use this free wedding budget template to track venue, decor, catering, hospitality, vendor advances, pending balances, and ceremony-wise costs for Indian weddings.",
+    "heroKicker": "Free wedding budget template for Indian wedding planning",
+    "heroTitle": "A free wedding budget template you can start using before costs get messy.",
+    "heroSummary": "Use this practical budget template structure to track planned budget, actual spend, vendor advances, pending balances, due dates, and ceremony-wise costs.",
+    "heroBody": "This page gives you a clean starting template you can use right away. If you want the same template to become a live shared budget instead of another private spreadsheet, move it into VivahGo.",
+    "heroPrimaryLabel": "Download free CSV",
+    "heroPrimaryHref": "/templates/wedding-budget-template.csv",
+    "heroPrimaryDownload": true,
+    "heroSecondaryLabel": "Use it live in VivahGo",
+    "heroSecondaryHref": "https://planner.vivahgo.com/",
+    "highlights": [
+      {
+        "title": "Template structure built for Indian weddings",
+        "description": "Track category-level and ceremony-level spend instead of forcing the whole wedding into one flat total."
+      },
+      {
+        "title": "Vendor advances and pending balances",
+        "description": "Keep payment timing visible so the budget feels honest before the wedding week arrives."
+      },
+      {
+        "title": "Useful for couples, families, and planners",
+        "description": "Make the numbers easier to review with everyone who is approving or managing spend."
+      },
+      {
+        "title": "Easy to start, easy to outgrow",
+        "description": "Begin with the CSV, then move into VivahGo when the wedding needs a live budget instead of a static sheet."
+      },
+      {
+        "title": "Made for real decision-making",
+        "description": "Use the template to review trade-offs, upcoming due dates, and event-by-event pressure points."
+      },
+      {
+        "title": "No generic finance clutter",
+        "description": "Focus on the wedding-specific columns that actually matter during booking, approvals, and payment follow-ups."
+      }
+    ],
+    "useCases": [
+      {
+        "title": "Couples building their first real wedding budget",
+        "description": "Helpful when you want a clean starting structure before vendor discussions start multiplying."
+      },
+      {
+        "title": "Families reviewing and approving spend together",
+        "description": "Useful when several people are paying, reviewing, or shaping the final budget."
+      },
+      {
+        "title": "Planners who need a quick client-ready format",
+        "description": "Great as a starting template before the wedding moves into a more live operational workflow."
+      },
+      {
+        "title": "Weddings with multiple ceremonies and shared costs",
+        "description": "Especially useful when venue, hospitality, and production costs stretch across several functions."
+      }
+    ],
+    "sections": [
+      {
+        "heading": "What to include in a free wedding budget template",
+        "paragraphs": [
+          "A useful wedding budget template should help you see the wedding as it is actually being spent, not as one hopeful total. The right structure makes it easier to review category-level spend, ceremony-specific costs, vendor payment status, and what is still coming due.",
+          "That is why the template should be built around how weddings really operate: categories, vendors, commitments, payment timing, event ownership, and notes that explain why the number moved."
+        ],
+        "bullets": [
+          "Ceremony or function",
+          "Budget category",
+          "Line item or vendor name",
+          "Planned budget",
+          "Committed amount",
+          "Advance paid",
+          "Pending balance",
+          "Due date",
+          "Owner",
+          "Status and notes"
+        ]
+      },
+      {
+        "heading": "Suggested budget categories for Indian weddings",
+        "paragraphs": [
+          "Most Indian wedding budgets become easier to manage when the main categories are separated early. That gives you cleaner review conversations and makes it easier to understand which decisions are driving the total up.",
+          "You can customize categories later, but starting with a practical structure prevents the budget from becoming one large miscellaneous bucket."
+        ],
+        "bullets": [
+          "Venue and rentals",
+          "Decor and production",
+          "Catering and hospitality",
+          "Photography and videography",
+          "Attire, jewelry, and styling",
+          "Travel, stay, and transport",
+          "Rituals, gifts, and welcome items",
+          "Contingency and buffer"
+        ]
+      },
+      {
+        "heading": "How to use this template week by week",
+        "paragraphs": [
+          "The value of a wedding budget template is not in filling it once. It becomes useful when you update it after vendor decisions, family changes, and hospitality adjustments. That rhythm is what turns the sheet into something you can actually trust.",
+          "Weekly reviews work best when you check new commitments, upcoming due dates, and any costs triggered by guest, venue, or production changes."
+        ],
+        "bullets": [
+          "Update the template after every major vendor discussion.",
+          "Review pending balances once a week.",
+          "Track add-ons and scope changes immediately.",
+          "Keep buffer and contingency visible."
+        ]
+      },
+      {
+        "heading": "When to move beyond a static budget template",
+        "paragraphs": [
+          "A spreadsheet template is a good start, but it eventually gets stressed by real wedding complexity. That usually happens when too many people are using the budget, the same numbers are appearing in different versions, or payment timing becomes hard to follow across ceremonies and vendors.",
+          "That is the moment to move the template into a live shared system so the budget stays connected to guests, vendors, and the rest of the wedding plan."
+        ],
+        "bullets": [
+          "More than one person is updating the budget.",
+          "Vendor due dates are getting harder to track.",
+          "Guest or venue changes are moving the budget often.",
+          "You need a shared version everyone can trust."
+        ]
+      }
+    ],
+    "faqs": [
+      {
+        "question": "Is this wedding budget template really free?",
+        "answer": "Yes. You can download the CSV template from this page and start using the structure immediately."
+      },
+      {
+        "question": "Will this work for Indian weddings with multiple ceremonies?",
+        "answer": "Yes. The template is designed to help you track both category-level and ceremony-level costs, which matters a lot in Indian weddings."
+      },
+      {
+        "question": "Can parents and couples review the same template together?",
+        "answer": "Yes. That is one of the main reasons this structure is useful, because it makes the budget easier to discuss and approve together."
+      },
+      {
+        "question": "What is the difference between this template and the VivahGo budget planner?",
+        "answer": "The template gives you a free starting structure. VivahGo turns that structure into a live shared budget connected to vendors, guests, and the rest of the wedding plan."
+      },
+      {
+        "question": "Should I use a template or go straight to an app?",
+        "answer": "If you want a fast starting point, begin with the template. If your wedding already has multiple decision-makers, vendor balances, and frequent changes, the app will usually save more time."
+      }
+    ],
+    "relatedGuideSlugs": [
+      "wedding-budget-planner",
+      "vendor-coordination",
+      "guest-list-rsvp"
+    ],
+    "relatedPageSlugs": [
+      "wedding-budget-planner-app",
+      "wedding-planner-app",
+      "wedding-guest-list-template"
+    ],
+    "finalCtaTitle": "Turn this free template into a live wedding budget.",
+    "finalCtaBody": "Start with the CSV if you want a quick template. Move into VivahGo when you want vendor balances, due dates, and ceremony-wise costs to stay current in one shared workspace.",
+    "finalPrimaryLabel": "Start this budget in VivahGo",
+    "finalSecondaryLabel": "See the budget planner page",
+    "finalSecondaryHref": "/wedding-budget-planner-app"
+  },
+  {
+    "slug": "wedding-guest-list-template",
+    "title": "Wedding Guest List Template",
+    "seoTitle": "Wedding Guest List Template | VivahGo for Guest Tracking and RSVPs",
+    "seoDescription": "Use this wedding guest list template to organize family sides, invitation status, RSVPs, plus-ones, rooming, transport, and headcounts for Indian weddings.",
+    "heroKicker": "Wedding guest list template for cleaner headcounts",
+    "heroTitle": "A wedding guest list template that helps you trust the final headcount.",
+    "heroSummary": "Use this guest list template to organize family-side data, invitation status, RSVP status, plus-ones, rooming, transport, and event attendance.",
+    "heroBody": "This page gives you a practical guest-list structure you can start with immediately. When the guest flow becomes too active for a static sheet, move the same workflow into VivahGo.",
+    "heroPrimaryLabel": "Download free CSV",
+    "heroPrimaryHref": "/templates/wedding-guest-list-template.csv",
+    "heroPrimaryDownload": true,
+    "heroSecondaryLabel": "Use it live in VivahGo",
+    "heroSecondaryHref": "https://planner.vivahgo.com/",
+    "highlights": [
+      {
+        "title": "One clean master-list structure",
+        "description": "Track guests in one sheet instead of combining multiple family-maintained versions later."
+      },
+      {
+        "title": "Invitation and RSVP status together",
+        "description": "Keep the whole invitation journey visible instead of splitting send status and response status across tools."
+      },
+      {
+        "title": "Family-side and ownership visibility",
+        "description": "Make it easy to see which branch of the family added the guest and who is responsible for follow-up."
+      },
+      {
+        "title": "Operations-friendly guest data",
+        "description": "Track rooming, transport, and event attendance fields that matter beyond the invitation itself."
+      },
+      {
+        "title": "Better headcount confidence",
+        "description": "Use one reliable structure before catering, hospitality, and travel assumptions get locked."
+      },
+      {
+        "title": "Easy path from template to live RSVP workflow",
+        "description": "Start with the CSV, then move into VivahGo when reminders, confirmations, and headcount changes become active."
+      }
+    ],
+    "useCases": [
+      {
+        "title": "Families collecting names from many branches",
+        "description": "Useful when each family side is contributing names and no one wants to merge conflicting lists later."
+      },
+      {
+        "title": "Couples planning hospitality and rooming",
+        "description": "Helpful when guest information affects hotel stays, transport, gifts, and welcome planning."
+      },
+      {
+        "title": "Planners who need a cleaner guest-data starting point",
+        "description": "Strong fit when you want a practical structure before the RSVP process becomes more operational."
+      },
+      {
+        "title": "Destination or travel-heavy weddings",
+        "description": "Especially useful when attendance status affects rooms, airport transfers, or shuttle schedules."
+      }
+    ],
+    "sections": [
+      {
+        "heading": "What to include in a wedding guest list template",
+        "paragraphs": [
+          "A useful guest list template should help you do more than store names. It should make the guest list usable for actual wedding decisions like invitations, hospitality, transport, rooming, and final headcounts.",
+          "That is why the template should include family context, invitation status, RSVP status, attendance details, and any operational notes that make the list more trustworthy later."
+        ],
+        "bullets": [
+          "Family side",
+          "Household or group",
+          "Guest name",
+          "Phone and email",
+          "City",
+          "Invitation status",
+          "RSVP status",
+          "Adults and kids attending",
+          "Functions attending",
+          "Stay required",
+          "Transport required",
+          "Owner and notes"
+        ]
+      },
+      {
+        "heading": "How to structure the list before invitations go out",
+        "paragraphs": [
+          "The easiest time to clean up the guest list is before invitations are sent. Once reminders, confirmations, and follow-ups begin, every weakness in the structure gets amplified.",
+          "A stronger template separates family ownership, keeps contact details easy to scan, and gives you one clean place to review the full list before the RSVP stage starts."
+        ],
+        "bullets": [
+          "Confirm which family side owns each guest entry.",
+          "Make sure contact details are complete early.",
+          "Keep invitation readiness separate from RSVP status."
+        ]
+      },
+      {
+        "heading": "What makes a guest list template operationally useful",
+        "paragraphs": [
+          "A guest list becomes much more useful when it supports the rest of the wedding. Updated guest numbers should help you think about catering, room blocks, airport pickups, local transport, and function-by-function readiness.",
+          "That is why the best guest list template is not the one with the prettiest layout. It is the one that makes your real wedding decisions easier."
+        ],
+        "bullets": [
+          "Track event attendance when different functions have different guest groups.",
+          "Store rooming and transport needs in the same template.",
+          "Use one template that can evolve into a live RSVP workflow."
+        ]
+      },
+      {
+        "heading": "When to move beyond a static guest list template",
+        "paragraphs": [
+          "A template works well at the start, but it gets strained when reminder cycles begin, RSVP counts change quickly, and multiple people are updating the same guest data. That is when the list needs to become a live shared workflow.",
+          "Moving into a system like VivahGo helps when invitations, responses, and headcount changes need to stay current without constant manual reconciliation."
+        ],
+        "bullets": [
+          "More than one person is editing the list.",
+          "RSVP follow-ups are happening every day.",
+          "Hospitality or transport plans depend on fresh headcounts.",
+          "You need a more reliable shared view."
+        ]
+      }
+    ],
+    "faqs": [
+      {
+        "question": "Is this wedding guest list template free?",
+        "answer": "Yes. You can download the CSV template from this page and use it right away."
+      },
+      {
+        "question": "Can I use this for Indian wedding guest planning?",
+        "answer": "Yes. The structure is designed for Indian weddings where family-side ownership, multiple functions, and hospitality logistics matter."
+      },
+      {
+        "question": "Does this template include RSVP tracking?",
+        "answer": "It includes fields for RSVP status and related guest data. If you want a more active RSVP workflow, VivahGo handles that better than a static sheet."
+      },
+      {
+        "question": "What is the difference between this template and the VivahGo guest-list app?",
+        "answer": "The template is a free starting sheet. VivahGo turns guest planning into a live shared workflow with RSVP support and easier ongoing updates."
+      },
+      {
+        "question": "Can families use this together?",
+        "answer": "Yes, but once multiple people start editing frequently, most weddings benefit from moving the list into a more shared live system."
+      }
+    ],
+    "relatedGuideSlugs": [
+      "guest-list-rsvp",
+      "indian-wedding-checklist",
+      "wedding-budget-planner"
+    ],
+    "relatedPageSlugs": [
+      "guest-list-rsvp-app",
+      "wedding-planner-app",
+      "free-wedding-budget-template"
+    ],
+    "finalCtaTitle": "Turn this guest-list template into a live RSVP workflow.",
+    "finalCtaBody": "Start with the CSV if you need a clean structure today. Move into VivahGo when you want one reliable guest list, RSVP tracking, and easier headcount updates.",
+    "finalPrimaryLabel": "Start this guest list in VivahGo",
+    "finalSecondaryLabel": "See the guest list app page",
+    "finalSecondaryHref": "/guest-list-rsvp-app"
+  },
+  {
+    "slug": "for-wedding-planners",
+    "title": "Wedding Planning Software for Wedding Planners",
+    "seoTitle": "Wedding Planning Software for Wedding Planners | VivahGo",
+    "seoDescription": "VivahGo helps wedding planners and studios manage client weddings, tasks, guests, budgets, vendors, RSVPs, timelines, and family coordination in one shared workspace.",
+    "heroKicker": "Wedding planning software for wedding planners and studios",
+    "heroTitle": "A wedding planning workspace built for planners handling real client chaos.",
+    "heroSummary": "VivahGo gives wedding planners one structured workspace for client collaboration, family coordination, tasks, budgets, guests, vendors, RSVPs, timelines, and wedding websites.",
+    "heroBody": "Use it when WhatsApp, spreadsheets, call notes, and scattered docs are making client weddings harder to manage than they need to be. The goal is cleaner execution, faster reviews, and fewer avoidable misses.",
+    "heroPrimaryLabel": "Start planner workspace",
+    "heroPrimaryHref": "https://planner.vivahgo.com/",
+    "heroSecondaryLabel": "See planner pricing",
+    "heroSecondaryHref": "/pricing",
+    "highlights": [
+      {
+        "title": "Client-facing shared workspace",
+        "description": "Keep planners, couples, and family stakeholders aligned from one current version of the wedding plan."
+      },
+      {
+        "title": "Structured task and timeline visibility",
+        "description": "Review pending work, blocked decisions, and event readiness without stitching together updates manually."
+      },
+      {
+        "title": "Guest, budget, and vendor coordination together",
+        "description": "Manage the workflows that usually get split across multiple docs, spreadsheets, and chat groups."
+      },
+      {
+        "title": "Built for Indian wedding complexity",
+        "description": "Handle multi-event ceremonies, family-heavy decision-making, hospitality planning, and execution detail in one system."
+      },
+      {
+        "title": "Cleaner weekly reviews",
+        "description": "Run client reviews from a shared system instead of reconstructing the status every meeting."
+      },
+      {
+        "title": "Better execution-week confidence",
+        "description": "Use one current workspace to prepare for the weeks when vendors, guests, and payments are all moving at once."
+      }
+    ],
+    "useCases": [
+      {
+        "title": "Solo wedding planners",
+        "description": "Helpful when one person is carrying planning, coordination, and client communication at the same time."
+      },
+      {
+        "title": "Boutique studios with high-touch clients",
+        "description": "Useful when you want a more premium planning experience without building your process on disconnected tools."
+      },
+      {
+        "title": "Planners handling family-heavy Indian weddings",
+        "description": "Strong fit when multiple family decision-makers need visibility and approvals across several functions."
+      },
+      {
+        "title": "Teams that want fewer manual status updates",
+        "description": "Especially valuable when the weekly client update is taking too long because the information is too scattered."
+      }
+    ],
+    "sections": [
+      {
+        "heading": "What wedding planners actually need from planning software",
+        "paragraphs": [
+          "Wedding planners rarely need more raw features. They need fewer coordination gaps. The software should make it easier to understand the current wedding state, guide client reviews, organize responsibilities, and reduce the amount of work that lives only in calls or memory.",
+          "That is why wedding planning software is most useful when it brings the core workflows together: tasks, budgets, vendors, guests, timelines, and the parts of the wedding that clients and families ask about most often."
+        ],
+        "bullets": [
+          "Keep the wedding status visible without rebuilding it every meeting.",
+          "Reduce duplication across chats, sheets, and notes.",
+          "Make the next action and the current blocker easier to see."
+        ]
+      },
+      {
+        "heading": "How planners can run cleaner client workflows",
+        "paragraphs": [
+          "A cleaner planner workflow starts with one shared system for the client-facing wedding plan. That means the weekly review, the guest updates, the vendor questions, the budget trade-offs, and the ceremony-level readiness all stay attached to the same workspace.",
+          "When that happens, client communication gets sharper because the planner is no longer reconstructing the truth from several sources before every conversation."
+        ],
+        "bullets": [
+          "Run client reviews from one current workspace.",
+          "Keep approvals and pending decisions easy to spot.",
+          "Use the same system for planning and execution preparation."
+        ]
+      },
+      {
+        "heading": "Why this matters even more for Indian weddings",
+        "paragraphs": [
+          "Indian weddings create more moving parts than many generic planning tools are built for. Several ceremonies, hospitality complexity, family input, cultural workflows, and high vendor coordination loads all raise the cost of weak systems.",
+          "That is where a planner-friendly workspace becomes especially valuable. It makes the complexity easier to absorb without flattening the wedding into a generic project board."
+        ],
+        "bullets": [
+          "Track multi-function weddings with more confidence.",
+          "Keep family-heavy planning from derailing the working plan.",
+          "Stay closer to the real client experience without losing control."
+        ]
+      },
+      {
+        "heading": "When a planner has outgrown WhatsApp and spreadsheets",
+        "paragraphs": [
+          "Most planners can feel the moment when the current system is no longer enough. Updates are harder to trust, weekly reviews take too long to prepare, and key information is trapped in too many private places.",
+          "That is usually the signal to move into one shared workspace where the wedding can be reviewed, updated, and executed with less friction."
+        ],
+        "bullets": [
+          "Weekly status reviews are taking too long to prepare.",
+          "Clients are asking for updates that require digging across tools.",
+          "The same task, budget, or vendor detail exists in multiple versions.",
+          "Execution week feels too dependent on memory and chat history."
+        ]
+      }
+    ],
+    "faqs": [
+      {
+        "question": "Is VivahGo only for couples, or can wedding planners use it too?",
+        "answer": "Wedding planners can absolutely use it. It is built to help planners manage client coordination, family visibility, and the core wedding workflows from one place."
+      },
+      {
+        "question": "What planner workflows does VivahGo support?",
+        "answer": "It supports task management, budgets, guest planning, RSVP workflows, vendor coordination, ceremony timelines, and wedding websites inside one shared system."
+      },
+      {
+        "question": "Why is this better than running weddings from WhatsApp and spreadsheets?",
+        "answer": "Because planners lose time and confidence when the real status is scattered. A shared workspace makes it easier to review, update, and execute the wedding from one current version."
+      },
+      {
+        "question": "Does it work well for Indian weddings with family-heavy coordination?",
+        "answer": "Yes. That is one of the strongest reasons to use it, because Indian weddings often involve several ceremonies, many stakeholders, and more layered approvals."
+      },
+      {
+        "question": "Is this useful for boutique studios too?",
+        "answer": "Yes. It is a strong fit for boutique planners and studios that want a cleaner client experience without turning their process into a patchwork of tools."
+      }
+    ],
+    "relatedGuideSlugs": [
+      "vendor-coordination",
+      "punjabi-wedding-timeline",
+      "guest-list-rsvp"
+    ],
+    "relatedPageSlugs": [
+      "wedding-planner-app",
+      "wedding-vendor-manager-app",
+      "guest-list-rsvp-app"
+    ],
+    "finalCtaTitle": "Run client weddings from one current system.",
+    "finalCtaBody": "If your client workflow is outgrowing chats and spreadsheets, move tasks, budgets, guests, vendors, and timelines into one planner-friendly workspace.",
+    "finalPrimaryLabel": "Start as a planner",
+    "finalPrimaryHref": "https://planner.vivahgo.com/",
+    "finalSecondaryLabel": "Explore planner workflows",
+    "finalSecondaryHref": "/wedding-planner-app"
   }
 ]
