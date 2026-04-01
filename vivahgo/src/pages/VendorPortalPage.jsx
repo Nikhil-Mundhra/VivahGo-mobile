@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import '../vendor.css';
 import '../styles.css';
 import GoogleLoginButton from '../components/GoogleLoginButton';
+import EmailOtpLogin from '../components/EmailOtpLogin';
 import LoadingBar from '../components/LoadingBar';
 import VendorRegistrationForm from '../components/VendorRegistrationForm';
 import VendorPortfolioManager from '../components/VendorPortfolioManager';
@@ -9,8 +10,8 @@ import VendorDirectoryPreview from '../components/VendorDirectoryPreview';
 import VendorBusinessProfileEditor from '../components/VendorBusinessProfileEditor';
 import VendorPortalDashboard from '../components/VendorPortalDashboard';
 import NavIcon from '../components/NavIcon';
-import { clearAuthStorage, persistAuthSession, readAuthSession, revokeGoogleIdTokenConsent } from '../authStorage';
-import { deleteAccount, fetchVendorProfile, loginWithGoogle, logoutSession } from '../api';
+import { clearAuthStorage, persistAuthSession, readAuthSession, revokeClerkSession, revokeGoogleIdTokenConsent } from '../authStorage';
+import { deleteAccount, fetchVendorProfile, loginWithGoogle, loginWithClerk, logoutSession } from '../api';
 import { getMarketingUrl, getPlannerUrl } from '../siteUrls.js';
 
 const MARKETING_HOME_URL = getMarketingUrl('/');
@@ -24,6 +25,7 @@ const VENDOR_PORTAL_SECTIONS = [
 ];
 
 export default function VendorPortalPage() {
+  const isClerkEnabled = Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
   const [session, setSession] = useState(() => readAuthSession());
   const [vendor, setVendor] = useState(null);
   const [vendorLoadError, setVendorLoadError] = useState('');
@@ -101,11 +103,37 @@ export default function VendorPortalPage() {
     }
   }
 
+  async function handleClerkLoginSuccess(user, clerkToken) {
+    setIsSigningIn(true);
+    try {
+      const data = await loginWithClerk(clerkToken, user || {});
+      const newSession = persistAuthSession({
+        mode: 'clerk',
+        user: data.user,
+        plannerOwnerId: data.plannerOwnerId || data.user?.id || '',
+      });
+      // Reset vendor state before the new session triggers a fresh fetch
+      setVendor(null);
+      setPreviewVendor(null);
+      setLastFetchedToken(null);
+      setVendorLoadError('');
+      setAvatarLoadError(false);
+      setSession(newSession);
+    } catch {
+      // Error shown implicitly; user can retry
+    } finally {
+      setIsSigningIn(false);
+    }
+  }
+
   async function handleLogout() {
     try {
       await logoutSession(session?.token);
     } catch {
       // Best effort only.
+    }
+    if (session?.mode === 'clerk') {
+      await revokeClerkSession();
     }
     clearAuthStorage('vendor');
     setSession(null);
@@ -160,9 +188,15 @@ export default function VendorPortalPage() {
             </p>
           </div>
           <GoogleLoginButton onLoginSuccess={handleLoginSuccess} onLoginError={() => {}} />
+          {isClerkEnabled && (
+            <>
+              <div style={{ margin: '16px 0', textAlign: 'center', fontSize: '12px', color: '#999' }}>or</div>
+              <EmailOtpLogin onLoginSuccess={handleClerkLoginSuccess} onLoginError={() => {}} />
+            </>
+          )}
           {isSigningIn && (
             <div className="mt-4">
-              <LoadingBar label="Signing you in with Google..." compact />
+              <LoadingBar label="Signing you in..." compact />
             </div>
           )}
           <div className="mt-4 text-center">

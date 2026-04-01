@@ -105,17 +105,19 @@ function AccountScreen({
                 {user.email}
               </div>
             )}
-            <div style={{ marginTop: 6 }}>
-              <span style={{
-                fontSize: 11, fontWeight: 600,
-                borderRadius: 8, padding: "2px 9px",
-                background: isDemo ? "rgba(245,127,23,0.12)" : "rgba(139,26,26,0.09)",
-                color: isDemo ? "#E65100" : "var(--color-crimson)",
-                border: isDemo ? "1px solid rgba(245,127,23,0.25)" : "1px solid rgba(139,26,26,0.18)",
-              }}>
-                {isDemo ? "Demo Mode" : "Google Account"}
-              </span>
-            </div>
+            {isDemo && (
+              <div style={{ marginTop: 6 }}>
+                <span style={{
+                  fontSize: 11, fontWeight: 600,
+                  borderRadius: 8, padding: "2px 9px",
+                  background: "rgba(245,127,23,0.12)",
+                  color: "#E65100",
+                  border: "1px solid rgba(245,127,23,0.25)",
+                }}>
+                  Demo Mode
+                </span>
+              </div>
+            )}
           </div>
         </div>
 

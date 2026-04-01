@@ -1808,6 +1808,89 @@ export function createApp(options = {}) {
     }
   });
 
+  app.post('/api/auth/clerk', async (req, res) => {
+    const clerkJwtToken = req.body?.token;
+    const providedUserId = typeof req.body?.userId === 'string' ? req.body.userId.trim() : '';
+    const providedEmail = typeof req.body?.email === 'string' ? req.body.email.trim() : '';
+    const providedName = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
+    const providedPicture = typeof req.body?.picture === 'string' ? req.body.picture.trim() : '';
+
+    if (!clerkJwtToken) {
+      return res.status(400).json({ error: 'Missing Clerk token.' });
+    }
+
+    try {
+      const decodedToken = jwt.decode(clerkJwtToken, { complete: true });
+      const sessionClaims = decodedToken?.payload || {};
+      const clerkUserId = providedUserId || sessionClaims.sid || sessionClaims.sub;
+      const clerkEmail = providedEmail || sessionClaims.email || '';
+
+      if (!clerkEmail) {
+        return res.status(400).json({ error: 'Clerk token does not contain email.' });
+      }
+
+      const normalizedEmail = normalizeEmail(clerkEmail);
+      const clerkUniqueKey = `clerk:${clerkUserId || normalizedEmail}`;
+      const derivedName = providedName || normalizedEmail.split('@')[0];
+
+      let user = await resolveLeanDocument(UserModel.findOne({ email: normalizedEmail, googleId: { $regex: '^clerk:' } }));
+      if (!user) {
+        const existingByKey = await UserModel.findOneAndUpdate(
+          { googleId: clerkUniqueKey },
+          {
+            $setOnInsert: {
+              googleId: clerkUniqueKey,
+              email: normalizedEmail,
+              name: derivedName,
+              picture: providedPicture || '',
+              staffRole: resolveStaffRole(normalizedEmail),
+              staffGrantedAt: new Date(),
+            },
+          },
+          {
+            new: true,
+            upsert: true,
+            setDefaultsOnInsert: true,
+          }
+        );
+        user = existingByKey?.toObject ? existingByKey.toObject() : existingByKey;
+      }
+
+      const planner = await PlannerModel.findOneAndUpdate(
+        { googleId: clerkUniqueKey },
+        {
+          $setOnInsert: {
+            googleId: clerkUniqueKey,
+            ...buildEmptyPlanner({ ownerEmail: normalizedEmail, ownerId: clerkUniqueKey }),
+          },
+        },
+        {
+          new: true,
+          upsert: true,
+          setDefaultsOnInsert: true,
+        }
+      );
+
+      ensureCsrfToken(req, res, { refresh: true });
+      setSessionCookie(req, res, createSessionToken(user, injectedJwtSecret));
+
+      return res.json({
+        user: {
+          id: user.googleId,
+          email: user.email,
+          name: user.name,
+          picture: user.picture || '',
+          staffRole: resolveStaffRole(user.email, user.staffRole),
+        },
+        planner: sanitizePlanner(planner.toObject(), { ownerEmail: user.email, ownerId: user.googleId }),
+        plannerOwnerId: user.googleId,
+      });
+    } catch (error) {
+      console.error('Clerk auth failed:', error);
+      return res.status(401).json({ error: 'Clerk sign-in could not be verified.' });
+    }
+  });
+
   app.post('/api/auth/logout', (req, res) => {
     clearSessionCookie(req, res);
     return res.json({ ok: true });

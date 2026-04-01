@@ -18,7 +18,7 @@ import NavIcon from "../../components/NavIcon";
 import MarriagePlanSelector from "./components/MarriagePlanSelector";
 import NewMarriagePlanModal from "./components/NewMarriagePlanModal";
 import PlanShareModal from "./components/PlanShareModal";
-import { clearAuthStorage, persistAuthSession, readAuthSession, revokeGoogleIdTokenConsent } from "../../authStorage";
+import { clearAuthStorage, persistAuthSession, readAuthSession, revokeClerkSession, revokeGoogleIdTokenConsent } from "../../authStorage";
 import { NAV_ITEMS } from "../../constants";
 import { formatCoverageLocation, getLocationCities, getLocationCountries, getLocationStates } from "../../locationOptions";
 import {
@@ -29,6 +29,7 @@ import {
   fetchPlanCollaborators,
   fetchPlanner,
   getSubscriptionStatus,
+  loginWithClerk,
   loginWithGoogle,
   logoutSession,
   registerPlannerNotificationToken,
@@ -419,7 +420,7 @@ export default function PlannerShell() {
     }
 
     // Subscription gate: Starter plan is limited to 1 wedding workspace
-    if (authMode === "google" && subscription.tier === "starter" && marriages.length >= 1) {
+    if ((authMode === "google" || authMode === "clerk") && subscription.tier === "starter" && marriages.length >= 1) {
       setUpgradePromptMessage("Starter plan supports 1 wedding. Upgrade to Premium for unlimited wedding workspaces.");
       setShowUpgradePrompt(true);
       setShowNewPlanModal(false);
@@ -545,7 +546,7 @@ export default function PlannerShell() {
     const currentPlan = marriages.find(item => item.id === targetPlanId);
     setCollaborators(Array.isArray(currentPlan?.collaborators) ? currentPlan.collaborators : []);
 
-    if (authMode === "google" && authToken) {
+    if ((authMode === "google" || authMode === "clerk") && authToken) {
       try {
         const response = await fetchPlanCollaborators(authToken, targetPlanId, plannerOwnerId);
         setCollaborators(Array.isArray(response.collaborators) ? response.collaborators : []);
@@ -580,7 +581,7 @@ export default function PlannerShell() {
       return;
     }
 
-    if (authMode === "google" && authToken) {
+    if ((authMode === "google" || authMode === "clerk") && authToken) {
       const response = await addPlanCollaborator(authToken, { planId: targetPlanId, email, role, plannerOwnerId });
       const next = Array.isArray(response.collaborators) ? response.collaborators : [];
       syncPlanCollaborators(targetPlanId, next);
@@ -598,7 +599,7 @@ export default function PlannerShell() {
       return;
     }
 
-    if (authMode === "google" && authToken) {
+    if ((authMode === "google" || authMode === "clerk") && authToken) {
       const response = await updatePlanCollaboratorRole(authToken, { planId: targetPlanId, email, role, plannerOwnerId });
       const next = Array.isArray(response.collaborators) ? response.collaborators : [];
       syncPlanCollaborators(targetPlanId, next);
@@ -620,7 +621,7 @@ export default function PlannerShell() {
       return;
     }
 
-    if (authMode === "google" && authToken) {
+    if ((authMode === "google" || authMode === "clerk") && authToken) {
       const response = await removePlanCollaborator(authToken, { planId: targetPlanId, email, plannerOwnerId });
       const next = Array.isArray(response.collaborators) ? response.collaborators : [];
       syncPlanCollaborators(targetPlanId, next);
@@ -905,11 +906,11 @@ export default function PlannerShell() {
           return;
         }
 
-        if (session.mode === "google" && session.token) {
+        if ((session.mode === "google" || session.mode === "clerk") && session.token) {
           const { planner, access, plannerOwnerId: resolvedOwnerId } = await fetchPlanner(session.token, session.plannerOwnerId);
           const nextRequiresOnboarding = shouldShowOnboarding(planner);
           if (!cancelled) {
-            setAuthMode("google");
+            setAuthMode(session.mode);
             setAuthToken(session.token);
             setUser(session.user || null);
             applyPlanner(planner, access);
@@ -986,7 +987,7 @@ export default function PlannerShell() {
       return undefined;
     }
 
-    if (authMode !== "google" || !authToken) {
+    if ((authMode !== "google" && authMode !== "clerk") || !authToken) {
       return undefined;
     }
 
@@ -1043,6 +1044,37 @@ export default function PlannerShell() {
     window.location.assign(marketingHomeUrl);
   }
 
+  async function handleClerkLoginSuccess(clerkUser, clerkBackendToken) {
+    try {
+      setIsLoggingIn(true);
+      setLoginError("");
+      const { user: authenticatedUser, planner, access, plannerOwnerId: resolvedOwnerId } = await loginWithClerk(
+        clerkBackendToken || clerkUser?.id || '',
+        clerkUser || {}
+      );
+      const nextRequiresOnboarding = shouldShowOnboarding(planner);
+      const nextSession = persistSession({ mode: "clerk", user: authenticatedUser, plannerOwnerId: resolvedOwnerId || authenticatedUser.id || "" });
+
+      setAuthMode("clerk");
+      setAuthToken(nextSession?.token || "");
+      setUser(authenticatedUser);
+      applyPlanner(planner, access);
+      setRequiresOnboarding(nextRequiresOnboarding);
+      setPlannerOwnerId(resolvedOwnerId || authenticatedUser.id || "");
+      await refreshAccessibleWorkspaces(nextSession?.token);
+      await fetchAndApplySubscription(nextSession?.token);
+      await fetchAndApplyNotificationSettings(nextSession?.token);
+      setTab("home");
+      setSaveState("idle");
+      setScreen("splash");
+    } catch (error) {
+      console.error("Clerk login failed:", error);
+      setLoginError(error.message || "Clerk login failed.");
+    } finally {
+      setIsLoggingIn(false);
+    }
+  }
+
   async function handleGoogleLoginSuccess(credentialResponse) {
     try {
       setIsLoggingIn(true);
@@ -1082,6 +1114,9 @@ export default function PlannerShell() {
     } catch {
       // Best effort only.
     }
+    if (authMode === "clerk") {
+      await revokeClerkSession();
+    }
     clearStoredSession();
     setUser(null);
     setAuthMode(null);
@@ -1098,6 +1133,9 @@ export default function PlannerShell() {
 
   async function handleDeleteAccount() {
     await deleteAccount(authToken);
+    if (authMode === "clerk") {
+      await revokeClerkSession();
+    }
     await revokeGoogleIdTokenConsent(user?.email);
     clearStoredSession();
     setUser(null);
@@ -1295,6 +1333,7 @@ export default function PlannerShell() {
         <>
           <LoginScreen
             onGoogleLogin={handleGoogleLoginSuccess}
+            onClerkLogin={handleClerkLoginSuccess}
             onDemoLogin={handleDemoLogin}
             onGoToHome={handleGoToHome}
             onLoginError={handleLoginError}
@@ -1375,8 +1414,8 @@ export default function PlannerShell() {
               </button>
               {wedding.date && <button type="button" className="top-bar-chip top-bar-chip-button" onClick={openWeddingDetailsEditor}>📅 {wedding.date}</button>}
               {wedding.venue && <button type="button" className="top-bar-chip top-bar-chip-button" onClick={openWeddingDetailsEditor}>📍 {wedding.venue}</button>}
-              {authMode === "google" && saveLabel && <div className="top-bar-chip">☁️ {saveLabel}</div>}
-              {authMode === "google" && !planAccess.canEdit && <div className="top-bar-chip">View only</div>}
+              {(authMode === "google" || authMode === "clerk") && saveLabel && <div className="top-bar-chip">☁️ {saveLabel}</div>}
+              {(authMode === "google" || authMode === "clerk") && !planAccess.canEdit && <div className="top-bar-chip">View only</div>}
             </div>
             <div className="top-bar-user">
               <button

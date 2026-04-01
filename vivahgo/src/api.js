@@ -161,6 +161,29 @@ export function loginWithGoogle(credential) {
   });
 }
 
+export function loginWithClerk(token, clerkUser = {}) {
+  const sanitizedUser = clerkUser && typeof clerkUser === 'object' ? clerkUser : {};
+  const requestOptions = {
+    method: 'POST',
+    body: {
+      token,
+      userId: sanitizedUser.id || '',
+      email: sanitizedUser.email || '',
+      name: sanitizedUser.name || '',
+      picture: sanitizedUser.picture || '',
+    },
+  };
+
+  // Support both route styles across local server and Vercel serverless handler.
+  return request('/auth/clerk', requestOptions).catch((error) => {
+    if (!/404/.test(String(error?.message || ''))) {
+      throw error;
+    }
+
+    return request('/auth?route=clerk', requestOptions);
+  });
+}
+
 function withOwnerQuery(path, plannerOwnerId) {
   if (!plannerOwnerId) {
     return path;

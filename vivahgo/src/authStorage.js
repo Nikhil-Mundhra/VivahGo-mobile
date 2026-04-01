@@ -26,7 +26,7 @@ function hydrateSession(session) {
     return null;
   }
 
-  if (session.mode === 'google') {
+  if (session.mode === 'google' || session.mode === 'clerk') {
     return {
       ...session,
       token: COOKIE_AUTH_PLACEHOLDER,
@@ -115,6 +115,45 @@ export function revokeGoogleIdTokenConsent(email, options = {}) {
       finish(false);
     }
   });
+}
+
+export async function revokeClerkSession(options = {}) {
+  const clerkRef = options.clerkRef ?? (typeof window !== 'undefined' ? window.Clerk : null);
+  const localStorageRef = options.localStorageRef ?? (typeof window !== 'undefined' ? window.localStorage : null);
+  const sessionStorageRef = options.sessionStorageRef ?? (typeof window !== 'undefined' ? window.sessionStorage : null);
+
+  try {
+    if (clerkRef && typeof clerkRef.signOut === 'function') {
+      await clerkRef.signOut();
+    }
+  } catch {
+    // Best effort logout from Clerk client.
+  }
+
+  const removeClerkKeys = (storage) => {
+    if (!storage || typeof storage.length !== 'number' || typeof storage.key !== 'function') {
+      return;
+    }
+
+    const keysToRemove = [];
+    for (let i = 0; i < storage.length; i += 1) {
+      const key = storage.key(i);
+      if (typeof key === 'string' && key.toLowerCase().includes('clerk')) {
+        keysToRemove.push(key);
+      }
+    }
+
+    keysToRemove.forEach((key) => {
+      try {
+        storage.removeItem(key);
+      } catch {
+        // Ignore storage cleanup errors.
+      }
+    });
+  };
+
+  removeClerkKeys(localStorageRef);
+  removeClerkKeys(sessionStorageRef);
 }
 
 export const authStorageKeys = {

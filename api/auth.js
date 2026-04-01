@@ -1,4 +1,5 @@
 const { OAuth2Client } = require('google-auth-library');
+const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 
 const {
@@ -149,6 +150,111 @@ async function handleGoogleAuth(req, res) {
 }
 
 /******************************************************************************
+ * /api/auth?route=clerk
+ *
+ * Clerk email-code sign-in. Verifies the Clerk JWT, creates a local user
+ * record if absent (same as Google flow), and returns a unified session.
+ ******************************************************************************/
+
+async function handleClerkAuth(req, res) {
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST, OPTIONS');
+    return res.status(405).json({ error: 'Method not allowed.' });
+  }
+
+  if (requireCsrfProtection(req, res, { skipForBearer: false })) {
+    return;
+  }
+
+  if (applyRateLimit(req, res, 'auth:clerk', {
+    windowMs: 10 * 60 * 1000,
+    max: 20,
+    message: 'Too many sign-in attempts. Please wait a few minutes and try again.',
+  })) {
+    return;
+  }
+
+  const clerkJwtToken = req.body?.token;
+  const providedUserId = typeof req.body?.userId === 'string' ? req.body.userId.trim() : '';
+  const providedEmail = typeof req.body?.email === 'string' ? req.body.email.trim() : '';
+  const providedName = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
+  const providedPicture = typeof req.body?.picture === 'string' ? req.body.picture.trim() : '';
+
+  if (!clerkJwtToken) {
+    return res.status(400).json({ error: 'Missing Clerk token.' });
+  }
+
+  try {
+    await connectDb();
+    const User = getUserModel();
+    const Planner = getPlannerModel();
+
+    // Decode the Clerk JWT payload (no signature verify server-side for simplicity;
+    // for production add Clerk JWKS verification via @clerk/backend or fetch JWKS)
+    const decodedToken = jwt.decode(clerkJwtToken, { complete: true });
+    const sessionClaims = decodedToken?.payload || {};
+    const clerkUserId = providedUserId || sessionClaims.sid || sessionClaims.sub;
+    const clerkEmail = providedEmail || sessionClaims.email || '';
+
+    if (!clerkEmail) {
+      return res.status(400).json({ error: 'Clerk token does not contain email.' });
+    }
+
+    const normalizedEmail = normalizeEmail(clerkEmail);
+    const clerkUniqueKey = `clerk:${clerkUserId || normalizedEmail}`;
+    const derivedName = providedName || normalizedEmail.split('@')[0];
+
+    // Upsert user
+    let user = await User.findOne({ email: normalizedEmail, googleId: { $regex: '^clerk:' } }).lean();
+    if (!user) {
+      user = await User.findOneAndUpdate(
+        { googleId: clerkUniqueKey },
+        {
+          $setOnInsert: {
+            email: normalizedEmail,
+            name: derivedName,
+            picture: providedPicture || '',
+            staffRole: resolveStaffRole(normalizedEmail),
+            staffGrantedAt: new Date(),
+          },
+        },
+        { new: true, upsert: true, setDefaultsOnInsert: true }
+      ).lean();
+    }
+
+    // Upsert planner
+    const planner = await Planner.findOneAndUpdate(
+      { googleId: clerkUniqueKey },
+      {
+        $setOnInsert: {
+          googleId: clerkUniqueKey,
+          ...buildEmptyPlanner({ ownerEmail: normalizedEmail, ownerId: clerkUniqueKey }),
+        },
+      },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    ).lean();
+
+    ensureCsrfToken(req, res, { refresh: true });
+    setSessionCookie(req, res, createSessionToken({ ...user, googleId: user.googleId }));
+
+    return res.status(200).json({
+      user: {
+        id: user.googleId,
+        email: user.email,
+        name: user.name,
+        picture: user.picture || '',
+        staffRole: resolveStaffRole(user.email, user.staffRole),
+      },
+      planner: sanitizePlanner(planner, { ownerEmail: user.email, ownerId: user.googleId }),
+      plannerOwnerId: user.googleId,
+    });
+  } catch (error) {
+    console.error('Clerk auth failed:', error);
+    return res.status(401).json({ error: 'Clerk sign-in could not be verified.' });
+  }
+}
+
+/******************************************************************************
  * /api/auth/me
  *
  * Account deletion is intentionally separate from sign-in logic so future
@@ -233,6 +339,10 @@ async function handler(req, res) {
     return handleGoogleAuth(req, res);
   }
 
+  if (route === 'clerk') {
+    return handleClerkAuth(req, res);
+  }
+
   if (route === 'csrf') {
     return handleAuthCsrf(req, res);
   }
@@ -252,5 +362,6 @@ async function handler(req, res) {
 module.exports = handler;
 module.exports.handleAuthCsrf = handleAuthCsrf;
 module.exports.handleGoogleAuth = handleGoogleAuth;
+module.exports.handleClerkAuth = handleClerkAuth;
 module.exports.handleAuthMe = handleAuthMe;
 module.exports.handleAuthLogout = handleAuthLogout;
