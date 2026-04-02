@@ -1,6 +1,7 @@
 import { Suspense, lazy, useEffect } from "react";
 import { getRouteInfo } from "./appRoutes.js";
-import { CHATBASE_CHATBOT_ID, initializeChatbase, removeChatbaseArtifacts, shouldShowChatbaseForRoute } from "./chatbase.js";
+import { shouldShowChatbaseForRoute } from "./chatbase.js";
+import ChatbaseChatbot from "./components/ChatbaseChatbot.jsx";
 import { usePageSeo } from "./seo.js";
 import { getMarketingUrl, getPlannerUrl } from "./siteUrls.js";
 import queryPages from "./content/query-pages.json";
@@ -140,15 +141,6 @@ export default function App() {
     }
   }, [routeInfo.bodyRoute]);
 
-  useEffect(() => {
-    if (shouldShowChatbase) {
-      return initializeChatbase(CHATBASE_CHATBOT_ID);
-    }
-
-    removeChatbaseArtifacts(CHATBASE_CHATBOT_ID);
-    return undefined;
-  }, [shouldShowChatbase]);
-
   usePageSeo(fallbackSeo);
 
   let page = <PlannerPage />;
@@ -185,5 +177,10 @@ export default function App() {
     page = <WeddingWebsitePage websiteSlug={routeInfo.publicWeddingSlug} />;
   }
 
-  return <Suspense fallback={<PageFallback />}>{page}</Suspense>;
+  return (
+    <>
+      <ChatbaseChatbot enabled={shouldShowChatbase} />
+      <Suspense fallback={<PageFallback />}>{page}</Suspense>
+    </>
+  );
 }

@@ -8,14 +8,32 @@ function getRuntimeEnv() {
 
 const runtimeEnv = getRuntimeEnv();
 
-export const CHATBASE_CHATBOT_ID = runtimeEnv.VITE_CHATBASE_CHATBOT_ID
-  || runtimeEnv.NEXT_PUBLIC_CHATBASE_CHATBOT_ID
-  || runtimeEnv.NEXT_PUBLIC_CHATBASE_CHATBOT_CHATBOT_ID;
+const CHATBASE_SCRIPT_ID = "chatbase-script";
 
-export const CHATBASE_HOST = runtimeEnv.VITE_CHATBASE_HOST
-  || runtimeEnv.NEXT_PUBLIC_CHATBASE_HOST
-  || runtimeEnv.NEXT_PUBLIC_CHATBASE_CHATBOT_CHATBASE_HOST
-  || "https://www.chatbase.co/";
+function readFirstNonEmpty(...values) {
+  for (const value of values) {
+    const normalized = String(value || "").trim();
+    if (normalized) {
+      return normalized;
+    }
+  }
+
+  return "";
+}
+
+export const CHATBASE_CHATBOT_ID = readFirstNonEmpty(
+  runtimeEnv.VITE_CHATBASE_CHATBOT_ID,
+  runtimeEnv.VITE_CHATBASE_CHATBOT_CHATBOT_ID,
+  runtimeEnv.NEXT_PUBLIC_CHATBASE_CHATBOT_ID,
+  runtimeEnv.NEXT_PUBLIC_CHATBASE_CHATBOT_CHATBOT_ID,
+);
+
+export const CHATBASE_HOST = readFirstNonEmpty(
+  runtimeEnv.VITE_CHATBASE_HOST,
+  runtimeEnv.NEXT_PUBLIC_CHATBASE_HOST,
+  runtimeEnv.NEXT_PUBLIC_CHATBASE_CHATBOT_CHATBASE_HOST,
+  "https://www.chatbase.co/",
+);
 
 export function shouldShowChatbaseForRoute(routeInfo = {}) {
   return Boolean(routeInfo?.isMarketingHomeRoute || routeInfo?.isPricingRoute || routeInfo?.queryPageSlug);
@@ -25,6 +43,8 @@ export function removeChatbaseArtifacts(chatbotId) {
   if (typeof document === "undefined") {
     return;
   }
+
+  document.getElementById(CHATBASE_SCRIPT_ID)?.remove();
 
   if (chatbotId) {
     document.getElementById(chatbotId)?.remove();
@@ -58,15 +78,19 @@ export function initializeChatbase(chatbotId) {
   }
 
   const onLoad = () => {
-    if (document.getElementById(chatbotId)) {
+    if (document.getElementById(CHATBASE_SCRIPT_ID)) {
       return;
     }
 
+    window.chatbaseConfig = { chatbotId };
+
     const script = document.createElement("script");
     script.src = new URL("embed.min.js", CHATBASE_HOST).toString();
-    script.type = "module";
-    script.id = chatbotId;
-    script.domain = new URL(CHATBASE_HOST).hostname;
+    script.id = CHATBASE_SCRIPT_ID;
+    script.setAttribute("chatbotId", chatbotId);
+    script.setAttribute("domain", "www.chatbase.co");
+    script.domain = "www.chatbase.co";
+    script.defer = true;
     document.body.appendChild(script);
   };
 

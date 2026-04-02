@@ -662,6 +662,17 @@ body { background: var(--color-deep-red); }
   z-index: 100;
   box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
 }
+
+#chatbase-bubble-button {
+  bottom: 84px !important;
+  right: 20px !important;
+  z-index: 2100 !important;
+}
+
+#chatbase-bubble-window {
+  bottom: 104px !important;
+  z-index: 2100 !important;
+}
 .nav-item {
   flex: 1;
   display: flex; flex-direction: column;
@@ -3674,6 +3685,14 @@ body { background: var(--color-deep-red); }
     box-shadow: none;
     background: linear-gradient(180deg, #fffdfa 0%, #fff7eb 100%);
     z-index: 120;
+  }
+
+  #chatbase-bubble-button {
+    bottom: 24px !important;
+  }
+
+  #chatbase-bubble-window {
+    bottom: 24px !important;
   }
 
   .nav-item {

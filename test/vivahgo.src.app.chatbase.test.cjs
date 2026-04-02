@@ -65,13 +65,14 @@ describe('VivahGo/src/chatbase.js', function () {
     });
 
     const cleanup = appMod.initializeChatbase('chatbase-test-id');
-    const script = document.getElementById('chatbase-test-id');
+    const script = document.getElementById('chatbase-script');
 
     assert.equal(typeof cleanup, 'undefined');
     assert.ok(script);
     assert.equal(script.tagName, 'SCRIPT');
     assert.match(script.src, /^https:\/\/www\.chatbase\.co\/embed\.min\.js/);
-    assert.equal(script.type, 'module');
+    assert.equal(script.type, '');
+    assert.equal(script.getAttribute('chatbotId'), 'chatbase-test-id');
     assert.equal(script.domain, 'www.chatbase.co');
   });
 
