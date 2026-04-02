@@ -27,6 +27,7 @@ const VENDOR_PORTAL_SECTIONS = [
 export default function VendorPortalPage() {
   const isClerkEnabled = Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
   const [session, setSession] = useState(() => readAuthSession());
+  const [loginError, setLoginError] = useState('');
   const [vendor, setVendor] = useState(null);
   const [vendorLoadError, setVendorLoadError] = useState('');
   const [previewVendor, setPreviewVendor] = useState(null);
@@ -43,6 +44,18 @@ export default function VendorPortalPage() {
   const profileEditorRef = useRef(null);
   const accountFirstName = session?.user?.given_name || session?.user?.name?.split(' ')[0] || 'You';
   const profileInitial = accountFirstName.trim().charAt(0).toUpperCase() || 'Y';
+  const mobileBenefitItems = [
+    { icon: 'vendors', text: 'Dummy point: highlight your top services' },
+    { icon: 'tasks', text: 'Dummy point: keep media and profile details fresh' },
+    { icon: 'events', text: 'Dummy point: stay visible for upcoming wedding seasons' },
+    { icon: 'guests', text: 'Dummy point: respond quickly to planner interest' },
+  ];
+  const desktopBenefitItems = [
+    { icon: 'vendors', text: 'Dummy content: present your business with a polished public profile' },
+    { icon: 'budget', text: 'Dummy content: spotlight offers, package value, and category positioning' },
+    { icon: 'tasks', text: 'Dummy content: keep your portfolio current with easy media updates' },
+    { icon: 'events', text: 'Dummy content: track readiness before peak wedding booking windows' },
+  ];
 
   useEffect(() => {
     document.title = 'VivahGo | Vendor Portal';
@@ -81,6 +94,7 @@ export default function VendorPortalPage() {
   }, [session]);
 
   async function handleLoginSuccess(credentialResponse) {
+    setLoginError('');
     setIsSigningIn(true);
     try {
       const data = await loginWithGoogle(credentialResponse.credential);
@@ -96,14 +110,15 @@ export default function VendorPortalPage() {
       setVendorLoadError('');
       setAvatarLoadError(false);
       setSession(newSession);
-    } catch {
-      // Error shown implicitly; user can retry
+    } catch (error) {
+      setLoginError(error?.message || 'Google login failed. Please try again.');
     } finally {
       setIsSigningIn(false);
     }
   }
 
   async function handleClerkLoginSuccess(user, clerkToken) {
+    setLoginError('');
     setIsSigningIn(true);
     try {
       const data = await loginWithClerk(clerkToken, user || {});
@@ -119,8 +134,8 @@ export default function VendorPortalPage() {
       setVendorLoadError('');
       setAvatarLoadError(false);
       setSession(newSession);
-    } catch {
-      // Error shown implicitly; user can retry
+    } catch (error) {
+      setLoginError(error?.message || 'Sign in failed. Please try again.');
     } finally {
       setIsSigningIn(false);
     }
@@ -130,7 +145,9 @@ export default function VendorPortalPage() {
     {
       onGoogleLogin: handleLoginSuccess,
       onClerkLogin: handleClerkLoginSuccess,
-      onLoginError: () => {},
+      onLoginError: (error) => {
+        setLoginError(error?.message || 'Sign in failed. Please try again.');
+      },
       isLoggingIn: isSigningIn,
     },
     {
@@ -190,24 +207,124 @@ export default function VendorPortalPage() {
   }
 
   if (!session?.token) {
+    const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173';
+    const showOauthHelp = /invalid_client|no registered origin|origin.*not.*allowed|idpiframe/i.test(loginError);
+
     return (
-      <div className="min-h-screen bg-gradient-to-br from-rose-50 to-amber-50 flex items-center justify-center p-6">
-        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full">
-          <div className="flex flex-col items-center mb-6">
-            <img src="/Thumbnail.png" alt="VivahGo" className="login-logo-image" style={{ maxWidth: 140, margin: '0 auto 12px' }} />
-            <h1 className="text-2xl font-bold text-gray-900">Vendor Portal</h1>
-            <p className="text-gray-500 text-sm mt-1 text-center">
-              List your business and showcase your portfolio to thousands of couples.
-            </p>
-          </div>
-          <AuthOptionList options={authOptions} />
-          {isSigningIn && (
-            <div className="mt-4">
-              <LoadingBar label="Signing you in..." compact />
+      <div className="login-screen planner-login-screen vendor-login-screen">
+        <div className="login-container planner-login-container vendor-login-container">
+          <div className="login-layout">
+            <div className="login-hero">
+              <div className="login-header">
+                <div className="login-logo">
+                  <a className="login-logo-mark" href={MARKETING_HOME_URL} aria-label="VivahGo home">
+                    <img
+                      className="login-logo-image login-logo-image-desktop"
+                      src="/logo-no-background.png"
+                      alt="VivahGo"
+                      decoding="async"
+                      fetchPriority="high"
+                    />
+                    <img
+                      className="login-logo-image login-logo-image-mobile"
+                      src="/logo-no-background.png"
+                      alt="VivahGo"
+                      decoding="async"
+                      fetchPriority="high"
+                    />
+                  </a>
+                </div>
+                <p className="login-kicker">Vendor Workspace</p>
+                <h1 className="login-title">Grow your wedding business with less friction.</h1>
+              </div>
             </div>
-          )}
-          <div className="mt-4 text-center">
-            <a href={MARKETING_HOME_URL} className="text-sm text-rose-600 hover:underline">← Back to Home</a>
+
+            <div className="login-panel">
+              <div className="login-panel-card">
+                <div className="login-content">
+                  <div className="login-panel-header">
+                    <p className="login-panel-kicker">Sign in to VivahGo</p>
+                    <h2 className="login-panel-title">Continue to your vendor portal</h2>
+                    <p className="login-panel-subtitle">
+                      Dummy intro content: manage profile details, upload media, and monitor approval from one place.
+                    </p>
+                  </div>
+
+                  <div className="login-benefits-mobile">
+                    {mobileBenefitItems.map((item) => (
+                      <div className="benefit-item" key={`mobile-${item.icon}-${item.text}`}>
+                        <span className="benefit-icon"><NavIcon name={item.icon} size={20} /></span>
+                        <span className="benefit-text">{item.text}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="login-divider login-home-divider login-divider-mobile">
+                    <div className="divider-line"></div>
+                    <span className="divider-text">Login</span>
+                    <div className="divider-line"></div>
+                  </div>
+
+                  <div className="login-actions">
+                    <AuthOptionList options={authOptions} />
+                  </div>
+
+                  <div className="login-home-section">
+                    <div className="login-home-divider">
+                      <div className="divider-line"></div>
+                      <span className="divider-text">Other access</span>
+                      <div className="divider-line"></div>
+                    </div>
+                    <button
+                      className="login-home-btn"
+                      type="button"
+                      onClick={() => { window.location.href = MARKETING_HOME_URL; }}
+                      disabled={isSigningIn}
+                    >
+                      Back to Home
+                    </button>
+                    <button
+                      className="login-home-btn"
+                      type="button"
+                      onClick={() => { window.location.href = PLANNER_HOME_URL; }}
+                      disabled={isSigningIn}
+                      style={{ marginTop: 10 }}
+                    >
+                      Planner Login
+                    </button>
+                  </div>
+
+                  {showOauthHelp && (
+                    <div className="login-oauth-help">
+                      Use a <strong>Web application</strong> OAuth client, then add <strong>{currentOrigin}</strong> to Authorized JavaScript origins. If you see <strong>invalid_client</strong> or <strong>no registered origin</strong>, the Google Cloud OAuth client is not configured for this frontend origin yet.
+                    </div>
+                  )}
+
+                  {isSigningIn && (
+                    <div className="login-status">
+                      <div>Signing you in and loading your vendor portal...</div>
+                      <LoadingBar compact className="login-status-loading-bar" />
+                    </div>
+                  )}
+                  {loginError && <div className="login-error">{loginError}</div>}
+
+                  <div className="login-footer login-footer-mobile">
+                    <p className="login-footer-text">Dummy footer content: sign in to continue managing your vendor journey.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="login-support">
+              <div className="login-benefits">
+                {desktopBenefitItems.map((item) => (
+                  <div className="benefit-item" key={`desktop-${item.icon}-${item.text}`}>
+                    <span className="benefit-icon"><NavIcon name={item.icon} size={20} /></span>
+                    <span className="benefit-text">{item.text}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </div>

@@ -5,3 +5,171 @@
   used by the rest of the VivahGo app.
 */
 @tailwind utilities;
+
+/* ─── Vendor Login Screen ────────────────────────────────────────────────────
+   Chained selector (.vendor-login-screen.planner-login-screen) gives
+   specificity (0,2,0) on the root and (0,3,0) on children, which beats the
+   single-class planner rules in styles.css (0,2,0 on children) even though
+   styles.css is imported after vendor.css.
+   Palette:
+     Navy    #1E293B   primary text / button accent
+     Slate   #475569   secondary text / kickers
+     Steel   #0F172A   high-contrast button bg
+     Border  #E2E8F0   dividers / card edge
+     Bg      #F8FAFC   page background
+────────────────────────────────────────────────────────────────────────────── */
+
+.vendor-login-screen.planner-login-screen {
+  background:
+    radial-gradient(circle at top left, rgba(30, 41, 59, 0.04), transparent 28%),
+    linear-gradient(180deg, #F8FAFC 0%, #F1F5F9 100%);
+}
+
+/* Hero text */
+.vendor-login-screen.planner-login-screen .login-kicker {
+  color: rgba(71, 85, 105, 0.72);
+}
+
+.vendor-login-screen.planner-login-screen .login-title {
+  color: #1E293B;
+}
+
+.vendor-login-screen.planner-login-screen .login-subtitle {
+  color: rgba(71, 85, 105, 0.82);
+}
+
+/* Panel card */
+.vendor-login-screen.planner-login-screen .login-panel-card {
+  background: rgba(255, 255, 255, 0.97);
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
+}
+
+.vendor-login-screen.planner-login-screen .login-panel-kicker {
+  color: rgba(71, 85, 105, 0.65);
+}
+
+.vendor-login-screen.planner-login-screen .login-panel-title {
+  color: #1E293B;
+}
+
+.vendor-login-screen.planner-login-screen .login-panel-subtitle {
+  color: rgba(71, 85, 105, 0.72);
+}
+
+/* Benefit list */
+.vendor-login-screen.planner-login-screen .benefit-icon {
+  background: rgba(30, 41, 59, 0.07);
+  color: #1E293B;
+}
+
+.vendor-login-screen.planner-login-screen .benefit-text {
+  color: rgba(30, 41, 59, 0.78);
+}
+
+/* Footer */
+.vendor-login-screen.planner-login-screen .login-footer-text {
+  color: rgba(71, 85, 105, 0.60);
+}
+
+/* Dividers */
+.vendor-login-screen.planner-login-screen .divider-line {
+  background: #E2E8F0;
+}
+
+.vendor-login-screen.planner-login-screen .divider-text {
+  color: #475569;
+}
+
+/* Auth / sign-in buttons */
+.vendor-login-screen.planner-login-screen .login-auth-option-btn {
+  border: 1px solid #E2E8F0;
+  background: #fff;
+  color: #1E293B;
+}
+
+.vendor-login-screen.planner-login-screen .login-auth-option-btn:hover:not(:disabled) {
+  border-color: #CBD5E1;
+  background: #F8FAFC;
+}
+
+/* Secondary action button */
+.vendor-login-screen.planner-login-screen .login-secondary-btn {
+  border: 1px solid #E2E8F0;
+  background: #fff;
+  color: #1E293B;
+}
+
+/* Other-access buttons */
+.vendor-login-screen.planner-login-screen .login-home-btn {
+  border: 1px solid #E2E8F0;
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.06), rgba(15, 23, 42, 0.04));
+  color: #1E293B;
+}
+
+.vendor-login-screen.planner-login-screen .login-home-btn:hover:not(:disabled) {
+  border-color: #CBD5E1;
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.1), rgba(15, 23, 42, 0.07));
+}
+
+/* Status / error feedback */
+.vendor-login-screen.planner-login-screen .login-status {
+  color: #475569;
+}
+
+.vendor-login-screen.planner-login-screen .login-error {
+  color: #1E293B;
+  background: rgba(226, 232, 240, 0.45);
+  border-color: #E2E8F0;
+}
+
+.vendor-login-screen.planner-login-screen .login-oauth-help {
+  background: rgba(226, 232, 240, 0.45);
+  border-color: #E2E8F0;
+  color: #1E293B;
+}
+
+.vendor-login-screen.planner-login-screen .login-oauth-help strong {
+  color: #0F172A;
+}
+
+/* Loading bar accent → navy instead of crimson */
+.vendor-login-screen.planner-login-screen .login-status-loading-bar .loading-bar-fill {
+  background: #1E293B;
+}
+
+/* Mobile overrides */
+@media (max-width: 899px) {
+  .vendor-login-screen.planner-login-screen {
+    background: linear-gradient(180deg, #F8FAFC 0%, #F1F5F9 100%);
+  }
+
+  /* Mobile logo: crisp slate frame instead of warm gold */
+  .vendor-login-screen.planner-login-screen .login-logo-image-mobile {
+    border: 0;
+    background: transparent;
+    border-radius: 0;
+  }
+
+  /* Panel card: strip to flat/transparent on mobile (matches planner mobile behaviour) */
+  .vendor-login-screen.planner-login-screen .login-panel-card {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+
+  /* Benefit icons: remove tinted box on mobile (matches planner mobile behaviour) */
+  .vendor-login-screen.planner-login-screen .benefit-icon {
+    background: transparent;
+  }
+}
+
+@media (max-width: 420px) {
+  /* Inherit planner's 420px button tweaks; no vendor colour overrides needed */
+}
+
+@media (max-width: 360px) {
+  /* Inherit planner's 360px micro adjustments; no vendor colour overrides needed */
+}

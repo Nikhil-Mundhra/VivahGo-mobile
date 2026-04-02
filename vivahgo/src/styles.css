@@ -3969,6 +3969,8 @@ body { background: var(--color-deep-red); }
   font-family: inherit;
   outline: none;
   transition: border-color 0.2s;
+  background-color: #ffffff;
+  color: #000000;
 }
 
 .email-otp-input:focus {
