@@ -2321,6 +2321,7 @@ export function createApp(options = {}) {
         googleMapsLink: vendor.googleMapsLink || '',
         phone: vendor.phone || '',
         website: vendor.website || '',
+        availabilitySettings: normalizeAvailabilitySettings(vendor.availabilitySettings),
         emoji: '🏷️',
         rating: 0,
         priceLevel: null,

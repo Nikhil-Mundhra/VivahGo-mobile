@@ -365,6 +365,7 @@ async function handleVendorList(req, res) {
         googleMapsLink: v.googleMapsLink || '',
         phone: v.phone || '',
         website: v.website || '',
+        availabilitySettings: normalizeAvailabilitySettings(v.availabilitySettings),
         emoji: '🏷️',
         rating: 0,
         priceLevel: null,

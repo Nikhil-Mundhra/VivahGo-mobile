@@ -376,6 +376,13 @@ function EmailOtpLogin({ onLoginSuccess, onLoginError }) {
           </button>
         </div>
       )}
+      <div className="email-otp-captcha-shell" aria-live="polite">
+        <div
+          id="clerk-captcha"
+          data-cl-theme="auto"
+          data-cl-size="flexible"
+        />
+      </div>
       {!isClerkReady && !error && (
         <div className="email-otp-hint">
           {loadTimedOut ? 'Email login took too long to initialize. Refresh the page and try again.' : 'Email login is loading...'}

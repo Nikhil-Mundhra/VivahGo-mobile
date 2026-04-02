@@ -1204,7 +1204,7 @@ body { background: var(--color-deep-red); }
   grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 .vendor-filter-grid-secondary {
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1.6fr) minmax(180px, 0.8fr) auto;
   align-items: center;
 }
 .vendor-filter-select {
@@ -1234,6 +1234,65 @@ body { background: var(--color-deep-red); }
   color: var(--color-mid-text);
   font-size: 12px;
   font-weight: 500;
+}
+.vendor-availability-filter-card {
+  min-width: 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(255,252,246,0.98), rgba(245,236,215,0.92));
+  border: 1px solid rgba(139,26,26,0.1);
+}
+.vendor-availability-filter-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.vendor-availability-filter-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-mid-text);
+}
+.vendor-availability-clear-btn {
+  border: none;
+  background: transparent;
+  color: var(--color-crimson);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Jost', sans-serif;
+}
+.vendor-availability-filter-inputs {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+.vendor-availability-date-input {
+  min-width: 0;
+}
+.vendor-availability-filter-divider {
+  font-size: 12px;
+  color: var(--color-light-text);
+}
+.vendor-availability-filter-caption {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--color-light-text);
+  line-height: 1.4;
+}
+.vendor-availability-match-chip {
+  display: inline-flex;
+  margin-top: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(46,125,50,0.1);
+  color: #2E7D32;
+  font-size: 10.5px;
+  font-weight: 700;
 }
 .vendor-mobile-filter-toggle {
   width: 42px;
@@ -1586,6 +1645,122 @@ body { background: var(--color-deep-red); }
   color: var(--color-light-text);
 }
 .vendor-detail-cta { padding: 0 16px 8px; }
+.vendor-availability-panel {
+  padding: 16px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(139,26,26,0.06), rgba(212,175,55,0.12));
+  border: 1px solid rgba(139,26,26,0.08);
+}
+.vendor-availability-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.vendor-availability-panel-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-dark-text);
+}
+.vendor-availability-panel-copy {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--color-light-text);
+}
+.vendor-availability-nav {
+  display: flex;
+  gap: 8px;
+}
+.vendor-availability-nav-btn {
+  border: 1px solid rgba(139,26,26,0.16);
+  background: rgba(255,255,255,0.92);
+  color: var(--color-crimson);
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Jost', sans-serif;
+}
+.vendor-availability-week-picker {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 14px 0 4px;
+}
+.vendor-availability-week-chip {
+  border: 1px solid rgba(139,26,26,0.14);
+  background: rgba(255,255,255,0.84);
+  color: var(--color-mid-text);
+  border-radius: 999px;
+  padding: 8px 12px;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Jost', sans-serif;
+}
+.vendor-availability-week-chip.active {
+  background: var(--color-crimson);
+  border-color: var(--color-crimson);
+  color: white;
+}
+.vendor-availability-week-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+.vendor-availability-day {
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  padding: 14px 8px;
+  border-radius: 16px;
+  text-align: center;
+  border: 1px solid transparent;
+}
+.vendor-availability-day.is-open {
+  background: #E8F5E9;
+  border-color: rgba(46,125,50,0.18);
+  color: #1B5E20;
+}
+.vendor-availability-day.is-partial {
+  background: #FFF4D6;
+  border-color: rgba(245,158,11,0.18);
+  color: #92400E;
+}
+.vendor-availability-day.is-near-full {
+  background: #FDE7D7;
+  border-color: rgba(234,88,12,0.18);
+  color: #9A3412;
+}
+.vendor-availability-day.is-full,
+.vendor-availability-day.is-unavailable {
+  background: #F6E5E3;
+  border-color: rgba(139,26,26,0.12);
+  color: var(--color-crimson);
+}
+.vendor-availability-day-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.vendor-availability-day-number {
+  font-size: 22px;
+  line-height: 1;
+}
+.vendor-availability-day-status {
+  font-size: 11px;
+  line-height: 1.35;
+}
+.vendor-availability-panel-footnote {
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--color-light-text);
+  line-height: 1.5;
+}
 .vendor-request-btn {
   width: 100%;
   background: linear-gradient(135deg, #25D366, #128C7E);
@@ -2240,8 +2415,20 @@ body { background: var(--color-deep-red); }
     grid-template-columns: 1fr;
   }
 
+  .vendor-availability-filter-inputs {
+    grid-template-columns: 1fr;
+  }
+
   .vendor-filter-summary {
     justify-content: space-between;
+  }
+
+  .vendor-availability-week-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .vendor-availability-panel-head {
+    flex-direction: column;
   }
 
   .vendor-registration-grid-3 {
@@ -4023,6 +4210,15 @@ body { background: var(--color-deep-red); }
   cursor: not-allowed;
 }
 
+.email-otp-captcha-shell {
+  width: 100%;
+  min-height: 70px;
+}
+
+.email-otp-captcha-shell #clerk-captcha {
+  width: 100%;
+}
+
 .email-otp-error {
   color: #c41e3a;
   font-size: 13px;
@@ -4067,5 +4263,9 @@ body { background: var(--color-deep-red); }
 
   .email-otp-btn {
     width: 100%;
+  }
+
+  .email-otp-captcha-shell {
+    min-height: 80px;
   }
 }

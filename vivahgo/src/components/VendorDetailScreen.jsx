@@ -2,8 +2,19 @@ import { useMemo, useState } from "react";
 import { WHATSAPP_SUPPORT_NUMBER } from "../constants";
 import { formatVendorBudgetRange, formatVendorPricePerPlate, formatVendorPriceTier, getVendorPriceLevel, getVendorQuickFacts } from "../utils";
 import { FallbackImage, FallbackVideo } from "./MediaWithFallback";
+import { VENDOR_AVAILABILITY_COPY, addWeeks, buildWeekDays, dateKeyFromDate, getAvailabilityForDate, parseDateKey, startOfWeek } from "../vendorAvailability";
 
-function VendorDetailScreen({ vendor, onBack, onToggleWishlist, onAddReview }) {
+const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const WEEK_RANGE_FORMATTER = new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short" });
+const MONTH_LABEL_FORMATTER = new Intl.DateTimeFormat("en-IN", { month: "long", year: "numeric" });
+
+function formatWeekOption(date) {
+  const weekStart = startOfWeek(date);
+  const weekEnd = buildWeekDays(weekStart)[6].date;
+  return `${WEEK_RANGE_FORMATTER.format(weekStart)} - ${WEEK_RANGE_FORMATTER.format(weekEnd)}`;
+}
+
+function VendorDetailScreen({ vendor, availabilityRange, onBack, onToggleWishlist, onAddReview }) {
   const initialVisibleTestimonials = 2;
   const quickFacts = getVendorQuickFacts(vendor);
   const media = Array.isArray(vendor.media) ? vendor.media : [];
@@ -16,10 +27,32 @@ function VendorDetailScreen({ vendor, onBack, onToggleWishlist, onAddReview }) {
   }, [vendor.reviews, vendor.testimonials]);
   const [reviewForm, setReviewForm] = useState({ name: "", rating: String(vendor.rating || 5), text: "" });
   const [showAllTestimonials, setShowAllTestimonials] = useState(false);
+  const initialWeekDate = availabilityRange?.startDate ? parseDateKey(availabilityRange.startDate) : new Date();
+  const [selectedWeekStart, setSelectedWeekStart] = useState(() => startOfWeek(initialWeekDate));
 
   const mapQuery = vendor.mapQuery || vendor.address || vendor.city || `${vendor.name} service area`;
   const embeddedMapQuery = encodeURIComponent(mapQuery);
   const visibleTestimonials = showAllTestimonials ? testimonials : testimonials.slice(0, initialVisibleTestimonials);
+  const weekDays = useMemo(() => buildWeekDays(selectedWeekStart), [selectedWeekStart]);
+  const weekOptions = useMemo(() => (
+    Array.from({ length: 6 }, (_, index) => {
+      const date = addWeeks(selectedWeekStart, index - 1);
+      return {
+        key: dateKeyFromDate(date),
+        date,
+        label: formatWeekOption(date),
+      };
+    })
+  ), [selectedWeekStart]);
+  const focusedRangeLabel = `${WEEK_RANGE_FORMATTER.format(weekDays[0].date)} - ${WEEK_RANGE_FORMATTER.format(weekDays[6].date)}`;
+
+  function getDayTone(status) {
+    if (status === "open") return "vendor-availability-day is-open";
+    if (status === "partial") return "vendor-availability-day is-partial";
+    if (status === "near-full") return "vendor-availability-day is-near-full";
+    if (status === "full") return "vendor-availability-day is-full";
+    return "vendor-availability-day is-unavailable";
+  }
 
   function handleRequestService() {
     const message = encodeURIComponent(
@@ -110,6 +143,58 @@ function VendorDetailScreen({ vendor, onBack, onToggleWishlist, onAddReview }) {
           <div className="vendor-detail-stat-card">
             <div className="vendor-detail-stat-label">Booking style</div>
             <div className="vendor-detail-stat-value">{vendor.serviceMode || "Custom quote"}</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="vendor-detail-section">
+        <div className="vendor-detail-section-title">Availability This Week</div>
+        <div className="vendor-availability-panel">
+          <div className="vendor-availability-panel-head">
+            <div>
+              <div className="vendor-availability-panel-title">{MONTH_LABEL_FORMATTER.format(selectedWeekStart)}</div>
+              <div className="vendor-availability-panel-copy">{focusedRangeLabel}</div>
+            </div>
+            <div className="vendor-availability-nav">
+              <button type="button" className="vendor-availability-nav-btn" onClick={() => setSelectedWeekStart(current => addWeeks(current, -1))}>
+                Previous
+              </button>
+              <button type="button" className="vendor-availability-nav-btn" onClick={() => setSelectedWeekStart(current => addWeeks(current, 1))}>
+                Next
+              </button>
+            </div>
+          </div>
+          <div className="vendor-availability-week-picker" role="tablist" aria-label="Select availability week">
+            {weekOptions.map((option) => {
+              const isActive = dateKeyFromDate(option.date) === dateKeyFromDate(selectedWeekStart);
+              return (
+                <button
+                  key={option.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  className={`vendor-availability-week-chip${isActive ? " active" : ""}`}
+                  onClick={() => setSelectedWeekStart(startOfWeek(option.date))}
+                >
+                  Week of {option.label}
+                </button>
+              );
+            })}
+          </div>
+          <div className="vendor-availability-week-grid">
+            {weekDays.map((day, index) => {
+              const availability = getAvailabilityForDate(vendor, day.key);
+              return (
+                <div key={day.key} className={getDayTone(availability.status)}>
+                  <span className="vendor-availability-day-label">{WEEKDAY_LABELS[index]}</span>
+                  <strong className="vendor-availability-day-number">{day.date.getDate()}</strong>
+                  <span className="vendor-availability-day-status">{VENDOR_AVAILABILITY_COPY[availability.status]}</span>
+                </div>
+              );
+            })}
+          </div>
+          <div className="vendor-availability-panel-footnote">
+            Couples can browse one week at a time so they can quickly sanity-check whether this vendor fits their event window.
           </div>
         </div>
       </div>

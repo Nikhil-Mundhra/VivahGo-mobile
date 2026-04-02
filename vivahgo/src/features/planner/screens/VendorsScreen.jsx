@@ -5,6 +5,7 @@ import { formatVendorBudgetRange, formatVendorPriceTier, getVendorPriceLevel, ge
 import VendorDetailScreen from "../../../components/VendorDetailScreen";
 import { fetchApprovedVendors } from "../../../api";
 import { useBackButtonClose } from "../../../hooks/useBackButtonClose";
+import { getVendorAvailabilityMatch } from "../../../vendorAvailability";
 
 const VENDOR_FILTERS_SESSION_KEY = "vivahgo.vendorFilters";
 const LEGACY_VENDOR_TYPE_ALIASES = {
@@ -47,6 +48,8 @@ function VendorsScreen({ vendors }) {
   const [ratingFilter, setRatingFilter] = useState(savedFilters?.ratingFilter || "all");
   const [budgetFilter, setBudgetFilter] = useState(savedFilters?.budgetFilter || "all");
   const [priceSort, setPriceSort] = useState(savedFilters?.priceSort || "none");
+  const [availabilityStartDate, setAvailabilityStartDate] = useState(savedFilters?.availabilityStartDate || "");
+  const [availabilityEndDate, setAvailabilityEndDate] = useState(savedFilters?.availabilityEndDate || "");
   const [selectedVendorId, setSelectedVendorId] = useState(null);
   const [wishlistIds, setWishlistIds] = useState([]);
   const [vendorReviews, setVendorReviews] = useState({});
@@ -91,8 +94,10 @@ function VendorsScreen({ vendors }) {
       ratingFilter,
       budgetFilter,
       priceSort,
+      availabilityStartDate,
+      availabilityEndDate,
     }));
-  }, [activeTab, budgetFilter, bundledServiceFilter, locationFilter, priceSort, ratingFilter, subtypeFilter]);
+  }, [activeTab, availabilityEndDate, availabilityStartDate, budgetFilter, bundledServiceFilter, locationFilter, priceSort, ratingFilter, subtypeFilter]);
 
   useBackButtonClose(showMobileFilters, () => setShowMobileFilters(false));
 
@@ -153,11 +158,16 @@ function VendorsScreen({ vendors }) {
   }, [activeTab, hydratedVendors]);
 
   const filtered = hydratedVendors
+    .map(vendor => ({
+      ...vendor,
+      availabilityMatch: getVendorAvailabilityMatch(vendor, availabilityStartDate, availabilityEndDate),
+    }))
     .filter(v => activeTab === "All" ? true : v.type === activeTab)
     .filter(v => subtypeFilter === "all" ? true : v.subType === subtypeFilter)
     .filter(v => bundledServiceFilter === "all" ? true : Array.isArray(v.bundledServices) && v.bundledServices.includes(bundledServiceFilter))
     .filter(v => locationFilter === "all" ? true : v.city === locationFilter)
     .filter(v => ratingFilter === "all" ? true : Number(v.rating) >= Number(ratingFilter))
+    .filter(v => v.availabilityMatch?.isMatch !== false)
     .filter(v => {
       if (budgetFilter === "all") return true;
       const maxBudget = Number(v?.budgetRange?.max || 0);
@@ -212,7 +222,9 @@ function VendorsScreen({ vendors }) {
     ratingFilter,
     budgetFilter,
     priceSort,
-  ].filter(value => value !== "all" && value !== "none").length;
+    availabilityStartDate,
+    availabilityEndDate,
+  ].filter(value => value !== "all" && value !== "none" && value !== "").length;
 
   const filterControls = (
     <>
@@ -243,6 +255,44 @@ function VendorsScreen({ vendors }) {
         </select>
       </div>
       <div className="vendor-filter-grid vendor-filter-grid-secondary">
+        <div className="vendor-availability-filter-card">
+          <div className="vendor-availability-filter-head">
+            <span className="vendor-availability-filter-label">Availability dates</span>
+            {(availabilityStartDate || availabilityEndDate) && (
+              <button
+                type="button"
+                className="vendor-availability-clear-btn"
+                onClick={() => {
+                  setAvailabilityStartDate("");
+                  setAvailabilityEndDate("");
+                }}
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          <div className="vendor-availability-filter-inputs">
+            <input
+              type="date"
+              className="input-field vendor-availability-date-input"
+              value={availabilityStartDate}
+              onChange={e => setAvailabilityStartDate(e.target.value)}
+              aria-label="Availability start date"
+            />
+            <span className="vendor-availability-filter-divider">to</span>
+            <input
+              type="date"
+              className="input-field vendor-availability-date-input"
+              value={availabilityEndDate}
+              min={availabilityStartDate || undefined}
+              onChange={e => setAvailabilityEndDate(e.target.value)}
+              aria-label="Availability end date"
+            />
+          </div>
+          <div className="vendor-availability-filter-caption">
+            Show vendors available on at least one day in this range.
+          </div>
+        </div>
         <select className="select-field vendor-filter-select" value={budgetFilter} onChange={e=>setBudgetFilter(e.target.value)}>
           <option value="all">All Budgets</option>
           <option value="budget">Budget friendly</option>
@@ -261,7 +311,9 @@ function VendorsScreen({ vendors }) {
     <div>
       {selectedVendor && (
         <VendorDetailScreen
+          key={selectedVendor.id}
           vendor={selectedVendor}
+          availabilityRange={{ startDate: availabilityStartDate, endDate: availabilityEndDate }}
           onBack={() => setSelectedVendorId(null)}
           onToggleWishlist={() => toggleWishlist(selectedVendor.id)}
           onAddReview={review => handleAddReview(selectedVendor.id, review)}
@@ -316,6 +368,11 @@ function VendorsScreen({ vendors }) {
       )}
       {filtered.map(v => {
         const quickFacts = getVendorQuickFacts(v);
+        const availabilityMessage = (availabilityStartDate || availabilityEndDate) && v.availabilityMatch?.matchingDays?.length
+          ? v.availabilityMatch.matchingDays.length === 1
+            ? "Available on 1 selected day"
+            : `Available on ${v.availabilityMatch.matchingDays.length} selected days`
+          : "";
 
         return (
         <div className="vendor-card vendor-card-clickable" key={v.id} onClick={()=>setSelectedVendorId(v.id)}>
@@ -338,6 +395,7 @@ function VendorsScreen({ vendors }) {
                   <div className="vendor-facts-inline">{quickFacts.join(" · ")}</div>
                 </div>
               )}
+              {availabilityMessage && <div className="vendor-availability-match-chip">{availabilityMessage}</div>}
               <div className="vendor-stars">{"★".repeat(v.rating || 0)}{"☆".repeat(5-(v.rating || 0))} <span style={{color:"var(--color-light-text)",fontSize:11}}>{v.rating ? `${v.rating}.0` : 'No rating'}</span> <span style={{color:"var(--color-light-text)",fontSize:11}}>({v.reviewCount || 0} reviews)</span></div>
             </div>
             {v.booked && <div style={{background:"#E8F5E9",color:"#2E7D32",padding:"3px 10px",borderRadius:10,fontSize:11,fontWeight:600,alignSelf:"flex-start"}}>Booked ✓</div>}

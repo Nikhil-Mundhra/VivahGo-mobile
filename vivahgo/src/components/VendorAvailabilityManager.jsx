@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { updateVendorProfile } from '../api';
+import { buildAvailabilityState, dateKeyFromDate, getDayAvailability, getDayStatus, parseDateKey } from '../vendorAvailability';
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTH_FORMATTER = new Intl.DateTimeFormat('en-IN', { month: 'long', year: 'numeric' });
@@ -12,18 +13,6 @@ const DATE_FORMATTER = new Intl.DateTimeFormat('en-IN', {
 const MAX_CAPACITY = 99;
 const SYNC_DELAY_MS = 700;
 const AVAILABILITY_TIP_DISMISSED_KEY = 'vendor-availability-tip-dismissed';
-
-function dateKeyFromDate(date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-function parseDateKey(dateKey) {
-  const [year, month, day] = String(dateKey || '').split('-').map(Number);
-  return new Date(year, month - 1, day);
-}
 
 function startOfMonth(date) {
   return new Date(date.getFullYear(), date.getMonth(), 1);
@@ -73,70 +62,6 @@ function sanitizeCount(rawValue, fallback = 0) {
     return fallback;
   }
   return Math.max(0, Math.min(MAX_CAPACITY, value));
-}
-
-function buildAvailabilityState(vendor) {
-  const settings = vendor?.availabilitySettings || {};
-  const hasDefaultCapacity = settings.hasDefaultCapacity !== false;
-  const defaultMaxCapacity = hasDefaultCapacity
-    ? Math.max(1, sanitizeCount(settings.defaultMaxCapacity, 1))
-    : 0;
-  const dateOverrides = Array.isArray(settings.dateOverrides)
-    ? settings.dateOverrides
-      .filter((item) => item && typeof item.date === 'string')
-      .map((item) => {
-        const maxCapacity = sanitizeCount(item.maxCapacity, 0);
-        const bookingsCount = maxCapacity > 0
-          ? Math.min(sanitizeCount(item.bookingsCount, 0), maxCapacity)
-          : 0;
-
-        return {
-          date: item.date,
-          maxCapacity,
-          bookingsCount,
-        };
-      })
-      .sort((a, b) => a.date.localeCompare(b.date))
-    : [];
-
-  return {
-    hasDefaultCapacity,
-    defaultMaxCapacity,
-    dateOverrides,
-  };
-}
-
-function getDayAvailability(availability, dateKey) {
-  const override = availability.dateOverrides.find((item) => item.date === dateKey) || null;
-  if (override) {
-    return {
-      maxCapacity: override.maxCapacity,
-      bookingsCount: override.bookingsCount,
-      hasOverride: true,
-    };
-  }
-
-  return {
-    maxCapacity: availability.hasDefaultCapacity ? availability.defaultMaxCapacity : 0,
-    bookingsCount: 0,
-    hasOverride: false,
-  };
-}
-
-function getDayStatus(maxCapacity, bookingsCount) {
-  if (maxCapacity <= 0) {
-    return 'unavailable';
-  }
-  if (bookingsCount >= maxCapacity) {
-    return 'full';
-  }
-  if (bookingsCount > 0 && bookingsCount / maxCapacity >= 0.8) {
-    return 'near-full';
-  }
-  if (bookingsCount > 0) {
-    return 'partial';
-  }
-  return 'open';
 }
 
 function getStatusStyles(status, isCurrentMonth) {
