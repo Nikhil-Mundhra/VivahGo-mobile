@@ -45,16 +45,16 @@ export default function VendorPortalPage() {
   const accountFirstName = session?.user?.given_name || session?.user?.name?.split(' ')[0] || 'You';
   const profileInitial = accountFirstName.trim().charAt(0).toUpperCase() || 'Y';
   const mobileBenefitItems = [
-    { icon: 'vendors', text: 'Dummy point: highlight your top services' },
-    { icon: 'tasks', text: 'Dummy point: keep media and profile details fresh' },
-    { icon: 'events', text: 'Dummy point: stay visible for upcoming wedding seasons' },
-    { icon: 'guests', text: 'Dummy point: respond quickly to planner interest' },
+    { icon: 'vendors', text: 'Register for free and publish your wedding services on VivahGo.' },
+    { icon: 'tasks', text: 'Add portfolio photos, packages, and business details in one place.' },
+    { icon: 'events', text: 'Keep your profile ready for upcoming wedding seasons and enquiries.' },
+    { icon: 'guests', text: 'Build trust with a polished listing couples can review quickly.' },
   ];
   const desktopBenefitItems = [
-    { icon: 'vendors', text: 'Dummy content: present your business with a polished public profile' },
-    { icon: 'budget', text: 'Dummy content: spotlight offers, package value, and category positioning' },
-    { icon: 'tasks', text: 'Dummy content: keep your portfolio current with easy media updates' },
-    { icon: 'events', text: 'Dummy content: track readiness before peak wedding booking windows' },
+    { icon: 'vendors', text: 'Register free and publish a professional vendor profile couples can discover on VivahGo.' },
+    { icon: 'budget', text: 'Highlight services, coverage areas, and pricing so the right enquiries find you faster.' },
+    { icon: 'tasks', text: 'Keep your portfolio fresh with photos that show your best work and style.' },
+    { icon: 'events', text: 'Manage your listing anytime and stay ready for approval, discovery, and future bookings.' },
   ];
 
   useEffect(() => {
@@ -246,7 +246,7 @@ export default function VendorPortalPage() {
                     <p className="login-panel-kicker">Sign in to VivahGo</p>
                     <h2 className="login-panel-title">Continue to your vendor portal</h2>
                     <p className="login-panel-subtitle">
-                      Dummy intro content: manage profile details, upload media, and monitor approval from one place.
+                      Register free to publish your services, build a stronger vendor profile, and manage your portfolio from one place.
                     </p>
                   </div>
 
@@ -309,7 +309,7 @@ export default function VendorPortalPage() {
                   {loginError && <div className="login-error">{loginError}</div>}
 
                   <div className="login-footer login-footer-mobile">
-                    <p className="login-footer-text">Dummy footer content: sign in to continue managing your vendor journey.</p>
+                    <p className="login-footer-text">Free vendor registration on VivahGo. Sign in to publish, update, and grow your presence.</p>
                   </div>
                 </div>
               </div>
