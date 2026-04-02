@@ -41,9 +41,11 @@ const DEFAULT_LOGIN_AUTH_OPTIONS = Object.freeze([
 
 export function buildLoginAuthOptions(handlers, options = {}) {
   const isClerkEnabled = Boolean(options.isClerkEnabled);
+  const hiddenOptionIds = Array.isArray(options.hiddenOptionIds) ? new Set(options.hiddenOptionIds) : null;
 
   return DEFAULT_LOGIN_AUTH_OPTIONS
     .filter((option) => !option.requiresClerk || isClerkEnabled)
+    .filter((option) => !hiddenOptionIds || !hiddenOptionIds.has(option.id))
     .map((option) => {
       const bindOption = LOGIN_AUTH_OPTION_BINDERS[option.type];
       return bindOption ? bindOption(option, handlers) : option;

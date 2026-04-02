@@ -133,7 +133,10 @@ export default function VendorPortalPage() {
       onLoginError: () => {},
       isLoggingIn: isSigningIn,
     },
-    { isClerkEnabled }
+    {
+      isClerkEnabled,
+      hiddenOptionIds: ['facebook'], // Do this to enable facebook: remove this line.
+    }
   );
 
   async function handleLogout() {

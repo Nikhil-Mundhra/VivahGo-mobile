@@ -1324,7 +1324,10 @@ export default function PlannerShell() {
       onLoginError: handleLoginError,
       isLoggingIn,
     },
-    { isClerkEnabled: Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY) }
+    {
+      isClerkEnabled: Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY),
+      hiddenOptionIds: ['facebook'], // Do this to enable facebook: remove this line.
+    }
   );
 
   return (
