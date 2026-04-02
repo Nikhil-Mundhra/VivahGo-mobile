@@ -36,6 +36,24 @@ const verificationDocumentSchema = new mongoose.Schema(
   { _id: true }
 );
 
+const availabilityOverrideSchema = new mongoose.Schema(
+  {
+    date: { type: String, required: true, trim: true, match: /^\d{4}-\d{2}-\d{2}$/ },
+    maxCapacity: { type: Number, required: true, min: 0, max: 99 },
+    bookingsCount: { type: Number, default: 0, min: 0, max: 99 },
+  },
+  { _id: true }
+);
+
+const availabilitySettingsSchema = new mongoose.Schema(
+  {
+    hasDefaultCapacity: { type: Boolean, default: true },
+    defaultMaxCapacity: { type: Number, default: 1, min: 0, max: 99 },
+    dateOverrides: { type: [availabilityOverrideSchema], default: [] },
+  },
+  { _id: false }
+);
+
 const vendorSchema = new mongoose.Schema(
   {
     googleId: { type: String, required: true, unique: true, index: true },
@@ -70,6 +88,7 @@ const vendorSchema = new mongoose.Schema(
     verificationReviewedAt: { type: Date, default: null },
     verificationReviewedBy: { type: String, default: '', trim: true },
     verificationDocuments: { type: [verificationDocumentSchema], default: [] },
+    availabilitySettings: { type: availabilitySettingsSchema, default: () => ({}) },
   },
   { timestamps: true }
 );

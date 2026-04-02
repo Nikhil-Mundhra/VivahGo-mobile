@@ -8,20 +8,22 @@ import VendorPortfolioManager from '../components/VendorPortfolioManager';
 import VendorDirectoryPreview from '../components/VendorDirectoryPreview';
 import VendorBusinessProfileEditor from '../components/VendorBusinessProfileEditor';
 import VendorPortalDashboard from '../components/VendorPortalDashboard';
+import VendorAvailabilityManager from '../components/VendorAvailabilityManager';
+import VendorSupportModal from '../components/VendorSupportModal';
 import NavIcon from '../components/NavIcon';
 import LegalFooter from '../components/LegalFooter';
 import { clearAuthStorage, persistAuthSession, readAuthSession, revokeClerkSession, revokeGoogleIdTokenConsent } from '../authStorage';
 import { deleteAccount, fetchVendorProfile, loginWithGoogle, loginWithClerk, logoutSession } from '../api';
 import { buildLoginAuthOptions } from '../loginAuthOptions.js';
-import { getMarketingUrl, getPlannerUrl } from '../siteUrls.js';
+import { getMarketingUrl } from '../siteUrls.js';
 
 const MARKETING_HOME_URL = getMarketingUrl('/');
-const PLANNER_HOME_URL = getPlannerUrl('/');
 
 const VENDOR_PORTAL_SECTIONS = [
   { id: 'dashboard', label: 'Dashboard', icon: 'home' },
   { id: 'preview', label: 'Live Preview', icon: 'vendors' },
   { id: 'portfolio', label: 'Media Manager', icon: 'tasks' },
+  { id: 'availability', label: 'Availability', icon: 'events' },
   { id: 'details', label: 'Business Details', icon: 'budget' },
 ];
 
@@ -34,6 +36,7 @@ export default function VendorPortalPage() {
   const [previewVendor, setPreviewVendor] = useState(null);
   const [activeSection, setActiveSection] = useState('dashboard');
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+  const [showSupportModal, setShowSupportModal] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
@@ -207,6 +210,11 @@ export default function VendorPortalPage() {
     profileEditorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
+  function openSupportModal() {
+    setShowSettingsMenu(false);
+    setShowSupportModal(true);
+  }
+
   if (!session?.token) {
     const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173';
     const showOauthHelp = /invalid_client|no registered origin|origin.*not.*allowed|idpiframe/i.test(loginError);
@@ -360,23 +368,40 @@ export default function VendorPortalPage() {
     <div className="min-h-screen bg-gradient-to-br from-rose-50 to-amber-50">
       <header className="bg-white shadow-sm border-b border-gray-100 px-3 py-4 sm:px-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <a href={MARKETING_HOME_URL} className="vendor-home-pill">
-            <img src="/Thumbnail.png" alt="VivahGo" className="h-8 w-8 rounded-full object-cover" />
-            <span className="vendor-home-pill-text">Home</span>
+          <a
+            href={MARKETING_HOME_URL}
+            className="text-sm font-medium text-gray-700 no-underline transition hover:text-rose-700"
+          >
+            Home
           </a>
           <div className="flex flex-col items-start gap-2 min-[360px]:flex-row min-[360px]:items-center min-[360px]:justify-between sm:justify-end">
             <div className="relative">
               <button
                 type="button"
-                className="vendor-settings-pill"
+                className="vendor-planner-pill"
                 onClick={() => setShowSettingsMenu(current => !current)}
               >
-                Account & Settings
+                <span className="vendor-planner-pill-text">Account & Settings</span>
+                {session.user?.picture && !avatarLoadError ? (
+                  <img
+                    src={session.user.picture}
+                    alt={`${accountFirstName} profile`}
+                    className="vendor-planner-pill-avatar"
+                    onError={() => setAvatarLoadError(true)}
+                  />
+                ) : (
+                  <span className="vendor-planner-pill-avatar vendor-planner-pill-avatar-fallback" aria-hidden="true">
+                    {profileInitial}
+                  </span>
+                )}
               </button>
               {showSettingsMenu && (
                 <div className="vendor-settings-menu">
                   <button type="button" className="vendor-settings-menu-item" onClick={focusUserPreferences}>
                     User Preferences
+                  </button>
+                  <button type="button" className="vendor-settings-menu-item" onClick={openSupportModal}>
+                    Contact Support
                   </button>
                   <button type="button" className="vendor-settings-menu-item" onClick={handleLogout}>
                     Logout
@@ -392,21 +417,6 @@ export default function VendorPortalPage() {
                 </div>
               )}
             </div>
-            <a href={PLANNER_HOME_URL} className="vendor-planner-pill">
-              <span className="vendor-planner-pill-text">Open Planner</span>
-              {session.user?.picture && !avatarLoadError ? (
-                <img
-                  src={session.user.picture}
-                  alt={`${accountFirstName} profile`}
-                  className="vendor-planner-pill-avatar"
-                  onError={() => setAvatarLoadError(true)}
-                />
-              ) : (
-                <span className="vendor-planner-pill-avatar vendor-planner-pill-avatar-fallback" aria-hidden="true">
-                  {profileInitial}
-                </span>
-              )}
-            </a>
           </div>
         </div>
       </header>
@@ -527,13 +537,36 @@ export default function VendorPortalPage() {
                     )}
                   </div>
                 )}
+
+                {activeSection === 'availability' && (
+                  <div className="bg-white rounded-2xl shadow-sm p-4 sm:p-6">
+                    <h2 className="text-lg font-semibold text-gray-900 mb-1">Availability</h2>
+                    <p className="text-sm text-gray-500 mb-4">Set your everyday booking capacity, then block specific dates or adjust how many bookings you can take on a day.</p>
+                    <VendorAvailabilityManager
+                      token={session.token}
+                      vendor={vendor}
+                      onVendorUpdated={(updatedVendor) => {
+                        setVendor(updatedVendor);
+                        setPreviewVendor(updatedVendor);
+                      }}
+                    />
+                  </div>
+                )}
               </div>
             </div>
           </div>
         )}
       </main>
 
-      <LegalFooter hasBottomNav={Boolean(vendor)} />
+      <LegalFooter hasBottomNav={Boolean(vendor)} className="vendor-portal-footer" />
+
+      {showSupportModal && (
+        <VendorSupportModal
+          session={session}
+          vendor={vendor}
+          onClose={() => setShowSupportModal(false)}
+        />
+      )}
 
       {vendor && (
         <div className="bottom-nav vendor-portal-mobile-nav">

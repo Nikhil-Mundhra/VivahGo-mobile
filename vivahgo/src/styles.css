@@ -3451,6 +3451,11 @@ body { background: var(--color-deep-red); }
   width: 100%;
 }
 
+.vendor-portal-footer.legal-footer-with-nav {
+  margin-left: 0;
+  width: 100%;
+}
+
 .legal-footer-links {
   display: flex;
   align-items: center;
@@ -3718,6 +3723,11 @@ body { background: var(--color-deep-red); }
   .legal-footer-with-nav {
     margin-left: 120px;
     width: calc(100% - 120px);
+  }
+
+  .vendor-portal-footer.legal-footer-with-nav {
+    margin-left: 0;
+    width: 100%;
   }
 
   .legal-footer {

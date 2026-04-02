@@ -57,4 +57,113 @@ describe('api/vendor.js -> me route', function () {
     assert.equal(res.statusCode, 400);
     assert.deepEqual(res.body, { error: 'website and googleMapsLink must start with http:// or https://.' });
   });
+
+  it('rejects invalid default capacity during vendor profile creation', async function () {
+    require.cache[corePath].exports = {
+      ...originalCore,
+      connectDb: async () => {},
+      getUserModel: () => ({
+        findOneAndUpdate: async () => {
+          throw new Error('Should not update user for invalid input.');
+        },
+      }),
+      getVendorModel: () => ({
+        findOne: () => ({
+          lean: async () => null,
+        }),
+        create: async () => {
+          throw new Error('Should not create vendor for invalid availability settings.');
+        },
+      }),
+    };
+
+    const { handleVendorMe: handler } = require(handlerPath);
+    const req = {
+      method: 'POST',
+      headers: { authorization: `Bearer ${makeToken()}` },
+      body: {
+        businessName: 'Lotus Events',
+        type: 'Venue',
+        subType: 'Hotels',
+        budgetRange: {
+          min: 100000,
+          max: 200000,
+        },
+        availabilitySettings: {
+          defaultMaxCapacity: 0,
+        },
+      },
+    };
+    const res = createRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 400);
+    assert.deepEqual(res.body, {
+      error: 'availabilitySettings.defaultMaxCapacity must be between 1 and 99.',
+    });
+  });
+
+  it('stores sorted day overrides when vendor availability is updated', async function () {
+    let savedAvailability = null;
+
+    require.cache[corePath].exports = {
+      ...originalCore,
+      connectDb: async () => {},
+      getUserModel: () => ({
+        findOneAndUpdate: async () => null,
+      }),
+      getVendorModel: () => ({
+        findOne: () => ({
+          lean: async () => ({
+            googleId: 'vendor-123',
+            type: 'Venue',
+            bundledServices: [],
+          }),
+        }),
+        findOneAndUpdate: async (_query, update) => {
+          savedAvailability = update.$set.availabilitySettings;
+          return {
+            googleId: 'vendor-123',
+            businessName: 'Lotus Events',
+            type: 'Venue',
+            bundledServices: [],
+            verificationDocuments: [],
+            verificationStatus: 'not_submitted',
+            availabilitySettings: savedAvailability,
+          };
+        },
+      }),
+    };
+
+    const { handleVendorMe: handler } = require(handlerPath);
+    const req = {
+      method: 'PATCH',
+      headers: { authorization: `Bearer ${makeToken()}` },
+      body: {
+        availabilitySettings: {
+          hasDefaultCapacity: true,
+          defaultMaxCapacity: 3,
+          dateOverrides: [
+            { date: '2026-06-10', maxCapacity: 0, bookingsCount: 2 },
+            { date: '2026-05-01', maxCapacity: 5, bookingsCount: 8 },
+          ],
+        },
+      },
+    };
+    const res = createRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.deepEqual(savedAvailability, {
+      hasDefaultCapacity: true,
+      defaultMaxCapacity: 3,
+      dateOverrides: [
+        { date: '2026-05-01', maxCapacity: 5, bookingsCount: 5 },
+        { date: '2026-06-10', maxCapacity: 0, bookingsCount: 0 },
+      ],
+    });
+    assert.deepEqual(res.body.vendor.availabilitySettings, savedAvailability);
+  });
 });

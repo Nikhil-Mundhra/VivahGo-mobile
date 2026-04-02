@@ -36,6 +36,7 @@ const MAX_CAPTION_LENGTH = 280;
 const MAX_ALT_TEXT_LENGTH = 180;
 const ALLOWED_VERIFICATION_DOCUMENT_TYPES = ['AADHAAR', 'PAN', 'PASSPORT', 'DRIVING_LICENSE', 'OTHER'];
 const MAX_VERIFICATION_NOTES_LENGTH = 1000;
+const MAX_VENDOR_CAPACITY = 99;
 
 /******************************************************************************
  * Shared Helpers
@@ -114,6 +115,101 @@ function normalizeBudgetRange(value) {
   const safeMax = Math.max(safeMin, Math.min(Math.round(max), MAX_BUDGET_LIMIT));
 
   return { min: safeMin, max: safeMax };
+}
+
+function isValidDateKey(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false;
+  }
+
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+  );
+}
+
+function normalizeCapacityNumber(value, { min = 0, fieldName = 'capacity' } = {}) {
+  const number = Number(value);
+
+  if (!Number.isInteger(number)) {
+    throw new Error(`${fieldName} must be an integer.`);
+  }
+
+  if (number < min || number > MAX_VENDOR_CAPACITY) {
+    throw new Error(`${fieldName} must be between ${min} and ${MAX_VENDOR_CAPACITY}.`);
+  }
+
+  return number;
+}
+
+function normalizeAvailabilitySettings(value) {
+  if (!value || typeof value !== 'object') {
+    return {
+      hasDefaultCapacity: true,
+      defaultMaxCapacity: 1,
+      dateOverrides: [],
+    };
+  }
+
+  const hasDefaultCapacity = value.hasDefaultCapacity !== false;
+  const defaultMaxCapacity = hasDefaultCapacity
+    ? normalizeCapacityNumber(
+      value.defaultMaxCapacity ?? 1,
+      { min: 1, fieldName: 'availabilitySettings.defaultMaxCapacity' }
+    )
+    : 0;
+
+  if (value.dateOverrides != null && !Array.isArray(value.dateOverrides)) {
+    throw new Error('availabilitySettings.dateOverrides must be an array.');
+  }
+
+  const seenDates = new Set();
+  const dateOverrides = (Array.isArray(value.dateOverrides) ? value.dateOverrides : [])
+    .map((item) => {
+      if (!item || typeof item !== 'object') {
+        throw new Error('availabilitySettings.dateOverrides must contain objects.');
+      }
+
+      const date = typeof item.date === 'string' ? item.date.trim() : '';
+      if (!isValidDateKey(date)) {
+        throw new Error('availabilitySettings.dateOverrides[].date must use YYYY-MM-DD.');
+      }
+      if (seenDates.has(date)) {
+        throw new Error('availabilitySettings.dateOverrides must not contain duplicate dates.');
+      }
+      seenDates.add(date);
+
+      return {
+        date,
+        maxCapacity: normalizeCapacityNumber(
+          item.maxCapacity,
+          { min: 0, fieldName: 'availabilitySettings.dateOverrides[].maxCapacity' }
+        ),
+        rawBookingsCount: item.bookingsCount ?? 0,
+      };
+    })
+    .map((item) => {
+      const bookingsCount = normalizeCapacityNumber(
+        item && typeof item === 'object' ? item.rawBookingsCount ?? 0 : 0,
+        { min: 0, fieldName: 'availabilitySettings.dateOverrides[].bookingsCount' }
+      );
+
+      return {
+        date: item.date,
+        maxCapacity: item.maxCapacity,
+        bookingsCount: item.maxCapacity > 0 ? Math.min(bookingsCount, item.maxCapacity) : 0,
+      };
+    })
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  return {
+    hasDefaultCapacity,
+    defaultMaxCapacity,
+    dateOverrides,
+  };
 }
 
 function sanitizeText(value, maxLength) {
@@ -217,6 +313,7 @@ async function serializeVendor(vendor) {
     ...normalizedVendor,
     type: normalizeVendorType(normalizedVendor?.type),
     bundledServices: Array.isArray(normalizedVendor?.bundledServices) ? normalizedVendor.bundledServices.map(normalizeVendorType) : [],
+    availabilitySettings: normalizeAvailabilitySettings(normalizedVendor?.availabilitySettings),
     verificationStatus: normalizeVerificationStatus(normalizedVendor?.verificationStatus, {
       hasDocuments: verificationDocuments.length > 0,
     }),
@@ -325,7 +422,7 @@ async function handleVendorMe(req, res) {
     }
 
     if (req.method === 'POST') {
-      const { businessName, type, subType, description, country, state, city, googleMapsLink, phone, website, coverageAreas, bundledServices, budgetRange } = req.body || {};
+      const { businessName, type, subType, description, country, state, city, googleMapsLink, phone, website, coverageAreas, bundledServices, budgetRange, availabilitySettings } = req.body || {};
 
       if (!businessName || typeof businessName !== 'string' || !businessName.trim()) {
         return res.status(400).json({ error: 'businessName is required.' });
@@ -352,8 +449,10 @@ async function handleVendorMe(req, res) {
       }
 
       let normalizedBudgetRange;
+      let normalizedAvailabilitySettings;
       try {
         normalizedBudgetRange = normalizeBudgetRange(budgetRange || {});
+        normalizedAvailabilitySettings = normalizeAvailabilitySettings(availabilitySettings);
       } catch (error) {
         return res.status(400).json({ error: error.message });
       }
@@ -373,6 +472,7 @@ async function handleVendorMe(req, res) {
         phone: (phone || '').trim(),
         website: (website || '').trim(),
         budgetRange: normalizedBudgetRange,
+        availabilitySettings: normalizedAvailabilitySettings,
       });
 
       await User.findOneAndUpdate(
@@ -415,6 +515,14 @@ async function handleVendorMe(req, res) {
       if (body.budgetRange && typeof body.budgetRange === 'object') {
         try {
           updates.budgetRange = normalizeBudgetRange(body.budgetRange);
+        } catch (error) {
+          return res.status(400).json({ error: error.message });
+        }
+      }
+
+      if (body.availabilitySettings && typeof body.availabilitySettings === 'object') {
+        try {
+          updates.availabilitySettings = normalizeAvailabilitySettings(body.availabilitySettings);
         } catch (error) {
           return res.status(400).json({ error: error.message });
         }

@@ -62,6 +62,8 @@ function isValidUrl(value) {
 
 function buildInitialForm(vendor) {
   const budgetRange = normalizeBudgetRange(vendor?.budgetRange);
+  const hasDefaultCapacity = vendor?.availabilitySettings?.hasDefaultCapacity !== false;
+  const defaultMaxCapacity = Number(vendor?.availabilitySettings?.defaultMaxCapacity);
 
   return {
     businessName: vendor?.businessName || '',
@@ -77,6 +79,8 @@ function buildInitialForm(vendor) {
     phone: vendor?.phone || '',
     website: vendor?.website || '',
     budgetRange,
+    hasDefaultCapacity,
+    defaultMaxCapacity: Number.isInteger(defaultMaxCapacity) && defaultMaxCapacity > 0 ? defaultMaxCapacity : 1,
   };
 }
 
@@ -107,6 +111,11 @@ export default function VendorBusinessProfileEditor({ token, vendor, onVendorUpd
       bundledServices: form.bundledServices,
       coverageAreas: form.coverageAreas,
       budgetRange: form.budgetRange,
+      availabilitySettings: {
+        ...(vendor?.availabilitySettings || {}),
+        hasDefaultCapacity: form.hasDefaultCapacity,
+        defaultMaxCapacity: form.defaultMaxCapacity,
+      },
     });
   }, [form, onPreviewChange, vendor]);
 
@@ -228,6 +237,26 @@ export default function VendorBusinessProfileEditor({ token, vendor, onVendorUpd
     });
   }
 
+  function updateDefaultMaxCapacity(rawValue) {
+    const value = Number(rawValue);
+    if (!Number.isInteger(value)) {
+      return;
+    }
+
+    setForm(current => ({
+      ...current,
+      defaultMaxCapacity: Math.max(1, Math.min(99, value)),
+    }));
+  }
+
+  function toggleDefaultCapacity(enabled) {
+    setForm(current => ({
+      ...current,
+      hasDefaultCapacity: enabled,
+      defaultMaxCapacity: enabled ? Math.max(1, current.defaultMaxCapacity || 1) : current.defaultMaxCapacity,
+    }));
+  }
+
   async function handleSave(event) {
     event.preventDefault();
     setSaving(true);
@@ -255,11 +284,22 @@ export default function VendorBusinessProfileEditor({ token, vendor, onVendorUpd
       return;
     }
 
+    if (form.hasDefaultCapacity && (!Number.isInteger(form.defaultMaxCapacity) || form.defaultMaxCapacity < 1 || form.defaultMaxCapacity > 99)) {
+      setError('Enter a default capacity between 1 and 99.');
+      setSaving(false);
+      return;
+    }
+
     try {
       const payload = {
         ...form,
         website: normalizedWebsite,
         googleMapsLink: normalizedMapsLink,
+        availabilitySettings: {
+          hasDefaultCapacity: form.hasDefaultCapacity,
+          defaultMaxCapacity: form.hasDefaultCapacity ? form.defaultMaxCapacity : 0,
+          dateOverrides: Array.isArray(vendor?.availabilitySettings?.dateOverrides) ? vendor.availabilitySettings.dateOverrides : [],
+        },
       };
       const data = await updateVendorProfile(token, payload);
       onVendorUpdated?.(data.vendor);
@@ -356,6 +396,42 @@ export default function VendorBusinessProfileEditor({ token, vendor, onVendorUpd
               className="w-full"
             />
           </label>
+        </div>
+      </div>
+
+      <div className="vendor-registration-location-block">
+        <div className="vendor-registration-section-title">Your Default Capacity / Day</div>
+        <p className="text-xs text-gray-500">Find more from Availability</p>
+        <div className="mt-3 rounded-xl border border-gray-200 bg-white px-4 py-4">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm font-semibold text-gray-900">Capacity mode</span>
+            <button
+              type="button"
+              onClick={() => toggleDefaultCapacity(!form.hasDefaultCapacity)}
+              className={`inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                form.hasDefaultCapacity
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-900 hover:bg-emerald-100'
+                  : 'border-gray-200 bg-gray-50 text-gray-600'
+              }`}
+            >
+              {form.hasDefaultCapacity ? 'Use a default capacity' : 'Set custom each time'}
+            </button>
+          </div>
+
+          {form.hasDefaultCapacity && (
+            <div className="mt-4 max-w-xs">
+              <label className="vendor-registration-label" htmlFor="defaultMaxCapacity">Default bookings per day</label>
+              <input
+                id="defaultMaxCapacity"
+                type="number"
+                min="1"
+                max="99"
+                value={form.defaultMaxCapacity}
+                onChange={event => updateDefaultMaxCapacity(event.target.value)}
+                className="vendor-registration-field"
+              />
+            </div>
+          )}
         </div>
       </div>
 

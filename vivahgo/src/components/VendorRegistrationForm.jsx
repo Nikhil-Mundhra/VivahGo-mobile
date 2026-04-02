@@ -7,7 +7,7 @@ const REGISTRATION_VENDOR_TYPES = VENDOR_TYPES.filter(type => type !== 'All');
 const VENDOR_SUPPORT_WHATSAPP_NUMBER = '918383874103';
 const VENDOR_REGISTRATION_DRAFT_KEY = 'vivahgo.vendorRegistrationDraft';
 const MIN_BUDGET_LIMIT = 10000;
-const MAX_BUDGET_LIMIT = 20000001;
+const MAX_BUDGET_LIMIT = 150000001;
 const BUDGET_STEP = 10000;
 const MID_BUDGET_THRESHOLD = 200000;
 const MID_BUDGET_STEP = 20000;
@@ -19,6 +19,10 @@ const XL_BUDGET_THRESHOLD = 5000000;
 const XL_BUDGET_STEP = 500000;
 const XXL_BUDGET_THRESHOLD = 10000000;
 const XXL_BUDGET_STEP = 1000000;
+const ULTRA_BUDGET_THRESHOLD = 20000000;
+const ULTRA_BUDGET_STEP = 5000000;
+const MEGA_BUDGET_THRESHOLD = 60000000;
+const MEGA_BUDGET_STEP = 10000000;
 const INITIAL_FORM = {
   businessName: '',
   type: REGISTRATION_VENDOR_TYPES[0],
@@ -69,7 +73,13 @@ function buildBudgetSliderPoints() {
   for (let value = XL_BUDGET_THRESHOLD + XL_BUDGET_STEP; value <= XXL_BUDGET_THRESHOLD; value += XL_BUDGET_STEP) {
     values.push(value);
   }
-  for (let value = XXL_BUDGET_THRESHOLD + XXL_BUDGET_STEP; value <= MAX_BUDGET_LIMIT; value += XXL_BUDGET_STEP) {
+  for (let value = XXL_BUDGET_THRESHOLD + XXL_BUDGET_STEP; value <= ULTRA_BUDGET_THRESHOLD; value += XXL_BUDGET_STEP) {
+    values.push(value);
+  }
+  for (let value = ULTRA_BUDGET_THRESHOLD + ULTRA_BUDGET_STEP; value <= MEGA_BUDGET_THRESHOLD; value += ULTRA_BUDGET_STEP) {
+    values.push(value);
+  }
+  for (let value = MEGA_BUDGET_THRESHOLD + MEGA_BUDGET_STEP; value <= MAX_BUDGET_LIMIT; value += MEGA_BUDGET_STEP) {
     values.push(value);
   }
 
