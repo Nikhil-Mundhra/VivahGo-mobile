@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
-const GUIDES_PATH = path.join(ROOT_DIR, 'vivahgo', 'src', 'content', 'guides.json');
+const GUIDES_PATH = path.join(ROOT_DIR, 'vivahgo', 'src', 'shared', 'content', 'guides.json');
 const PUBLIC_ASSET_MAP_PATH = path.join(ROOT_DIR, 'vivahgo', 'src', 'generated', 'public-asset-map.json');
 const OUTPUT_PATH = path.join(ROOT_DIR, 'vivahgo', 'public', 'guides', 'feed.xml');
 const SITE_URL = 'https://vivahgo.com';

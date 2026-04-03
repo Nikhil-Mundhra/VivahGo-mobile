@@ -6,7 +6,7 @@ const { list } = require('@vercel/blob');
 const { buildTrackedFilenameMap } = require('./public-asset-manifest.cjs');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
-const GUIDES_PATH = path.join(ROOT_DIR, 'vivahgo', 'src', 'content', 'guides.json');
+const GUIDES_PATH = path.join(ROOT_DIR, 'vivahgo', 'src', 'shared', 'content', 'guides.json');
 const OUTPUT_JSON_PATH = path.join(ROOT_DIR, 'vivahgo', 'src', 'generated', 'public-asset-map.json');
 const OUTPUT_JS_PATH = path.join(ROOT_DIR, 'vivahgo', 'src', 'generated', 'public-asset-map.js');
 

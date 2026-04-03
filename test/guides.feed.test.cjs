@@ -7,7 +7,7 @@ const {
   buildGuidesFeed,
   OUTPUT_PATH,
 } = require('../scripts/generate-guides-feed.cjs');
-const guides = require('../vivahgo/src/content/guides.json');
+const guides = require('../vivahgo/src/shared/content/guides.json');
 
 describe('guides RSS feed', function () {
   it('matches the generated XML from the current guide library', function () {
