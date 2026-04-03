@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useSwipeDown } from "../../../hooks/useSwipeDown";
-import { useBackButtonClose } from "../../../hooks/useBackButtonClose";
+import { useSwipeDown } from "../../../shared/hooks/useSwipeDown.js";
+import { useBackButtonClose } from "../../../shared/hooks/useBackButtonClose.js";
 
 function createTaskForm() {
   return {name:"",due:"",group:"Final",priority:"medium",eventId:""};

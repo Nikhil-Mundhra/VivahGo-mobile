@@ -4,8 +4,8 @@ const path = require('node:path');
 const { setSecurityHeaders } = require('./_lib/core');
 const plannerModule = require('./planner');
 const keywordLibrary = require('../vivahgo/src/generated/seo-keywords.json');
-const guides = require('../vivahgo/src/content/guides.json');
-const queryPages = require('../vivahgo/src/content/query-pages.json');
+const guides = require('../vivahgo/src/shared/content/guides.json');
+const queryPages = require('../vivahgo/src/shared/content/query-pages.json');
 
 const DEFAULT_SITE_URL = 'https://vivahgo.com';
 const DEFAULT_IMAGE_PATH = '/social-preview.jpg';

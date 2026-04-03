@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { createGuestRsvpLink } from "../../../api";
-import { initials } from "../../../utils";
-import { useSwipeDown } from "../../../hooks/useSwipeDown";
-import { useBackButtonClose } from "../../../hooks/useBackButtonClose";
+import { createGuestRsvpLink } from "../api.js";
+import { initials } from "../../../shared/lib/core.js";
+import { useSwipeDown } from "../../../shared/hooks/useSwipeDown.js";
+import { useBackButtonClose } from "../../../shared/hooks/useBackButtonClose.js";
 
 const DEFAULT_BULK_MESSAGE = "Dear *{name}*,\n\nWe would be delighted to have you join us as we celebrate our wedding. Please kindly RSVP yourself and your family at your earliest convenience using the link below:\n\n{rsvp_link}\n\nWe look forward to celebrating with you!\n\n{couple}";
 

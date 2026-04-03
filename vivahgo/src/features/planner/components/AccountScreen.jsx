@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useBackButtonClose } from "../../../hooks/useBackButtonClose";
+import { useBackButtonClose } from "../../../shared/hooks/useBackButtonClose.js";
 import { DEFAULT_REMINDER_SETTINGS } from "../../../plannerDefaults";
 import { getMarketingUrl } from "../../../siteUrls.js";
 

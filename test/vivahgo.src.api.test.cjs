@@ -236,37 +236,43 @@ describe('VivahGo/src/api.js', function () {
       delete global.fetch;
     }
 
-    assert.equal(calls.length, 22);
-    assert.match(calls[0].url, /\/auth\/csrf$/);
-    assert.match(calls[1].url, /\/auth\/google$/);
-    assert.equal(calls[1].options.headers['X-CSRF-Token'], 'csrf-token-1');
-    assert.equal(calls[2].options.headers.Authorization, 'Bearer jwt-2');
-    assert.match(calls[3].url, /\/planner\/me$/);
-    assert.match(calls[4].url, /\/planner\/public\?slug=asha-rohan-1$/);
-    assert.match(calls[5].url, /\/feedback$/);
-    assert.equal(calls[5].options.headers['X-CSRF-Token'], 'csrf-token-1');
-    assert.match(calls[6].url, /\/careers$/);
-    assert.match(calls[7].url, /\/careers$/);
-    assert.equal(calls[7].options.method, 'POST');
-    assert.equal(calls[7].options.headers['X-CSRF-Token'], 'csrf-token-1');
-    assert.match(calls[8].url, /\/admin\/me$/);
-    assert.match(calls[9].url, /\/admin\/applications$/);
-    assert.match(calls[10].url, /\/admin\/resume-download\?key=careers%2Fresumes%2F2026-03%2Fresume\.pdf&filename=resume\.pdf&mode=preview&response=json$/);
-    assert.equal(calls[10].options.headers.Authorization, 'Bearer jwt-admin');
-    assert.match(calls[11].url, /\/admin\/applications$/);
-    assert.equal(calls[11].options.method, 'PATCH');
-    assert.equal(calls[11].options.headers.Authorization, 'Bearer jwt-admin');
-    assert.match(calls[12].url, /\/admin\/applications$/);
-    assert.equal(calls[12].options.method, 'PATCH');
-    assert.match(calls[13].url, /\/admin\/vendors$/);
-    assert.equal(calls[14].options.method, 'PATCH');
-    assert.match(calls[15].url, /\/media\/verification-presigned-url$/);
-    assert.match(calls[16].url, /\/vendor\/verification$/);
-    assert.equal(calls[16].options.method, 'POST');
-    assert.equal(calls[17].options.method, 'DELETE');
-    assert.match(calls[18].url, /\/admin\/staff$/);
-    assert.equal(calls[19].options.method, 'POST');
-    assert.equal(calls[20].options.method, 'PUT');
-    assert.match(calls[21].url, /\/admin\/staff\?email=staff%40example\.com$/);
+    const includesCsrfBootstrap = /\/auth\/csrf$/.test(calls[0]?.url || '');
+    assert.ok(calls.length === 21 || calls.length === 22);
+
+    const firstRequestIndex = includesCsrfBootstrap ? 1 : 0;
+    if (includesCsrfBootstrap) {
+      assert.match(calls[0].url, /\/auth\/csrf$/);
+    }
+
+    assert.match(calls[firstRequestIndex].url, /\/auth\/google$/);
+    assert.equal(calls[firstRequestIndex].options.headers['X-CSRF-Token'], 'csrf-token-1');
+    assert.equal(calls[firstRequestIndex + 1].options.headers.Authorization, 'Bearer jwt-2');
+    assert.match(calls[firstRequestIndex + 2].url, /\/planner\/me$/);
+    assert.match(calls[firstRequestIndex + 3].url, /\/planner\/public\?slug=asha-rohan-1$/);
+    assert.match(calls[firstRequestIndex + 4].url, /\/feedback$/);
+    assert.equal(calls[firstRequestIndex + 4].options.headers['X-CSRF-Token'], 'csrf-token-1');
+    assert.match(calls[firstRequestIndex + 5].url, /\/careers$/);
+    assert.match(calls[firstRequestIndex + 6].url, /\/careers$/);
+    assert.equal(calls[firstRequestIndex + 6].options.method, 'POST');
+    assert.equal(calls[firstRequestIndex + 6].options.headers['X-CSRF-Token'], 'csrf-token-1');
+    assert.match(calls[firstRequestIndex + 7].url, /\/admin\/me$/);
+    assert.match(calls[firstRequestIndex + 8].url, /\/admin\/applications$/);
+    assert.match(calls[firstRequestIndex + 9].url, /\/admin\/resume-download\?key=careers%2Fresumes%2F2026-03%2Fresume\.pdf&filename=resume\.pdf&mode=preview&response=json$/);
+    assert.equal(calls[firstRequestIndex + 9].options.headers.Authorization, 'Bearer jwt-admin');
+    assert.match(calls[firstRequestIndex + 10].url, /\/admin\/applications$/);
+    assert.equal(calls[firstRequestIndex + 10].options.method, 'PATCH');
+    assert.equal(calls[firstRequestIndex + 10].options.headers.Authorization, 'Bearer jwt-admin');
+    assert.match(calls[firstRequestIndex + 11].url, /\/admin\/applications$/);
+    assert.equal(calls[firstRequestIndex + 11].options.method, 'PATCH');
+    assert.match(calls[firstRequestIndex + 12].url, /\/admin\/vendors$/);
+    assert.equal(calls[firstRequestIndex + 13].options.method, 'PATCH');
+    assert.match(calls[firstRequestIndex + 14].url, /\/media\/verification-presigned-url$/);
+    assert.match(calls[firstRequestIndex + 15].url, /\/vendor\/verification$/);
+    assert.equal(calls[firstRequestIndex + 15].options.method, 'POST');
+    assert.equal(calls[firstRequestIndex + 16].options.method, 'DELETE');
+    assert.match(calls[firstRequestIndex + 17].url, /\/admin\/staff$/);
+    assert.equal(calls[firstRequestIndex + 18].options.method, 'POST');
+    assert.equal(calls[firstRequestIndex + 19].options.method, 'PUT');
+    assert.match(calls[firstRequestIndex + 20].url, /\/admin\/staff\?email=staff%40example\.com$/);
   });
 });

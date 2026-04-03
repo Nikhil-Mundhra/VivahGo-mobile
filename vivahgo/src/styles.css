@@ -1,36 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,600&family=Jost:wght@300;400;500;600&display=swap');
-
-:root {
-  --color-crimson: #8B1A1A;
-  --color-deep-red: #6B0F0F;
-  --color-bright-red: #C41E3A;
-  --color-gold: #D4AF37;
-  --color-gold-light: #F0D060;
-  --color-gold-dark: #A8860C;
-  --color-ivory: #FFF8E7;
-  --color-ivory-dark: #F5ECD7;
-  --color-cream: #FEFAF0;
-  --color-white: #FFFFFF;
-  --color-dark-text: #2C1010;
-  --color-mid-text: #5C3030;
-  --color-light-text: #8B6060;
-}
-
-* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-body { background: var(--color-deep-red); }
-
-.app-shell {
-  width: 100%;
-  min-height: 100dvh;
-  margin: 0 auto;
-  background: var(--color-cream);
-  position: relative;
-  overflow: hidden;
-  font-family: 'Jost', sans-serif;
-  color: var(--color-dark-text);
-  display: flex;
-  flex-direction: column;
-}
+@import "./shared/styles/planner-tokens.css";
+@import "./shared/styles/planner-base.css";
+@import "./shared/styles/planner-objects.css";
 
 /* SPLASH */
 .splash {
@@ -889,33 +860,6 @@ body { background: var(--color-deep-red); }
 .website-toggle-input:checked + .website-toggle-switch .website-toggle-knob {
   transform: translateX(18px);
 }
-
-/* CARDS */
-.card {
-  background: var(--color-white);
-  border-radius: 16px;
-  padding: 16px;
-  margin: 0 16px 12px;
-  box-shadow: 0 2px 12px rgba(139,26,26,0.06);
-  border: 1px solid rgba(212,175,55,0.15);
-  position: relative;
-  overflow: hidden;
-}
-.card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0;
-  width: 4px; height: 100%;
-  background: linear-gradient(to bottom, var(--color-gold), var(--color-gold-dark));
-  border-radius: 4px 0 0 4px;
-}
-.card-title {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 17px; font-weight: 600;
-  color: var(--color-crimson);
-  margin-bottom: 4px;
-}
-.card-sub { font-size: 12.5px; color: var(--color-light-text); }
 
 /* EVENTS */
 .event-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0 16px; }
@@ -2475,43 +2419,6 @@ body { background: var(--color-deep-red); }
   font-weight: 600;
 }
 
-/* MODAL */
-.modal-overlay {
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,0.6);
-  z-index: 200;
-  display: flex; align-items: flex-end;
-  backdrop-filter: blur(4px);
-  overscroll-behavior-y: none;
-}
-.modal {
-  background: var(--color-cream);
-  border-radius: 24px 24px 0 0;
-  width: 100%;
-  margin: 0 auto;
-  padding: 24px;
-  animation: slideUp 0.3s cubic-bezier(0.4,0,0.2,1);
-  max-height: 90vh;
-  overflow-y: auto;
-  overscroll-behavior-y: contain;
-  -webkit-overflow-scrolling: touch;
-  touch-action: pan-y;
-  will-change: transform;
-}
-@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-.modal-handle {
-  width: 36px; height: 4px;
-  background: rgba(0,0,0,0.15);
-  border-radius: 2px;
-  margin: 0 auto 20px;
-  cursor: grab;
-}
-.modal-title {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 22px; font-weight: 700;
-  color: var(--color-crimson);
-  margin-bottom: 20px;
-}
 .input-group { margin-bottom: 16px; }
 .input-label { font-size: 12px; font-weight: 600; color: var(--color-mid-text); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
 .input-field {
@@ -3604,85 +3511,6 @@ body { background: var(--color-deep-red); }
   padding: 0;
 }
 
-.legal-footer-slot {
-  width: 100%;
-  margin-top: auto;
-  background: rgba(255, 255, 255, 0.96);
-  backdrop-filter: blur(12px);
-  border-top: 1px solid rgba(139, 26, 26, 0.12);
-  max-height: 76px;
-  overflow: hidden;
-  transition: max-height 0.24s ease, opacity 0.2s ease, border-color 0.24s ease, background-color 0.24s ease;
-}
-
-.legal-footer-slot-hidden {
-  opacity: 0;
-  max-height: 0;
-  border-top-color: transparent;
-  pointer-events: none;
-}
-
-.legal-footer {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
-  min-height: 56px;
-  width: 100%;
-}
-
-.legal-footer-with-nav {
-  left: 0;
-  width: 100%;
-}
-
-.vendor-portal-footer.legal-footer-with-nav {
-  margin-left: 0;
-  width: 100%;
-}
-
-.legal-footer-links {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  line-height: 1.1;
-  flex-wrap: wrap;
-}
-
-.legal-footer-hidden {
-  opacity: 0;
-  pointer-events: none;
-}
-
-.legal-footer-copy {
-  font-size: 10px;
-  color: var(--color-light-text);
-  line-height: 1.2;
-  text-align: center;
-  white-space: normal;
-}
-
-.legal-footer-link {
-  background: none;
-  border: none;
-  color: var(--color-mid-text);
-  font-size: 11px;
-  font-weight: 500;
-  font-family: 'Jost', sans-serif;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  cursor: pointer;
-  padding: 0;
-}
-
-.legal-footer-divider {
-  font-size: 10px;
-  color: var(--color-light-text);
-}
-
 .legal-modal {
   max-height: 90vh;
 }
@@ -3907,35 +3735,6 @@ body { background: var(--color-deep-red); }
     padding: 20px 0 20px 120px;
   }
 
-  .legal-footer-with-nav {
-    margin-left: 120px;
-    width: calc(100% - 120px);
-  }
-
-  .vendor-portal-footer.legal-footer-with-nav {
-    margin-left: 0;
-    width: 100%;
-  }
-
-  .legal-footer {
-    justify-content: space-between;
-    align-items: center;
-    flex-direction: row;
-    gap: 10px;
-    padding: 8px 12px;
-    min-height: 42px;
-  }
-
-  .legal-footer-links {
-    justify-content: flex-start;
-  }
-
-  .legal-footer-copy {
-    text-align: right;
-    white-space: nowrap;
-    margin-left: auto;
-  }
-
   .login-screen {
     min-height: calc(100vh - 42px);
   }
@@ -3944,7 +3743,6 @@ body { background: var(--color-deep-red); }
     padding: 0 28px 10px;
   }
 
-  .card,
   .budget-summary,
   .dash-countdown,
   .vendor-card,
@@ -3982,23 +3780,6 @@ body { background: var(--color-deep-red); }
   .fab {
     bottom: 30px;
     right: 32px;
-  }
-
-  .modal-overlay {
-    align-items: center;
-    justify-content: center;
-    padding: 22px;
-  }
-
-  .modal {
-    border-radius: 24px;
-    max-width: 600px;
-    width: min(600px, 100%);
-    max-height: 88vh;
-  }
-
-  .modal-handle {
-    display: none;
   }
 
   .login-screen,

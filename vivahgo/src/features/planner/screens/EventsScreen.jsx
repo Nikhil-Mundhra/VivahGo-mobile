@@ -2,9 +2,9 @@ import { useState } from "react";
 import { EVENT_COLORS } from "../../../constants";
 import { DEFAULT_EVENTS } from "../../../data";
 import { WEDDING_WEBSITE_THEMES } from "../../../plannerDefaults";
-import { fmt } from "../../../utils";
-import { useSwipeDown } from "../../../hooks/useSwipeDown";
-import { useBackButtonClose } from "../../../hooks/useBackButtonClose";
+import { fmt } from "../../../shared/lib/core.js";
+import { useSwipeDown } from "../../../shared/hooks/useSwipeDown.js";
+import { useBackButtonClose } from "../../../shared/hooks/useBackButtonClose.js";
 
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const YEARS  = Array.from({length: 8}, (_, i) => 2025 + i);

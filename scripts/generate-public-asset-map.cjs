@@ -6,12 +6,20 @@ const { list } = require('@vercel/blob');
 const { buildTrackedFilenameMap } = require('./public-asset-manifest.cjs');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
-const GUIDES_PATH = path.join(ROOT_DIR, 'vivahgo', 'src', 'content', 'guides.json');
+const GUIDES_PATH = path.join(ROOT_DIR, 'vivahgo', 'src', 'shared', 'content', 'guides.json');
 const OUTPUT_JSON_PATH = path.join(ROOT_DIR, 'vivahgo', 'src', 'generated', 'public-asset-map.json');
 const OUTPUT_JS_PATH = path.join(ROOT_DIR, 'vivahgo', 'src', 'generated', 'public-asset-map.js');
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+}
+
+function readExistingAssetMap() {
+  if (!fs.existsSync(OUTPUT_JSON_PATH)) {
+    return null;
+  }
+
+  return readJson(OUTPUT_JSON_PATH);
 }
 
 function parseDotEnv(contents) {
@@ -105,10 +113,31 @@ function buildPublicAssetMapFromBlobs(trackedFilenameMap, blobs) {
   return mapping;
 }
 
-async function buildPublicAssetMap() {
+async function buildPublicAssetMap(options = {}) {
+  const { listBlobs = listAllBlobs } = options;
   const guides = readJson(GUIDES_PATH);
   const trackedFilenameMap = buildTrackedFilenameMap(guides);
-  const blobs = await listAllBlobs();
+  let blobs;
+
+  try {
+    blobs = await listBlobs();
+  } catch (error) {
+    const isMissingBlobToken = /BLOB_READ_WRITE_TOKEN is not configured/.test(String(error?.message || ''));
+    const existingAssetMap = readExistingAssetMap();
+
+    if (!isMissingBlobToken || !existingAssetMap) {
+      throw error;
+    }
+
+    return {
+      ...existingAssetMap,
+      generatedAt: existingAssetMap.generatedAt || new Date().toISOString(),
+      count: typeof existingAssetMap.count === 'number'
+        ? existingAssetMap.count
+        : Object.keys(existingAssetMap.assets || {}).length,
+    };
+  }
+
   const assets = buildPublicAssetMapFromBlobs(trackedFilenameMap, blobs);
 
   return {
@@ -149,6 +178,8 @@ module.exports = {
   buildPublicAssetMap,
   buildPublicAssetMapFromBlobs,
   loadBlobToken,
+  listAllBlobs,
   parseDotEnv,
+  readExistingAssetMap,
   writePublicAssetMap,
 };

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import NavIcon from "../../../components/NavIcon";
 import { EVENT_COLORS } from "../../../constants";
 import { BUDGET_CATEGORIES } from "../../../data";
-import { daysUntil, fmt } from "../../../utils";
+import { daysUntil, fmt } from "../../../shared/lib/core.js";
 
 const MONTH_INDEX = {
   jan: 0,

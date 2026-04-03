@@ -22,24 +22,21 @@ import { NAV_ITEMS } from "../../constants";
 import { formatCoverageLocation, getLocationCities, getLocationCountries, getLocationStates } from "../../locationOptions";
 import {
   addPlanCollaborator,
-  deleteAccount,
   fetchAccessiblePlanners,
   fetchPlannerNotificationSettings,
   fetchPlanCollaborators,
   fetchPlanner,
-  getSubscriptionStatus,
-  loginWithClerk,
-  loginWithGoogle,
-  logoutSession,
   registerPlannerNotificationToken,
   removePlanCollaborator,
   removePlannerNotificationToken,
   savePlannerNotificationSettings,
   savePlanner,
   updatePlanCollaboratorRole,
-} from "../../api";
+} from "./api.js";
+import { deleteAccount, loginWithClerk, loginWithGoogle, logoutSession } from "../auth/api.js";
+import { getSubscriptionStatus } from "../marketing/api.js";
 import { DEFAULT_REMINDER_SETTINGS, DEFAULT_WEBSITE_SETTINGS, EMPTY_WEDDING, EXPECTED_GUEST_OPTIONS, buildWeddingWebsitePath, createBlankPlanner, createDemoPlanner, hasWeddingProfile, normalizePlanner, generatePlanId, createTemplatePlanCollections, normalizeCustomTemplates } from "../../plannerDefaults";
-import { useSwipeDown } from "../../hooks/useSwipeDown";
+import { useSwipeDown } from "../../shared/hooks/useSwipeDown.js";
 import { buildLoginAuthOptions } from "../../loginAuthOptions.js";
 import { getMarketingUrl } from "../../siteUrls.js";
 import { getBrowserNotificationSupport, removeBrowserPushToken, requestBrowserPushToken, subscribeToForegroundMessages } from "../../firebaseMessaging.js";

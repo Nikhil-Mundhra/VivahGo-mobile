@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { BUNDLED_SERVICE_OPTIONS, VENDOR_SUBTYPE_OPTIONS, VENDOR_TYPES } from "../../../constants";
-import { formatVendorBudgetRange, formatVendorPriceTier, getVendorPriceLevel, getVendorQuickFacts } from "../../../utils";
-import VendorDetailScreen from "../../../components/VendorDetailScreen";
-import { fetchApprovedVendors } from "../../../api";
-import { useBackButtonClose } from "../../../hooks/useBackButtonClose";
+import { formatVendorBudgetRange, formatVendorPriceTier, getVendorPriceLevel, getVendorQuickFacts } from "../../vendor/lib/vendorFormatting.js";
+import VendorDetailScreen from "../../vendor/components/VendorDetailScreen.jsx";
+import { fetchApprovedVendors } from "../../vendor/api.js";
+import { useBackButtonClose } from "../../../shared/hooks/useBackButtonClose.js";
 import { getVendorAvailabilityMatch } from "../../../vendorAvailability";
 
 const VENDOR_FILTERS_SESSION_KEY = "vivahgo.vendorFilters";
