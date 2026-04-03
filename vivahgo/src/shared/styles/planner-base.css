@@ -1,0 +1,40 @@
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body { background: var(--color-deep-red); }
+
+.o-app-shell,
+.app-shell {
+  width: 100%;
+  min-height: 100dvh;
+  margin: 0 auto;
+  background: var(--color-cream);
+  position: relative;
+  overflow: hidden;
+  font-family: 'Jost', sans-serif;
+  color: var(--color-dark-text);
+  display: flex;
+  flex-direction: column;
+}
+
+@media (min-width: 1024px) {
+  body {
+    min-height: 100vh;
+    background: var(--color-deep-red);
+    padding: 0;
+  }
+
+  #root {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    border-inline: none;
+    min-height: 100vh;
+  }
+
+  .o-app-shell,
+  .app-shell {
+    min-height: 100vh;
+    height: 100vh;
+    border-radius: 0;
+    box-shadow: none;
+  }
+}
