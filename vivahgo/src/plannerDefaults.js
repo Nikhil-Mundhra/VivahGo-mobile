@@ -208,26 +208,289 @@ const TEMPLATE_EVENT_SETS = {
   ],
 };
 
-const SAMPLE_GUESTS = [
-  { id: 1, name: 'Rajesh Sharma', side: 'bride', phone: '+91 98765 43210', rsvp: 'yes', guestCount: 4 },
-  { id: 2, name: 'Priya Mehta', side: 'bride', phone: '+91 98765 12345', rsvp: 'yes', guestCount: 2 },
-  { id: 3, name: 'Vikram Singh', side: 'groom', phone: '+91 99887 56123', rsvp: 'pending', guestCount: 3 },
-  { id: 4, name: 'Sunita Verma', side: 'groom', phone: '+91 91234 56789', rsvp: 'no', guestCount: 1 },
-  { id: 5, name: 'Arjun Kapoor', side: 'bride', phone: '+91 87654 32109', rsvp: 'pending', guestCount: 5 },
-  { id: 6, name: 'Neha Bansal', side: 'bride', phone: '+91 98111 22334', rsvp: 'yes', guestCount: 2 },
-  { id: 7, name: 'Kunal Arora', side: 'groom', phone: '+91 98222 33445', rsvp: 'pending', guestCount: 2 },
-  { id: 8, name: 'Meera Iyer', side: 'bride', phone: '+91 98333 44556', rsvp: 'yes', guestCount: 3 },
-  { id: 9, name: 'Rohan Malhotra', side: 'groom', phone: '+91 98444 55667', rsvp: 'no', guestCount: 1 },
-  { id: 10, name: 'Ananya Rao', side: 'bride', phone: '+91 98555 66778', rsvp: 'pending', guestCount: 4 },
-  { id: 11, name: 'Siddharth Khanna', side: 'groom', phone: '+91 98666 77889', rsvp: 'yes', guestCount: 2 },
-  { id: 12, name: 'Pooja Nair', side: 'bride', phone: '+91 98777 88990', rsvp: 'pending', guestCount: 3 },
+const DEMO_WEDDING_PROFILE = {
+  bride: 'Aarohi',
+  groom: 'Pranav',
+  date: '2 December 2026',
+  venue: 'Jai Mahal Palace, Jaipur',
+  guests: '320',
+  budget: '6500000',
+};
+
+const DEMO_EXTRA_LOCATIONS = [
+  'Rajmahal Ballroom',
+  'Mughal Courtyard',
+  'Neem Lawn',
+  'Sunset Terrace',
+  'Zenana Suite',
 ];
 
-const SAMPLE_EXPENSES = [
-  { id: 1, name: 'Haldi venue advance', amount: 200000, expenseDate: '2027-02-10', category: 'venue', area: 'ceremony', eventId: 4, note: '50% advance' },
-  { id: 2, name: 'Bridal lehenga', amount: 150000, expenseDate: '2026-11-20', category: 'attire', area: 'bride', eventId: '', note: 'Sabyasachi' },
-  { id: 3, name: 'Guest hotel block', amount: 85000, expenseDate: '2027-01-15', category: 'stay', area: 'guests', eventId: '', note: '40 deluxe rooms reserved' },
+const DEMO_WEBSITE_SETTINGS = {
+  ...DEFAULT_WEBSITE_SETTINGS,
+  theme: 'garden-sage',
+  heroTagline: 'Together with our families, we invite you to celebrate',
+  welcomeMessage: 'With blessings from both our families, we are gathering in Jaipur for a joyful weekend of music, rituals, and late-night dance floors. We would love to celebrate with you.',
+  scheduleTitle: 'Celebration Weekend',
+};
+
+const DEMO_GUESTS = [
+  {
+    id: 101,
+    title: 'Mr',
+    firstName: 'Rajesh',
+    lastName: 'Sharma',
+    name: 'Mr Rajesh Sharma',
+    side: 'bride',
+    phone: '+91 98765 43210',
+    rsvp: 'yes',
+    guestCount: 6,
+    groupMembers: ['Mrs Sunaina Sharma', 'Aarav Sharma', 'Kavya Sharma', 'Dadi Sharma', 'Naman Sharma'],
+  },
+  {
+    id: 102,
+    title: 'Mrs',
+    firstName: 'Priya',
+    lastName: 'Mehta',
+    name: 'Mrs Priya Mehta',
+    side: 'bride',
+    phone: '+91 98765 12345',
+    rsvp: 'yes',
+    guestCount: 4,
+    groupMembers: ['Rishabh Mehta', 'Ishaani Mehta', 'Nani Mehta'],
+  },
+  {
+    id: 103,
+    title: 'Mr',
+    firstName: 'Anil',
+    lastName: 'Bhatia',
+    name: 'Mr Anil Bhatia',
+    side: 'bride',
+    phone: '+91 99887 56123',
+    rsvp: 'pending',
+    guestCount: 7,
+    groupMembers: ['Mrs Poonam Bhatia', 'Rhea Bhatia', 'Moksh Bhatia', 'Dadaji Bhatia', 'Dadiji Bhatia', 'Ritu Bua'],
+  },
+  {
+    id: 104,
+    title: 'Dr',
+    firstName: 'Meera',
+    lastName: 'Nanda',
+    name: 'Dr Meera Nanda',
+    side: 'bride',
+    phone: '+91 91234 56789',
+    rsvp: 'yes',
+    guestCount: 3,
+    groupMembers: ['Dr Vikas Nanda', 'Tara Nanda'],
+  },
+  {
+    id: 105,
+    title: 'Mrs',
+    firstName: 'Neha',
+    lastName: 'Bansal',
+    name: 'Mrs Neha Bansal',
+    side: 'bride',
+    phone: '+91 98111 22334',
+    rsvp: 'pending',
+    guestCount: 6,
+    groupMembers: ['Mr Anuj Bansal', 'Diya Bansal', 'Kabira Bansal', 'Badi Masi', 'Rohan Mama'],
+  },
+  {
+    id: 106,
+    title: 'Ms',
+    firstName: 'Ishita',
+    lastName: 'Kapoor',
+    name: 'Ms Ishita Kapoor',
+    side: 'bride',
+    phone: '+91 98222 33445',
+    rsvp: 'yes',
+    guestCount: 2,
+    groupMembers: ['Aanya Kapoor'],
+  },
+  {
+    id: 107,
+    title: 'Capt',
+    firstName: 'Arvind',
+    lastName: 'Verma',
+    name: 'Capt Arvind Verma',
+    side: 'groom',
+    phone: '+91 98333 44556',
+    rsvp: 'yes',
+    guestCount: 5,
+    groupMembers: ['Mrs Ritu Verma', 'Arjun Verma', 'Sia Verma', 'Dadi Verma'],
+  },
+  {
+    id: 108,
+    title: 'Mr',
+    firstName: 'Rohit',
+    lastName: 'Khanna',
+    name: 'Mr Rohit Khanna',
+    side: 'groom',
+    phone: '+91 98444 55667',
+    rsvp: 'pending',
+    guestCount: 5,
+    groupMembers: ['Mrs Shalini Khanna', 'Ved Khanna', 'Myra Khanna', 'Tauji Khanna'],
+  },
+  {
+    id: 109,
+    title: 'Mrs',
+    firstName: 'Niharika',
+    lastName: 'Rao',
+    name: 'Mrs Niharika Rao',
+    side: 'bride',
+    phone: '+91 98555 66778',
+    rsvp: 'no',
+    guestCount: 4,
+    groupMembers: ['Mr Sanjay Rao', 'Aditi Rao', 'Kian Rao'],
+  },
+  {
+    id: 110,
+    title: 'Mr',
+    firstName: 'Siddharth',
+    lastName: 'Khurana',
+    name: 'Mr Siddharth Khurana',
+    side: 'groom',
+    phone: '+91 98666 77889',
+    rsvp: 'yes',
+    guestCount: 4,
+    groupMembers: ['Mrs Tania Khurana', 'Ira Khurana', 'Neil Khurana'],
+  },
+  {
+    id: 111,
+    title: 'Mr',
+    firstName: 'Sunil',
+    lastName: 'Chawla',
+    name: 'Mr Sunil Chawla',
+    side: 'groom',
+    phone: '+91 98777 88990',
+    rsvp: 'pending',
+    guestCount: 6,
+    groupMembers: ['Mrs Kusum Chawla', 'Ritika Chawla', 'Harsh Chawla', 'Bua Neelam', 'Fufaji Rajiv'],
+  },
+  {
+    id: 112,
+    title: 'Ms',
+    firstName: 'Pooja',
+    lastName: 'Nair',
+    name: 'Ms Pooja Nair',
+    side: 'bride',
+    phone: '+91 98888 99001',
+    rsvp: 'yes',
+    guestCount: 3,
+    groupMembers: ['Ananya Nair', 'Ammamma Nair'],
+  },
+  {
+    id: 113,
+    title: 'Mr',
+    firstName: 'Karan',
+    lastName: 'Oberoi',
+    name: 'Mr Karan Oberoi',
+    side: 'groom',
+    phone: '+91 98989 10112',
+    rsvp: 'yes',
+    guestCount: 4,
+    groupMembers: ['Mrs Simran Oberoi', 'Abeer Oberoi', 'Mahi Oberoi'],
+  },
+  {
+    id: 114,
+    title: 'Mrs',
+    firstName: 'Tanya',
+    lastName: 'Bedi',
+    name: 'Mrs Tanya Bedi',
+    side: 'groom',
+    phone: '+91 99090 21223',
+    rsvp: 'pending',
+    guestCount: 5,
+    groupMembers: ['Mr Manav Bedi', 'Aria Bedi', 'Vivaan Bedi', 'Bebe Bedi'],
+  },
+  {
+    id: 115,
+    title: 'Mr',
+    firstName: 'Rohan',
+    lastName: 'Malhotra',
+    name: 'Mr Rohan Malhotra',
+    side: 'groom',
+    phone: '+91 99191 32334',
+    rsvp: 'no',
+    guestCount: 4,
+    groupMembers: ['Mrs Juhi Malhotra', 'Aarush Malhotra', 'Pari Malhotra'],
+  },
+  {
+    id: 116,
+    title: 'Ms',
+    firstName: 'Aditi',
+    lastName: 'Iyer',
+    name: 'Ms Aditi Iyer',
+    side: 'bride',
+    phone: '+91 99292 43445',
+    rsvp: 'yes',
+    guestCount: 3,
+    groupMembers: ['Raghav Iyer', 'Lakshmi Iyer'],
+  },
+  {
+    id: 117,
+    title: 'Mr',
+    firstName: 'Manish',
+    lastName: 'Sethi',
+    name: 'Mr Manish Sethi',
+    side: 'groom',
+    phone: '+91 99393 54556',
+    rsvp: 'pending',
+    guestCount: 7,
+    groupMembers: ['Mrs Jasleen Sethi', 'Yuv Sethi', 'Noor Sethi', 'Bade Papa Sethi', 'Badi Mummy Sethi', 'Masi Renu'],
+  },
+  {
+    id: 118,
+    title: 'Mrs',
+    firstName: 'Devika',
+    lastName: 'Jain',
+    name: 'Mrs Devika Jain',
+    side: 'bride',
+    phone: '+91 99494 65667',
+    rsvp: 'yes',
+    guestCount: 4,
+    groupMembers: ['Mr Nitin Jain', 'Misha Jain', 'Rudra Jain'],
+  },
 ];
+
+const DEMO_EXPENSES = [
+  { id: 201, name: 'Jai Mahal venue advance', amount: 900000, expenseDate: '2026-07-12', category: 'venue', area: 'ceremony', eventId: 9, note: '30% venue block payment' },
+  { id: 202, name: 'Reception catering retainer', amount: 285000, expenseDate: '2026-08-02', category: 'catering', area: 'ceremony', eventId: 13, note: 'Menu tasting and first retainer' },
+  { id: 203, name: 'Mandap decor concept advance', amount: 240000, expenseDate: '2026-08-18', category: 'decor', area: 'ceremony', eventId: 9, note: 'Fresh florals and ceiling mockup approved' },
+  { id: 204, name: 'Photography and film booking', amount: 210000, expenseDate: '2026-09-01', category: 'photography', area: 'vendors', eventId: '', note: 'Two-day coverage locked' },
+  { id: 205, name: 'Bridal lehenga first payment', amount: 175000, expenseDate: '2026-09-16', category: 'attire', area: 'bride', eventId: '', note: 'Custom ivory and rose-gold work' },
+  { id: 206, name: 'Sherwani and safa fittings', amount: 62000, expenseDate: '2026-09-24', category: 'attire', area: 'groom', eventId: '', note: 'Reception bandhgala included' },
+  { id: 207, name: 'Guest room block at palace wing', amount: 410000, expenseDate: '2026-10-09', category: 'stay', area: 'guests', eventId: '', note: '42 rooms reserved for both families' },
+  { id: 208, name: 'Invitation suite printing', amount: 68000, expenseDate: '2026-10-22', category: 'invites', area: 'general', eventId: '', note: 'Box invites plus digital motion card' },
+  { id: 209, name: 'Sangeet choreography advance', amount: 65000, expenseDate: '2026-11-04', category: 'music', area: 'ceremony', eventId: 6, note: 'Four family sets and couple medley' },
+  { id: 210, name: 'Pandit booking and samagri list', amount: 21000, expenseDate: '2026-11-12', category: 'pandit', area: 'ceremony', eventId: 9, note: 'Muhurat and ritual checklist confirmed' },
+  { id: 211, name: 'Baraat shuttle deposit', amount: 54000, expenseDate: '2026-11-28', category: 'transport', area: 'guests', eventId: 7, note: 'Airport and hotel transfer matrix started' },
+  { id: 212, name: 'Welcome hamper sampling', amount: 38000, expenseDate: '2026-12-06', category: 'misc', area: 'guests', eventId: '', note: 'Room hampers, snacks, and handwritten note cards' },
+  { id: 213, name: 'Bridal hair and makeup block', amount: 35000, expenseDate: '2026-12-18', category: 'beauty', area: 'bride', eventId: '', note: 'Wedding plus reception trial booked' },
+  { id: 214, name: 'Mehndi artist advance', amount: 27000, expenseDate: '2027-01-05', category: 'vendors', area: 'vendors', eventId: 5, note: 'Bride plus 12 family members' },
+];
+
+const DEMO_COMPLETED_TASK_IDS = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+
+const DEMO_EXTRA_TASKS = [
+  { id: 26, name: 'Launch wedding website preview for close family', done: true, due: '4 months before', priority: 'medium', group: '4 months', eventId: '', ceremony: 'General' },
+  { id: 27, name: 'Complete catering tasting with both families', done: true, due: '4 months before', priority: 'high', group: '4 months', eventId: 13, ceremony: 'Reception' },
+  { id: 28, name: 'Shortlist bridal jewelry pieces for pheras', done: true, due: '3 months before', priority: 'medium', group: '3 months', eventId: 9, ceremony: 'Pheras' },
+  { id: 29, name: 'Lock airport pickup matrix for VIP guests', done: false, due: '1 month before', priority: 'high', group: '1 month', eventId: '', ceremony: 'General' },
+  { id: 30, name: 'Collect final rooming list from cousins', done: false, due: '3 weeks before', priority: 'medium', group: 'Final', eventId: '', ceremony: 'General' },
+];
+
+const DEMO_BOOKED_VENDOR_TYPES = new Set([
+  'Venue',
+  'Catering',
+  'Photography',
+  'Wedding Videography',
+  'Wedding Decorators',
+  'Florists',
+  'Pandit',
+  'Choreographer',
+  'Bridal & Pre-Bridal',
+  'Groom Services',
+]);
 
 function normalizeExpense(expense, planId) {
   if (!expense || typeof expense !== 'object') {
@@ -453,15 +716,65 @@ export function createTemplatePlanCollections(templateId, planId, customTemplate
 }
 
 function createDemoEvents(planId) {
+  const demoEventDetails = [
+    { date: '18 October 2026', time: '6:30 PM', venue: 'Zenana Suite', status: 'completed', note: 'Immediate families hosted an intimate ring exchange and dinner.' },
+    { date: '14 November 2026', time: '7:00 PM', venue: 'Rajmahal Ballroom', status: 'completed', note: 'Stage design, ring trays, and family speeches are already wrapped.' },
+    { date: '30 November 2026', time: '10:00 AM', venue: 'Zenana Suite', status: 'confirmed', note: 'Close-family puja with samagri checklist and pandit flow approved.', isPublicWebsiteVisible: false },
+    { date: '1 December 2026', time: '10:30 AM', venue: 'Neem Lawn', status: 'confirmed', note: 'Floral swings, marigold umbrellas, and dhol welcome are locked in.' },
+    { date: '1 December 2026', time: '2:00 PM', venue: 'Mughal Courtyard', status: 'confirmed', note: 'Bridesmaids lounge, live chaat stations, and artist roster confirmed.' },
+    { date: '1 December 2026', time: '8:00 PM', venue: 'Rajmahal Ballroom', status: 'confirmed', note: 'Four family performances and one couple set with cold pyro finale.' },
+    { date: '2 December 2026', time: '4:30 PM', venue: 'Palace Entrance', status: 'upcoming', note: 'Horse, dhol team, and guest coaches are staggered in 20-minute waves.' },
+    { date: '2 December 2026', time: '7:00 PM', venue: 'Mughal Courtyard', status: 'upcoming', note: 'Hydraulic entry stage under a floral ceiling with family aisle seating.' },
+    { date: '2 December 2026', time: '10:30 PM', venue: 'Lotus Mandap', status: 'upcoming', note: 'Mandap faces the fountain lawn and dinner service begins after the fourth phera.' },
+    { date: '2 December 2026', time: '11:45 PM', venue: 'Lotus Mandap', status: 'upcoming', note: 'Reserved seating planned for grandparents and immediate family.', isPublicWebsiteVisible: false },
+    { date: '3 December 2026', time: '12:10 AM', venue: 'Lotus Mandap', status: 'upcoming', note: 'Soft instrumental set and printed vow cards on both sides of the havan.', isPublicWebsiteVisible: false },
+    { date: '3 December 2026', time: '12:35 AM', venue: 'Lotus Mandap', status: 'upcoming', note: 'Photography team briefed for intimate, no-flash close coverage.', isPublicWebsiteVisible: false },
+    { date: '3 December 2026', time: '7:30 PM', venue: 'Sunset Terrace', status: 'confirmed', note: 'Live sufi set at cocktails, followed by dinner and an open dance floor.' },
+    { date: '3 December 2026', time: '11:00 AM', venue: 'Palace Porte Cochere', status: 'upcoming', note: 'Breakfast hampers, floral car decor, and core-family send-off sequence ready.' },
+    { date: '3 December 2026', time: '2:30 PM', venue: "Pranav's family home", status: 'upcoming', note: 'Private family ritual with immediate relatives only.', isPublicWebsiteVisible: false },
+  ];
+
   return cloneCollection(DEFAULT_EVENTS).map((event, index) => ({
     ...event,
+    ...demoEventDetails[index],
     planId,
-    date: ['12 Feb 2027', '13 Feb 2027', '13 Feb 2027', '14 Feb 2027', '14 Feb 2027', '15 Feb 2027'][index] || '',
-    time: ['11:00 AM', '4:00 PM', '8:00 PM', '5:00 PM', '9:30 PM', '7:30 PM'][index] || '',
-    venue: ['Jaipur Courtyard', 'Terrace Lawn', 'Royal Ballroom', 'Palace Entrance', 'Lotus Mandap', 'Sunset Pavilion'][index] || '',
-    status: index < 2 ? 'confirmed' : 'upcoming',
-    note: index === 4 ? 'Mandap setup by 7 PM' : '',
   }));
+}
+
+function createDemoGuests(planId) {
+  return DEMO_GUESTS.map(guest => ({
+    ...guest,
+    groupMembers: [...(guest.groupMembers || [])],
+    planId,
+  }));
+}
+
+function createDemoExpenses(planId) {
+  return DEMO_EXPENSES.map(expense => normalizeExpense(expense, planId));
+}
+
+function createDemoTasks(planId) {
+  const seededTasks = cloneCollection(DEFAULT_TASKS).map(task => normalizeTask({
+    ...task,
+    done: DEMO_COMPLETED_TASK_IDS.has(task.id),
+  }, planId));
+  const extraTasks = DEMO_EXTRA_TASKS.map(task => normalizeTask(task, planId));
+
+  return [...seededTasks, ...extraTasks];
+}
+
+function createDemoVendors(planId) {
+  return cloneCollection(DEFAULT_VENDORS).map(vendor => {
+    const booked = DEMO_BOOKED_VENDOR_TYPES.has(vendor.type);
+
+    return {
+      ...vendor,
+      booked,
+      featuredLabel: booked ? 'Booked for this wedding' : vendor.featuredLabel,
+      reviewCount: booked ? (vendor.reviewCount || 0) + 4 : vendor.reviewCount,
+      planId,
+    };
+  });
 }
 
 // Create a blank marriage plan
@@ -490,15 +803,10 @@ export function createDemoMarriagePlan() {
   const planId = generatePlanId();
   return {
     id: planId,
-    bride: 'Aarohi',
-    groom: 'Kabir',
-    date: '14 February 2027',
-    venue: 'Jaipur Palace Grounds',
-    extraLocations: ['Jaipur Courtyard', 'Royal Ballroom', 'Sunset Pavilion'],
-    guests: '320',
-    budget: '6500000',
-    websiteSlug: 'aarohi-kabir-1',
-    websiteSettings: { ...DEFAULT_WEBSITE_SETTINGS },
+    ...DEMO_WEDDING_PROFILE,
+    extraLocations: [...DEMO_EXTRA_LOCATIONS],
+    websiteSlug: 'aarohi-pranav-1',
+    websiteSettings: { ...DEMO_WEBSITE_SETTINGS },
     reminderSettings: { ...DEFAULT_REMINDER_SETTINGS, enabled: true },
     template: 'punjabi',
     collaborators: [],
@@ -531,19 +839,12 @@ export function createDemoPlanner() {
     marriages: [demoMarriage],
     activePlanId: planId,
     customTemplates: [],
-    wedding: {
-      bride: 'Aarohi',
-      groom: 'Kabir',
-      date: '14 February 2027',
-      venue: 'Jaipur Palace Grounds',
-      guests: '320',
-      budget: '6500000',
-    },
+    wedding: { ...DEMO_WEDDING_PROFILE },
     events: createDemoEvents(planId),
-    expenses: cloneCollection(SAMPLE_EXPENSES).map(e => normalizeExpense(e, planId)),
-    guests: cloneCollection(SAMPLE_GUESTS).map(g => ({ ...g, planId })),
-    vendors: cloneCollection(DEFAULT_VENDORS).map(v => ({ ...v, planId })),
-    tasks: cloneCollection(DEFAULT_TASKS).map(t => normalizeTask(t, planId)),
+    expenses: createDemoExpenses(planId),
+    guests: createDemoGuests(planId),
+    vendors: createDemoVendors(planId),
+    tasks: createDemoTasks(planId),
   };
 }
 

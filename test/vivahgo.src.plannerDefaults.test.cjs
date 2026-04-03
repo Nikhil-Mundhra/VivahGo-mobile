@@ -39,11 +39,16 @@ describe('VivahGo/src/plannerDefaults.js', function () {
     const demoB = mod.createDemoPlanner();
 
     assert.equal(demoA.wedding.bride, 'Aarohi');
+    assert.equal(demoA.wedding.groom, 'Pranav');
     assert.ok(Array.isArray(demoA.events));
     assert.ok(Array.isArray(demoA.tasks));
-    assert.ok(demoA.events.length >= 6);
+    assert.ok(demoA.events.length >= 15);
+    assert.ok(demoA.guests.length >= 18);
+    assert.ok(demoA.expenses.length >= 10);
+    assert.ok(demoA.tasks.filter(task => task.done).length >= 10);
     assert.ok(demoA.marriages.length > 0, 'should have marriages');
     assert.ok(demoA.activePlanId, 'should have activePlanId');
+    assert.equal(demoA.marriages[0].websiteSlug, 'aarohi-pranav-1');
     assert.ok(demoA.vendors.some(vendor => vendor.name === "VivahGo's Choice Pandit"));
 
     demoA.events[0].name = 'Mutated Event';

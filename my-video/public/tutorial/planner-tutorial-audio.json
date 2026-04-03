@@ -1,0 +1,176 @@
+{
+  "fps": 30,
+  "backgroundMusicFile": "tutorial/audio/background-bed.wav",
+  "generatedWith": "sarvam",
+  "totalDurationInFrames": 2410,
+  "scenes": [
+    {
+      "sceneId": "intro",
+      "audioFile": "tutorial/audio/intro.wav",
+      "durationInFrames": 295,
+      "captions": [
+        {
+          "text": "शादी की प्लानिंग जब अलग-अलग जगह बिखर जाती है, तभी chaos शुरू",
+          "startMs": 0,
+          "endMs": 4907,
+          "timestampMs": 0,
+          "confidence": null
+        },
+        {
+          "text": "होता है। VivahGo इसे एक ही phone-first workspace में समेट देता है।",
+          "startMs": 4907,
+          "endMs": 9813,
+          "timestampMs": 4907,
+          "confidence": null
+        }
+      ]
+    },
+    {
+      "sceneId": "demo-entry",
+      "audioFile": "tutorial/audio/demo-entry.wav",
+      "durationInFrames": 240,
+      "captions": [
+        {
+          "text": "शुरू करना भी आसान है। बस Explore Demo Planner पर",
+          "startMs": 0,
+          "endMs": 3883,
+          "timestampMs": 0,
+          "confidence": null
+        },
+        {
+          "text": "tap कीजिए, और ready demo workspace तुरंत खुल जाता है।",
+          "startMs": 3883,
+          "endMs": 7765,
+          "timestampMs": 3883,
+          "confidence": null
+        }
+      ]
+    },
+    {
+      "sceneId": "dashboard",
+      "audioFile": "tutorial/audio/dashboard.wav",
+      "durationInFrames": 323,
+      "captions": [
+        {
+          "text": "होम डैशबोर्ड पर सबसे ज़रूरी चीज़ें एक नज़र में दिखती",
+          "startMs": 0,
+          "endMs": 5376,
+          "timestampMs": 0,
+          "confidence": null
+        },
+        {
+          "text": "हैं। Countdown, budget, guest confirmations और upcoming functions, सब यहीं।",
+          "startMs": 5376,
+          "endMs": 10752,
+          "timestampMs": 5376,
+          "confidence": null
+        }
+      ]
+    },
+    {
+      "sceneId": "events",
+      "audioFile": "tutorial/audio/events.wav",
+      "durationInFrames": 295,
+      "captions": [
+        {
+          "text": "अब events पर आइए। हर ceremony की date, time, venue और spend",
+          "startMs": 0,
+          "endMs": 4907,
+          "timestampMs": 0,
+          "confidence": null
+        },
+        {
+          "text": "साफ दिखता है, ताकि haldi से reception तक flow organized रहे।",
+          "startMs": 4907,
+          "endMs": 9813,
+          "timestampMs": 4907,
+          "confidence": null
+        }
+      ]
+    },
+    {
+      "sceneId": "tasks",
+      "audioFile": "tutorial/audio/tasks.wav",
+      "durationInFrames": 267,
+      "captions": [
+        {
+          "text": "Tasks screen पूरी checklist को timeline में रखती है। एक tap",
+          "startMs": 0,
+          "endMs": 4438,
+          "timestampMs": 0,
+          "confidence": null
+        },
+        {
+          "text": "में task complete कीजिए, और progress तुरंत update हो जाती है।",
+          "startMs": 4438,
+          "endMs": 8875,
+          "timestampMs": 4438,
+          "confidence": null
+        }
+      ]
+    },
+    {
+      "sceneId": "budget",
+      "audioFile": "tutorial/audio/budget.wav",
+      "durationInFrames": 303,
+      "captions": [
+        {
+          "text": "Budget tab में total spend, remaining amount और category-wise breakdown साथ में",
+          "startMs": 0,
+          "endMs": 5035,
+          "timestampMs": 0,
+          "confidence": null
+        },
+        {
+          "text": "दिखता है। इससे overspending पहले ही पकड़ में आ जाती है।",
+          "startMs": 5035,
+          "endMs": 10069,
+          "timestampMs": 5035,
+          "confidence": null
+        }
+      ]
+    },
+    {
+      "sceneId": "guests",
+      "audioFile": "tutorial/audio/guests.wav",
+      "durationInFrames": 346,
+      "captions": [
+        {
+          "text": "Guests tab में RSVP status, family groups और reminders एक ही जगह मिलते",
+          "startMs": 0,
+          "endMs": 5760,
+          "timestampMs": 0,
+          "confidence": null
+        },
+        {
+          "text": "हैं। Guest tracking manual follow-up से कहीं ज़्यादा आसान हो जाता है।",
+          "startMs": 5760,
+          "endMs": 11520,
+          "timestampMs": 5760,
+          "confidence": null
+        }
+      ]
+    },
+    {
+      "sceneId": "outro",
+      "audioFile": "tutorial/audio/outro.wav",
+      "durationInFrames": 341,
+      "captions": [
+        {
+          "text": "अगर आप wedding planning को simple और organized रखना चाहते हैं, तो VivahGo try",
+          "startMs": 0,
+          "endMs": 5675,
+          "timestampMs": 0,
+          "confidence": null
+        },
+        {
+          "text": "कीजिए। Demo explore कीजिए और अपनी planning को कम chaos के साथ शुरू कीजिए।",
+          "startMs": 5675,
+          "endMs": 11349,
+          "timestampMs": 5675,
+          "confidence": null
+        }
+      ]
+    }
+  ]
+}

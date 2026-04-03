@@ -1,0 +1,20 @@
+node_modules
+dist
+.DS_Store
+.env
+
+# Ignore the output video from Git but not videos you import into src/.
+out
+
+# Agent skills / AI tool folders
+.agents
+.claude
+.codex
+.cursor
+.gemini
+.windsurf
+.copilot
+.cline
+.amp
+
+build

@@ -1,0 +1,176 @@
+{
+  "fps": 30,
+  "backgroundMusicFile": "tutorial/vendor/audio/happy-home.mp3",
+  "generatedWith": "sarvam",
+  "totalDurationInFrames": 1957,
+  "scenes": [
+    {
+      "sceneId": "login",
+      "audioFile": "tutorial/vendor/audio/login.wav",
+      "durationInFrames": 210,
+      "captions": [
+        {
+          "text": "Yahan se vendor portal sign in hota hai.",
+          "startMs": 0,
+          "endMs": 3354,
+          "timestampMs": 0,
+          "confidence": null
+        },
+        {
+          "text": "Ek click mein apne business workspace mein aa jaiye.",
+          "startMs": 3354,
+          "endMs": 6708,
+          "timestampMs": 3354,
+          "confidence": null
+        }
+      ]
+    },
+    {
+      "sceneId": "registration",
+      "audioFile": "tutorial/vendor/audio/registration.wav",
+      "durationInFrames": 243,
+      "captions": [
+        {
+          "text": "Is registration flow mein business basics, pricing, service area,",
+          "startMs": 0,
+          "endMs": 4044,
+          "timestampMs": 0,
+          "confidence": null
+        },
+        {
+          "text": "aur contact details ek hi jagah fill hote hain.",
+          "startMs": 4044,
+          "endMs": 8087,
+          "timestampMs": 4044,
+          "confidence": null
+        }
+      ]
+    },
+    {
+      "sceneId": "dashboard",
+      "audioFile": "tutorial/vendor/audio/dashboard.wav",
+      "durationInFrames": 270,
+      "captions": [
+        {
+          "text": "Dashboard par profile completion, portfolio count, price band,",
+          "startMs": 0,
+          "endMs": 3436,
+          "timestampMs": 0,
+          "confidence": null
+        },
+        {
+          "text": "aur lead readiness turant dikh jaati hai.",
+          "startMs": 3436,
+          "endMs": 6872,
+          "timestampMs": 3436,
+          "confidence": null
+        }
+      ]
+    },
+    {
+      "sceneId": "preview",
+      "audioFile": "tutorial/vendor/audio/preview.wav",
+      "durationInFrames": 240,
+      "captions": [
+        {
+          "text": "Live Preview mein dekhiye ki couples ko aapka",
+          "startMs": 0,
+          "endMs": 2815,
+          "timestampMs": 0,
+          "confidence": null
+        },
+        {
+          "text": "card aur full listing exactly kaise nazar aayegi.",
+          "startMs": 2815,
+          "endMs": 5629,
+          "timestampMs": 2815,
+          "confidence": null
+        }
+      ]
+    },
+    {
+      "sceneId": "portfolio",
+      "audioFile": "tutorial/vendor/audio/portfolio.wav",
+      "durationInFrames": 240,
+      "captions": [
+        {
+          "text": "Media Manager se portfolio, cover image, aur verification",
+          "startMs": 0,
+          "endMs": 3436,
+          "timestampMs": 0,
+          "confidence": null
+        },
+        {
+          "text": "documents sab ek jagah control hote hain.",
+          "startMs": 3436,
+          "endMs": 6872,
+          "timestampMs": 3436,
+          "confidence": null
+        }
+      ]
+    },
+    {
+      "sceneId": "availability",
+      "audioFile": "tutorial/vendor/audio/availability.wav",
+      "durationInFrames": 240,
+      "captions": [
+        {
+          "text": "Availability view mein date wise capacity set kijiye, selected",
+          "startMs": 0,
+          "endMs": 3390,
+          "timestampMs": 0,
+          "confidence": null
+        },
+        {
+          "text": "day ko edit kijiye, aur exceptions turant apply kijiye.",
+          "startMs": 3390,
+          "endMs": 6780,
+          "timestampMs": 3390,
+          "confidence": null
+        }
+      ]
+    },
+    {
+      "sceneId": "details",
+      "audioFile": "tutorial/vendor/audio/details.wav",
+      "durationInFrames": 240,
+      "captions": [
+        {
+          "text": "Business Details mein description, pricing, capacity, location, aur",
+          "startMs": 0,
+          "endMs": 3600,
+          "timestampMs": 0,
+          "confidence": null
+        },
+        {
+          "text": "contact information kabhi bhi update kar sakte hain.",
+          "startMs": 3600,
+          "endMs": 7200,
+          "timestampMs": 3600,
+          "confidence": null
+        }
+      ]
+    },
+    {
+      "sceneId": "outro",
+      "audioFile": "tutorial/vendor/audio/outro.wav",
+      "durationInFrames": 264,
+      "captions": [
+        {
+          "text": "Portal simple hai, direct hai, aur vendor operations ko organized rakhta hai.",
+          "startMs": 0,
+          "endMs": 4384,
+          "timestampMs": 0,
+          "confidence": null
+        },
+        {
+          "text": "Sign in kijiye, profile complete rakhiye, aur listing ready rakhiye.",
+          "startMs": 4384,
+          "endMs": 8767,
+          "timestampMs": 4384,
+          "confidence": null
+        }
+      ]
+    }
+  ]
+}
