@@ -55,10 +55,11 @@ function VendorDetailScreen({ vendor, availabilityRange, onBack, onToggleWishlis
   }
 
   function handleRequestService() {
+    const whatsappNumber = String(vendor?.whatsappNumber || WHATSAPP_SUPPORT_NUMBER || "").replace(/[^0-9]/g, "");
     const message = encodeURIComponent(
       `Hello! I found ${vendor.name} on VivahGo and would like to request their ${vendor.type} services. Could you please help me with availability and booking details?`
     );
-    window.open(`https://wa.me/${WHATSAPP_SUPPORT_NUMBER}?text=${message}`, "_blank", "noopener,noreferrer");
+    window.open(`https://wa.me/${whatsappNumber || WHATSAPP_SUPPORT_NUMBER}?text=${message}`, "_blank", "noopener,noreferrer");
   }
 
   function submitReview(event) {

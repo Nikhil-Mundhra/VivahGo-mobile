@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { BUNDLED_SERVICE_OPTIONS, VENDOR_SUBTYPE_OPTIONS, VENDOR_TYPES } from "../../../constants";
-import { DEFAULT_VENDORS } from "../../../data";
 import { formatVendorBudgetRange, formatVendorPriceTier, getVendorPriceLevel, getVendorQuickFacts } from "../../../utils";
 import VendorDetailScreen from "../../../components/VendorDetailScreen";
 import { fetchApprovedVendors } from "../../../api";
@@ -113,18 +112,11 @@ function VendorsScreen({ vendors }) {
   );
 
   const universalVendors = useMemo(() => {
-    // DB-approved vendors take precedence over static data; merge by id
-    const staticWithBooked = DEFAULT_VENDORS.map(v => ({
+    return dbVendors.map(v => ({
       ...v,
       booked: bookedById.get(v.id) ?? false,
-      isMarketplaceVendor: false,
-    }));
-    const liveVendors = dbVendors.map(v => ({
-      ...v,
       isMarketplaceVendor: true,
     }));
-    // DB vendors have ids prefixed with "db_" so they never collide with static ids
-    return [...staticWithBooked, ...liveVendors];
   }, [bookedById, dbVendors]);
 
   const hydratedVendors = useMemo(() => {
@@ -185,6 +177,9 @@ function VendorsScreen({ vendors }) {
       }
       if (priceSort === "rating") {
         return (b.rating ?? 0) - (a.rating ?? 0);
+      }
+      if (Boolean(b.isChoiceProfile) !== Boolean(a.isChoiceProfile)) {
+        return Number(Boolean(b.isChoiceProfile)) - Number(Boolean(a.isChoiceProfile));
       }
       if (Boolean(b.isMarketplaceVendor) !== Boolean(a.isMarketplaceVendor)) {
         return Number(Boolean(b.isMarketplaceVendor)) - Number(Boolean(a.isMarketplaceVendor));

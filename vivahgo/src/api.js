@@ -429,6 +429,10 @@ export function fetchAdminVendors(token) {
   return request('/admin/vendors', { token });
 }
 
+export function fetchAdminChoiceProfiles(token) {
+  return request('/admin/choice', { token });
+}
+
 export function fetchAdminApplications(token) {
   return request('/admin/applications', { token });
 }
@@ -472,6 +476,14 @@ export function fetchAdminSubscribers(token) {
 
 export function updateAdminVendorApproval(token, payload) {
   return request('/admin/vendors', {
+    method: 'PATCH',
+    token,
+    body: payload,
+  });
+}
+
+export function updateAdminChoiceProfile(token, payload) {
+  return request('/admin/choice', {
     method: 'PATCH',
     token,
     body: payload,

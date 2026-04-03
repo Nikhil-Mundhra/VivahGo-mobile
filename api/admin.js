@@ -1,9 +1,10 @@
-const { getBillingReceiptModel, getCareerApplicationModel, getCareerEmailTemplateModel, getVendorModel, handlePreflight, normalizeEmail, normalizeStaffRole, requireCsrfProtection, setCorsHeaders } = require('./_lib/core');
+const { getBillingReceiptModel, getCareerApplicationModel, getCareerEmailTemplateModel, getChoiceProfileModel, getVendorModel, handlePreflight, normalizeEmail, normalizeStaffRole, requireCsrfProtection, setCorsHeaders } = require('./_lib/core');
 const { requireAdminSession, sanitizeStaffUser } = require('./_lib/admin');
 const { createPresignedGetUrl, normalizeMediaList, objectKeyMatchesScope } = require('./_lib/r2');
 const { createB2PresignedGetUrl, deleteB2Object } = require('./_lib/b2');
 const { getDefaultCareerRejectionTemplate, sanitizeCareerRejectionTemplate, sendCareerRejectionEmail } = require('./_lib/careers-admin');
 const { serializeApplication } = require('./careers');
+const { buildAggregatedBudgetRange, buildAggregatedServices, buildChoiceProfileName, normalizeVendorTier, sortChoiceMedia } = require('./_lib/vendor-choice');
 
 const CAREER_REJECTION_TEMPLATE_KEY = 'career-application-rejection';
 
@@ -141,6 +142,7 @@ async function serializeAdminVendor(vendor = {}) {
     coverageAreas: Array.isArray(vendor.coverageAreas) ? vendor.coverageAreas : [],
     budgetRange: vendor.budgetRange || null,
     isApproved: Boolean(vendor.isApproved),
+    tier: normalizeVendorTier(vendor.tier),
     verificationStatus: vendor.verificationStatus || (verificationDocuments.length ? 'submitted' : 'not_submitted'),
     verificationNotes: vendor.verificationNotes || '',
     verificationReviewedAt: vendor.verificationReviewedAt || null,
@@ -151,6 +153,192 @@ async function serializeAdminVendor(vendor = {}) {
     media,
     createdAt: vendor.createdAt || null,
     updatedAt: vendor.updatedAt || null,
+  };
+}
+
+function normalizeChoiceCoverageAreas(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .filter(item => item && typeof item === 'object')
+    .map(item => ({
+      country: typeof item.country === 'string' ? item.country.trim() : '',
+      state: typeof item.state === 'string' ? item.state.trim() : '',
+      city: typeof item.city === 'string' ? item.city.trim() : '',
+    }))
+    .filter(item => item.country && item.state && item.city);
+}
+
+function normalizeChoiceServices(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return Array.from(new Set(
+    value
+      .filter(item => typeof item === 'string')
+      .map(item => item.trim())
+      .filter(Boolean)
+  )).slice(0, 80);
+}
+
+function normalizeChoiceBudgetRange(value, fallback = null) {
+  if (!value || typeof value !== 'object') {
+    return fallback;
+  }
+
+  const min = Number(value.min);
+  const max = Number(value.max);
+  if (!Number.isFinite(min) || !Number.isFinite(max) || min <= 0 || max <= 0) {
+    return fallback;
+  }
+
+  return {
+    min: Math.round(Math.min(min, max)),
+    max: Math.round(Math.max(min, max)),
+  };
+}
+
+function collectChoiceableVendorMedia(vendor, { includeHidden = true } = {}) {
+  return normalizeMediaList(vendor?.media)
+    .filter(item => includeHidden || item?.isVisible !== false)
+    .sort((a, b) => (a?.sortOrder ?? 0) - (b?.sortOrder ?? 0));
+}
+
+function resolveChoiceSourceVendors(choiceProfile, vendorsForType) {
+  const approvedVendors = (Array.isArray(vendorsForType) ? vendorsForType : []).filter(vendor => Boolean(vendor?.isApproved));
+  const sourceVendorIds = Array.isArray(choiceProfile?.sourceVendorIds)
+    ? choiceProfile.sourceVendorIds.map(id => String(id || '').trim()).filter(Boolean)
+    : [];
+
+  if (sourceVendorIds.length > 0) {
+    const sourceIdSet = new Set(sourceVendorIds);
+    return approvedVendors.filter(vendor => sourceIdSet.has(String(vendor._id || '')));
+  }
+
+  return approvedVendors.filter(vendor => normalizeVendorTier(vendor.tier) === 'Free');
+}
+
+function buildDefaultChoiceMedia(sourceVendors) {
+  return sourceVendors.flatMap(vendor => collectChoiceableVendorMedia(vendor, { includeHidden: false }).map((item, index) => ({
+    sourceType: 'vendor',
+    vendorId: String(vendor._id || ''),
+    vendorName: vendor.businessName || '',
+    sourceMediaId: String(item?._id || ''),
+    key: item?.key || '',
+    url: item?.url || '',
+    type: item?.type || 'IMAGE',
+    sortOrder: index,
+    filename: item?.filename || '',
+    size: typeof item?.size === 'number' ? item.size : 0,
+    caption: item?.caption || '',
+    altText: item?.altText || '',
+    isCover: Boolean(item?.isCover),
+    isVisible: item?.isVisible !== false,
+  })));
+}
+
+function resolveAdminChoiceMedia(choiceProfile, vendorsForType) {
+  const sourceVendorMap = new Map((Array.isArray(vendorsForType) ? vendorsForType : []).map(vendor => [String(vendor?._id || ''), vendor]));
+  const savedMedia = Array.isArray(choiceProfile?.selectedMedia) ? sortChoiceMedia(choiceProfile.selectedMedia) : [];
+
+  if (savedMedia.length === 0) {
+    return buildDefaultChoiceMedia(resolveChoiceSourceVendors(choiceProfile, vendorsForType))
+      .map((item, index) => ({ ...item, sortOrder: index, isCover: index === 0 }));
+  }
+
+  const resolvedMedia = savedMedia
+    .map((item, index) => {
+      if (item?.sourceType === 'vendor') {
+        const vendor = sourceVendorMap.get(String(item?.vendorId || ''));
+        const vendorMedia = collectChoiceableVendorMedia(vendor).find(mediaItem => String(mediaItem?._id || '') === String(item?.sourceMediaId || ''));
+        if (!vendor || !vendorMedia) {
+          return null;
+        }
+
+        return {
+          sourceType: 'vendor',
+          vendorId: String(vendor._id || ''),
+          vendorName: vendor.businessName || '',
+          sourceMediaId: String(vendorMedia?._id || ''),
+          key: vendorMedia?.key || '',
+          url: vendorMedia?.url || '',
+          type: vendorMedia?.type || 'IMAGE',
+          sortOrder: index,
+          filename: vendorMedia?.filename || '',
+          size: typeof vendorMedia?.size === 'number' ? vendorMedia.size : 0,
+          caption: vendorMedia?.caption || '',
+          altText: vendorMedia?.altText || '',
+          isCover: Boolean(item?.isCover),
+          isVisible: item?.isVisible !== false,
+        };
+      }
+
+      if (!item?.url || !item?.type) {
+        return null;
+      }
+
+      return {
+        sourceType: 'admin',
+        vendorId: '',
+        vendorName: '',
+        sourceMediaId: '',
+        key: item?.key || '',
+        url: item.url,
+        type: item.type,
+        sortOrder: index,
+        filename: item?.filename || '',
+        size: typeof item?.size === 'number' ? item.size : 0,
+        caption: item?.caption || '',
+        altText: item?.altText || '',
+        isCover: Boolean(item?.isCover),
+        isVisible: item?.isVisible !== false,
+      };
+    })
+    .filter(Boolean);
+
+  return resolvedMedia.map((item, index) => ({
+    ...item,
+    sortOrder: index,
+    isCover: index === 0,
+  }));
+}
+
+function serializeAdminChoiceProfile(choiceProfile, vendorsForType = []) {
+  const sourceVendors = resolveChoiceSourceVendors(choiceProfile, vendorsForType);
+  const aggregatedBudgetRange = buildAggregatedBudgetRange(sourceVendors);
+  const aggregatedServices = buildAggregatedServices(sourceVendors);
+  const selectedMedia = resolveAdminChoiceMedia(choiceProfile, vendorsForType);
+  const normalizedServices = normalizeChoiceServices(choiceProfile?.services);
+  const normalizedBundledServices = normalizeChoiceServices(choiceProfile?.bundledServices);
+
+  return {
+    id: String(choiceProfile?._id || ''),
+    type: choiceProfile?.type || '',
+    name: choiceProfile?.name || buildChoiceProfileName(choiceProfile?.type),
+    subType: choiceProfile?.subType || '',
+    description: choiceProfile?.description || '',
+    services: normalizedServices.length > 0 ? normalizedServices : aggregatedServices,
+    bundledServices: normalizedBundledServices.length > 0 ? normalizedBundledServices : aggregatedServices,
+    country: choiceProfile?.country || '',
+    state: choiceProfile?.state || '',
+    city: choiceProfile?.city || '',
+    googleMapsLink: choiceProfile?.googleMapsLink || '',
+    coverageAreas: Array.isArray(choiceProfile?.coverageAreas) ? choiceProfile.coverageAreas : [],
+    phone: choiceProfile?.phone || '',
+    website: choiceProfile?.website || '',
+    budgetRange: normalizeChoiceBudgetRange(choiceProfile?.budgetRange, aggregatedBudgetRange),
+    aggregatedBudgetRange,
+    aggregatedServices,
+    sourceVendorIds: sourceVendors.map(vendor => String(vendor._id || '')),
+    sourceVendorCount: sourceVendors.length,
+    selectedMedia,
+    mediaCount: selectedMedia.length,
+    isActive: choiceProfile?.isActive !== false,
+    createdAt: choiceProfile?.createdAt || null,
+    updatedAt: choiceProfile?.updatedAt || null,
   };
 }
 
@@ -248,12 +436,13 @@ async function handleAdminVendors(req, res) {
       const isApproved = req.body?.isApproved;
       const verificationStatus = typeof req.body?.verificationStatus === 'string' ? req.body.verificationStatus.trim() : '';
       const verificationNotes = typeof req.body?.verificationNotes === 'string' ? req.body.verificationNotes.trim().slice(0, 1000) : null;
+      const tier = typeof req.body?.tier === 'string' ? normalizeVendorTier(req.body.tier) : '';
 
       if (!vendorId) {
         return res.status(400).json({ error: 'vendorId is required.' });
       }
-      if (typeof isApproved !== 'boolean' && !verificationStatus && verificationNotes === null) {
-        return res.status(400).json({ error: 'Provide isApproved, verificationStatus, or verificationNotes.' });
+      if (typeof isApproved !== 'boolean' && !verificationStatus && verificationNotes === null && !tier) {
+        return res.status(400).json({ error: 'Provide isApproved, verificationStatus, verificationNotes, or tier.' });
       }
       if (verificationStatus && !['not_submitted', 'submitted', 'approved', 'rejected'].includes(verificationStatus)) {
         return res.status(400).json({ error: 'verificationStatus is invalid.' });
@@ -270,6 +459,9 @@ async function handleAdminVendors(req, res) {
       }
       if (verificationNotes !== null) {
         updates.verificationNotes = verificationNotes;
+      }
+      if (tier) {
+        updates.tier = tier;
       }
 
       const Vendor = getVendorModel();
@@ -295,6 +487,189 @@ async function handleAdminVendors(req, res) {
   } catch (error) {
     console.error('Admin vendor management failed:', error);
     return res.status(500).json({ error: 'Could not manage vendors.' });
+  }
+}
+
+/******************************************************************************
+ * /api/admin/choice
+ ******************************************************************************/
+
+async function handleAdminChoice(req, res) {
+  try {
+    if (req.method === 'GET') {
+      const session = await requireAdminSession(req, 'viewer');
+      if (session.error) {
+        return res.status(session.status).json({ error: session.error });
+      }
+
+      const Vendor = getVendorModel();
+      const ChoiceProfile = getChoiceProfileModel();
+      const [vendors, choiceProfileDocs] = await Promise.all([
+        Vendor.find({ isApproved: true })
+          .select('-__v')
+          .sort({ type: 1, businessName: 1, updatedAt: -1 })
+          .lean(),
+        ChoiceProfile.find({})
+          .select('-__v')
+          .sort({ name: 1, type: 1 })
+          .lean(),
+      ]);
+
+      const vendorsByType = vendors.reduce((map, vendor) => {
+        const type = String(vendor?.type || '').trim();
+        if (!type) {
+          return map;
+        }
+        if (!map.has(type)) {
+          map.set(type, []);
+        }
+        map.get(type).push(vendor);
+        return map;
+      }, new Map());
+      const docsByType = new Map(choiceProfileDocs.map(profile => [String(profile?.type || '').trim(), profile]));
+      const profileTypes = Array.from(new Set([
+        ...Array.from(docsByType.keys()),
+        ...Array.from(vendorsByType.keys()),
+      ])).filter(Boolean).sort((a, b) => a.localeCompare(b));
+
+      return res.status(200).json({
+        choiceProfiles: profileTypes.map(type => (
+          serializeAdminChoiceProfile(
+            docsByType.get(type) || { type, name: buildChoiceProfileName(type), isActive: true },
+            vendorsByType.get(type) || []
+          )
+        )),
+      });
+    }
+
+    if (req.method === 'PATCH') {
+      const session = await requireAdminSession(req, 'editor');
+      if (session.error) {
+        return res.status(session.status).json({ error: session.error });
+      }
+
+      const type = String(req.body?.type || '').trim();
+      if (!type) {
+        return res.status(400).json({ error: 'type is required.' });
+      }
+
+      const Vendor = getVendorModel();
+      const ChoiceProfile = getChoiceProfileModel();
+      const vendorsForType = await Vendor.find({ isApproved: true, type })
+        .select('-__v')
+        .sort({ businessName: 1, updatedAt: -1 })
+        .lean();
+      const vendorsById = new Map(vendorsForType.map(vendor => [String(vendor?._id || ''), vendor]));
+
+      const rawSourceVendorIds = Array.isArray(req.body?.sourceVendorIds) ? req.body.sourceVendorIds : [];
+      const sourceVendorIds = Array.from(new Set(
+        rawSourceVendorIds
+          .map(normalizeObjectId)
+          .filter(Boolean)
+      ));
+
+      if (sourceVendorIds.some(id => !vendorsById.has(id))) {
+        return res.status(400).json({ error: 'sourceVendorIds includes an unknown approved vendor.' });
+      }
+
+      const sourceVendors = sourceVendorIds.map(id => vendorsById.get(id)).filter(Boolean);
+      const selectedMediaInput = Array.isArray(req.body?.selectedMedia) ? req.body.selectedMedia : [];
+      const selectedMedia = selectedMediaInput.map((item, index) => {
+        if (item?.sourceType === 'vendor') {
+          const vendorId = normalizeObjectId(item.vendorId);
+          const sourceMediaId = normalizeObjectId(item.sourceMediaId);
+          const vendor = vendorsById.get(vendorId);
+          const vendorMedia = collectChoiceableVendorMedia(vendor).find(mediaItem => String(mediaItem?._id || '') === sourceMediaId);
+
+          if (!vendor || !vendorMedia) {
+            throw new Error('selectedMedia includes vendor media that is not available.');
+          }
+
+          return {
+            sourceType: 'vendor',
+            vendorId,
+            vendorName: vendor.businessName || '',
+            sourceMediaId,
+            key: vendorMedia?.key || '',
+            url: vendorMedia?.url || '',
+            type: vendorMedia?.type || 'IMAGE',
+            sortOrder: index,
+            filename: vendorMedia?.filename || '',
+            size: typeof vendorMedia?.size === 'number' ? vendorMedia.size : 0,
+            caption: vendorMedia?.caption || '',
+            altText: vendorMedia?.altText || '',
+            isCover: index === 0,
+            isVisible: item?.isVisible !== false,
+          };
+        }
+
+        if (!item?.url || !['IMAGE', 'VIDEO'].includes(String(item?.type || '').trim())) {
+          throw new Error('selectedMedia includes an invalid admin media item.');
+        }
+
+        return {
+          sourceType: 'admin',
+          vendorId: '',
+          vendorName: '',
+          sourceMediaId: '',
+          key: typeof item.key === 'string' ? item.key.trim() : '',
+          url: String(item.url).trim(),
+          type: String(item.type).trim(),
+          sortOrder: index,
+          filename: typeof item.filename === 'string' ? item.filename.trim().slice(0, 255) : '',
+          size: typeof item.size === 'number' && item.size >= 0 ? item.size : 0,
+          caption: typeof item.caption === 'string' ? item.caption.trim().slice(0, 280) : '',
+          altText: typeof item.altText === 'string' ? item.altText.trim().slice(0, 180) : '',
+          isCover: index === 0,
+          isVisible: item?.isVisible !== false,
+        };
+      });
+
+      const aggregatedBudgetRange = buildAggregatedBudgetRange(sourceVendors);
+      const updatedProfile = await resolveLean(ChoiceProfile.findOneAndUpdate(
+        { type },
+        {
+          $set: {
+            type,
+            name: typeof req.body?.name === 'string' && req.body.name.trim()
+              ? req.body.name.trim()
+              : buildChoiceProfileName(type),
+            subType: typeof req.body?.subType === 'string' ? req.body.subType.trim() : '',
+            description: typeof req.body?.description === 'string' ? req.body.description.trim() : '',
+            services: normalizeChoiceServices(req.body?.services),
+            bundledServices: normalizeChoiceServices(req.body?.bundledServices),
+            country: typeof req.body?.country === 'string' ? req.body.country.trim() : '',
+            state: typeof req.body?.state === 'string' ? req.body.state.trim() : '',
+            city: typeof req.body?.city === 'string' ? req.body.city.trim() : '',
+            googleMapsLink: typeof req.body?.googleMapsLink === 'string' ? req.body.googleMapsLink.trim() : '',
+            coverageAreas: normalizeChoiceCoverageAreas(req.body?.coverageAreas),
+            budgetRange: normalizeChoiceBudgetRange(req.body?.budgetRange, aggregatedBudgetRange),
+            phone: typeof req.body?.phone === 'string' ? req.body.phone.trim() : '',
+            website: typeof req.body?.website === 'string' ? req.body.website.trim() : '',
+            sourceVendorIds,
+            selectedMedia,
+            isActive: req.body?.isActive !== false,
+          },
+        },
+        { new: true, upsert: true, setDefaultsOnInsert: true }
+      ));
+
+      return res.status(200).json({
+        choiceProfile: serializeAdminChoiceProfile(updatedProfile, vendorsForType),
+      });
+    }
+
+    res.setHeader('Allow', 'GET, PATCH, OPTIONS');
+    return res.status(405).json({ error: 'Method not allowed.' });
+  } catch (error) {
+    if (error?.message && /selectedMedia includes/i.test(error.message)) {
+      return res.status(400).json({ error: error.message });
+    }
+    if (error?.name === 'ValidationError') {
+      return res.status(400).json({ error: error.message || 'Choice profile is invalid.' });
+    }
+    console.error('Admin choice management failed:', error);
+    return res.status(500).json({ error: 'Could not manage Choice profiles.' });
   }
 }
 
@@ -631,6 +1006,7 @@ async function handler(req, res) {
   const route = resolveAdminRoute(req);
 
   const shouldProtectAdminMutation = (route === 'vendors' && req.method === 'PATCH')
+    || (route === 'choice' && req.method === 'PATCH')
     || (route === 'staff' && ['POST', 'PUT', 'DELETE'].includes(req.method))
     || (route === 'applications' && req.method === 'PATCH');
 
@@ -644,6 +1020,10 @@ async function handler(req, res) {
 
   if (route === 'vendors') {
     return handleAdminVendors(req, res);
+  }
+
+  if (route === 'choice') {
+    return handleAdminChoice(req, res);
   }
 
   if (route === 'staff') {
@@ -670,6 +1050,7 @@ module.exports = handler;
 module.exports.handleAdminMe = handleAdminMe;
 module.exports.handleAdminStaff = handleAdminStaff;
 module.exports.handleAdminVendors = handleAdminVendors;
+module.exports.handleAdminChoice = handleAdminChoice;
 module.exports.handleAdminApplications = handleAdminApplications;
 module.exports.handleAdminResumeDownload = handleAdminResumeDownload;
 module.exports.handleAdminSubscribers = handleAdminSubscribers;

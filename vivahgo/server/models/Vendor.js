@@ -2,11 +2,16 @@ import mongoose from 'mongoose';
 
 const mediaSchema = new mongoose.Schema(
   {
+    key: { type: String, default: '', trim: true },
     url: { type: String, required: true },
     type: { type: String, enum: ['IMAGE', 'VIDEO'], required: true },
     sortOrder: { type: Number, default: 0 },
-    filename: { type: String, default: '' },
+    filename: { type: String, default: '', trim: true, maxlength: 255 },
     size: { type: Number, default: 0 },
+    caption: { type: String, default: '', trim: true, maxlength: 280 },
+    altText: { type: String, default: '', trim: true, maxlength: 180 },
+    isCover: { type: Boolean, default: false },
+    isVisible: { type: Boolean, default: true },
   },
   { _id: true }
 );
@@ -78,6 +83,11 @@ const vendorSchema = new mongoose.Schema(
     phone: { type: String, default: '', trim: true },
     website: { type: String, default: '', trim: true },
     isApproved: { type: Boolean, default: false },
+    tier: {
+      type: String,
+      enum: ['Free', 'Plus'],
+      default: 'Free',
+    },
     media: { type: [mediaSchema], default: [] },
     verificationStatus: {
       type: String,

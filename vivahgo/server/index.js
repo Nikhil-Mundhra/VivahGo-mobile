@@ -23,7 +23,9 @@ import careersAdminHelpers from '../../api/_lib/careers-admin.js';
 import r2Helpers from '../../api/_lib/r2.js';
 
 const require = createRequire(import.meta.url);
+const adminHandler = require('../../api/admin.js');
 const plannerHandler = require('../../api/planner.js');
+const vendorHandler = require('../../api/vendor.js');
 
 const port = Number(process.env.PORT || 4000);
 const mongoUri = process.env.MONGODB_URI;
@@ -2305,44 +2307,9 @@ export function createApp(options = {}) {
     }
   });
 
-  app.get('/api/vendors', async (_req, res) => {
-    try {
-      const raw = await VendorModel.find({ isApproved: true }).select('-__v').lean();
-      const vendors = raw.map(vendor => ({
-        id: `db_${vendor._id}`,
-        name: vendor.businessName,
-        type: normalizeVendorType(vendor.type),
-        subType: vendor.subType || '',
-        bundledServices: Array.isArray(vendor.bundledServices) ? vendor.bundledServices.map(normalizeVendorType) : [],
-        description: vendor.description || '',
-        country: vendor.country || '',
-        state: vendor.state || '',
-        city: vendor.city || '',
-        googleMapsLink: vendor.googleMapsLink || '',
-        phone: vendor.phone || '',
-        website: vendor.website || '',
-        availabilitySettings: normalizeAvailabilitySettings(vendor.availabilitySettings),
-        emoji: '🏷️',
-        rating: 0,
-        priceLevel: null,
-        booked: false,
-        locations: [
-          [vendor.city, vendor.state, vendor.country].filter(Boolean).join(', '),
-          ...(Array.isArray(vendor.coverageAreas)
-            ? vendor.coverageAreas.map(item => [item.city, item.state, item.country].filter(Boolean).join(', '))
-            : []),
-        ].filter(Boolean),
-        media: Array.isArray(vendor.media) ? vendor.media : [],
-        coverImageUrl: Array.isArray(vendor.media)
-          ? (vendor.media.find(item => item?.type === 'IMAGE')?.url || '')
-          : '',
-      }));
-
-      return res.json({ vendors });
-    } catch (error) {
-      console.error('Approved vendors fetch failed:', error);
-      return res.status(500).json({ error: 'Could not fetch vendors.' });
-    }
+  app.get('/api/vendors', async (req, res) => {
+    req.query = { ...(req.query || {}), route: 'list' };
+    return vendorHandler(req, res);
   });
 
   app.get('/api/admin/me', (req, res, next) => authMiddleware(req, res, next, injectedJwtSecret), async (req, res) => {
@@ -2363,125 +2330,23 @@ export function createApp(options = {}) {
   });
 
   app.get('/api/admin/vendors', (req, res, next) => authMiddleware(req, res, next, injectedJwtSecret), async (req, res) => {
-    try {
-      const session = await resolveAdminSession(UserModel, req.auth, 'viewer');
-      if (session.error) {
-        return res.status(session.status).json({ error: session.error });
-      }
-
-      const vendors = await VendorModel.find({})
-        .select('-__v')
-        .sort({ isApproved: 1, updatedAt: -1, createdAt: -1 })
-        .lean();
-
-      return res.json({
-        vendors: await Promise.all(vendors.map(async vendor => {
-          const verificationDocuments = await serializeVerificationDocuments(vendor.verificationDocuments, vendor.googleId);
-          return ({
-          id: String(vendor._id || ''),
-          googleId: vendor.googleId || '',
-          businessName: vendor.businessName || '',
-          type: normalizeVendorType(vendor.type) || '',
-          subType: vendor.subType || '',
-          description: vendor.description || '',
-          country: vendor.country || '',
-          state: vendor.state || '',
-          city: vendor.city || '',
-          phone: vendor.phone || '',
-          website: vendor.website || '',
-          googleMapsLink: vendor.googleMapsLink || '',
-          coverageAreas: Array.isArray(vendor.coverageAreas) ? vendor.coverageAreas : [],
-          bundledServices: Array.isArray(vendor.bundledServices) ? vendor.bundledServices.map(normalizeVendorType) : [],
-          budgetRange: vendor.budgetRange || null,
-          isApproved: Boolean(vendor.isApproved),
-          verificationStatus: normalizeVerificationStatus(vendor.verificationStatus, {
-            hasDocuments: verificationDocuments.length > 0,
-          }),
-          verificationNotes: sanitizeVerificationNotes(vendor.verificationNotes),
-          verificationReviewedAt: vendor.verificationReviewedAt || null,
-          verificationReviewedBy: vendor.verificationReviewedBy || '',
-          verificationDocuments,
-          verificationDocumentCount: verificationDocuments.length,
-          media: Array.isArray(vendor.media) ? vendor.media : [],
-          mediaCount: Array.isArray(vendor.media) ? vendor.media.length : 0,
-          createdAt: vendor.createdAt || null,
-          updatedAt: vendor.updatedAt || null,
-        });
-        })),
-      });
-    } catch (error) {
-      console.error('Admin vendors fetch failed:', error);
-      return res.status(500).json({ error: 'Could not manage vendors.' });
-    }
+    req.query = { ...(req.query || {}), route: 'vendors' };
+    return adminHandler(req, res);
   });
 
   app.patch('/api/admin/vendors', (req, res, next) => authMiddleware(req, res, next, injectedJwtSecret), async (req, res) => {
-    try {
-      const session = await resolveAdminSession(UserModel, req.auth, 'editor');
-      if (session.error) {
-        return res.status(session.status).json({ error: session.error });
-      }
+    req.query = { ...(req.query || {}), route: 'vendors' };
+    return adminHandler(req, res);
+  });
 
-      const vendorId = String(req.body?.vendorId || '').trim();
-      const isApproved = req.body?.isApproved;
-      const verificationStatus = typeof req.body?.verificationStatus === 'string' ? req.body.verificationStatus.trim() : '';
-      const verificationNotes = typeof req.body?.verificationNotes === 'string' ? sanitizeVerificationNotes(req.body.verificationNotes) : null;
+  app.get('/api/admin/choice', (req, res, next) => authMiddleware(req, res, next, injectedJwtSecret), async (req, res) => {
+    req.query = { ...(req.query || {}), route: 'choice' };
+    return adminHandler(req, res);
+  });
 
-      if (!vendorId) {
-        return res.status(400).json({ error: 'vendorId is required.' });
-      }
-      if (typeof isApproved !== 'boolean' && !verificationStatus && verificationNotes === null) {
-        return res.status(400).json({ error: 'Provide isApproved, verificationStatus, or verificationNotes.' });
-      }
-      if (verificationStatus && !['not_submitted', 'submitted', 'approved', 'rejected'].includes(verificationStatus)) {
-        return res.status(400).json({ error: 'verificationStatus is invalid.' });
-      }
-
-      const updates = {};
-      if (typeof isApproved === 'boolean') {
-        updates.isApproved = isApproved;
-      }
-      if (verificationStatus) {
-        updates.verificationStatus = verificationStatus;
-        updates.verificationReviewedAt = new Date();
-        updates.verificationReviewedBy = session.user.email || session.user.googleId || '';
-      }
-      if (verificationNotes !== null) {
-        updates.verificationNotes = verificationNotes;
-      }
-
-      const vendor = await VendorModel.findByIdAndUpdate(
-        vendorId,
-        { $set: updates },
-        { new: true }
-      );
-
-      if (!vendor) {
-        return res.status(404).json({ error: 'Vendor not found.' });
-      }
-
-      const verificationDocuments = await serializeVerificationDocuments(vendor.verificationDocuments, vendor.googleId);
-
-      return res.json({
-        vendor: {
-          id: String(vendor._id || ''),
-          businessName: vendor.businessName || '',
-          type: normalizeVendorType(vendor.type) || '',
-          isApproved: Boolean(vendor.isApproved),
-          verificationStatus: normalizeVerificationStatus(vendor.verificationStatus, {
-            hasDocuments: verificationDocuments.length > 0,
-          }),
-          verificationNotes: sanitizeVerificationNotes(vendor.verificationNotes),
-          verificationReviewedAt: vendor.verificationReviewedAt || null,
-          verificationReviewedBy: vendor.verificationReviewedBy || '',
-          verificationDocuments,
-          verificationDocumentCount: verificationDocuments.length,
-        },
-      });
-    } catch (error) {
-      console.error('Admin vendor update failed:', error);
-      return res.status(500).json({ error: 'Could not manage vendors.' });
-    }
+  app.patch('/api/admin/choice', (req, res, next) => authMiddleware(req, res, next, injectedJwtSecret), async (req, res) => {
+    req.query = { ...(req.query || {}), route: 'choice' };
+    return adminHandler(req, res);
   });
 
   app.get('/api/admin/staff', (req, res, next) => authMiddleware(req, res, next, injectedJwtSecret), async (req, res) => {

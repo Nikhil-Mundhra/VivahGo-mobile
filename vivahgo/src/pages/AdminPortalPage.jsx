@@ -4,6 +4,7 @@ import '../styles.css';
 import GoogleLoginButton from '../components/GoogleLoginButton';
 import LoadingBar from '../components/LoadingBar';
 import NavIcon from '../components/NavIcon';
+import AdminChoiceProfilesPanel from '../components/AdminChoiceProfilesPanel';
 import { clearAuthStorage, persistAuthSession, readAuthSession } from '../authStorage';
 import {
   addAdminStaff,
@@ -32,6 +33,13 @@ const ADMIN_PORTAL_SECTIONS = [
     mobileLabel: 'Vendors',
     icon: 'vendors',
     description: 'Review verification documents, approval state, and internal notes for vendor listings.',
+  },
+  {
+    id: 'choice',
+    label: 'Choice',
+    mobileLabel: 'Choice',
+    icon: 'vendors',
+    description: "Curate VivahGo's Choice profiles from approved vendor assets, aggregated values, and lead details.",
   },
   {
     id: 'subscribers',
@@ -121,6 +129,7 @@ function formatFileSize(value) {
 function createEmptySectionErrors() {
   return {
     vendors: '',
+    choice: '',
     applications: '',
     subscribers: '',
     staff: '',
@@ -367,6 +376,16 @@ export default function AdminPortalPage() {
     pending: vendors.filter(vendor => !vendor.isApproved).length,
     approved: vendors.filter(vendor => vendor.isApproved).length,
   }), [vendors]);
+  const vendorTierCounts = useMemo(() => ({
+    plus: vendors.filter(vendor => vendor.isApproved && vendor.tier === 'Plus').length,
+    free: vendors.filter(vendor => vendor.isApproved && vendor.tier !== 'Plus').length,
+    choiceCategories: new Set(
+      vendors
+        .filter(vendor => vendor.isApproved)
+        .map(vendor => vendor.type)
+        .filter(Boolean)
+    ).size,
+  }), [vendors]);
 
   const applicationCounts = useMemo(() => ({
     total: applications.length,
@@ -481,6 +500,32 @@ export default function AdminPortalPage() {
       )));
     } catch (nextError) {
       setError(nextError.message || 'Could not update vendor verification.');
+    } finally {
+      setSavingVendorId('');
+    }
+  }
+
+  async function handleVendorTier(vendorId, tier) {
+    if (!session?.token) {
+      return;
+    }
+
+    setSavingVendorId(vendorId);
+    setError('');
+
+    try {
+      const result = await updateAdminVendorApproval(session.token, {
+        vendorId,
+        tier,
+        verificationNotes: vendorNotesDraft[vendorId] ?? undefined,
+      });
+      setVendors(current => current.map(vendor => (
+        vendor.id === vendorId
+          ? { ...vendor, ...(result.vendor || {}), tier: result.vendor?.tier || tier }
+          : vendor
+      )));
+    } catch (nextError) {
+      setError(nextError.message || 'Could not update vendor tier.');
     } finally {
       setSavingVendorId('');
     }
@@ -702,6 +747,33 @@ export default function AdminPortalPage() {
         valueClass: 'text-3xl font-bold text-emerald-900',
       },
     ]
+    : activeSectionId === 'choice'
+      ? [
+        {
+          key: 'choice-categories',
+          label: 'Choice categories',
+          value: vendorTierCounts.choiceCategories,
+          cardClass: 'border-stone-200',
+          labelClass: 'text-stone-500',
+          valueClass: 'text-3xl font-bold text-stone-900',
+        },
+        {
+          key: 'free-resource-pool',
+          label: 'Approved free vendors',
+          value: vendorTierCounts.free,
+          cardClass: 'border-amber-200',
+          labelClass: 'text-amber-700',
+          valueClass: 'text-3xl font-bold text-amber-900',
+        },
+        {
+          key: 'plus-vendors',
+          label: 'Approved plus vendors',
+          value: vendorTierCounts.plus,
+          cardClass: 'border-sky-200',
+          labelClass: 'text-sky-700',
+          valueClass: 'text-3xl font-bold text-sky-900',
+        },
+      ]
     : activeSectionId === 'subscribers'
       ? [
         {
@@ -839,6 +911,9 @@ export default function AdminPortalPage() {
                   }`}>
                     Verification: {vendor.verificationStatus || 'not_submitted'}
                   </span>
+                  <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${vendor.tier === 'Plus' ? 'bg-sky-100 text-sky-700' : 'bg-stone-100 text-stone-700'}`}>
+                    Tier: {vendor.tier || 'Free'}
+                  </span>
                   {Array.isArray(vendor.verificationDocuments) && vendor.verificationDocuments.map(document => (
                     <span key={document._id || document.key} className="inline-flex items-center rounded-full bg-stone-100 px-2.5 py-1 text-xs font-medium text-stone-700">
                       {document.documentType || 'OTHER'}
@@ -874,6 +949,15 @@ export default function AdminPortalPage() {
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
+                <select
+                  value={vendor.tier || 'Free'}
+                  onChange={event => handleVendorTier(vendor.id, event.target.value)}
+                  className="rounded-2xl border border-stone-300 px-3 py-2 text-sm text-stone-900 outline-none focus:border-rose-400"
+                  disabled={!access.canManageVendors || savingVendorId === vendor.id}
+                >
+                  <option value="Free">Free</option>
+                  <option value="Plus">Plus</option>
+                </select>
                 <button
                   type="button"
                   className="login-secondary-btn"
@@ -912,6 +996,10 @@ export default function AdminPortalPage() {
         </div>
       </section>
     )
+    : activeSectionId === 'choice'
+      ? (
+        <AdminChoiceProfilesPanel token={session?.token} access={access} vendors={vendors} />
+      )
     : activeSectionId === 'subscribers'
       ? (
         <section className="bg-white rounded-3xl border border-stone-200 shadow-sm overflow-hidden">

@@ -14,6 +14,7 @@
     { "source": "/api/auth/logout", "destination": "/api/auth?route=logout" },
     { "source": "/api/admin/me", "destination": "/api/admin?route=me" },
     { "source": "/api/admin/vendors", "destination": "/api/admin?route=vendors" },
+    { "source": "/api/admin/choice", "destination": "/api/admin?route=choice" },
     { "source": "/api/admin/staff", "destination": "/api/admin?route=staff" },
     { "source": "/api/admin/applications", "destination": "/api/admin?route=applications" },
     { "source": "/api/admin/resume-download", "destination": "/api/admin?route=resume-download" },
