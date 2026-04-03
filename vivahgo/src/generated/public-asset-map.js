@@ -1,5 +1,5 @@
 const publicAssetMap = {
-  "generatedAt": "2026-04-03T16:07:32.129Z",
+  "generatedAt": "2026-04-03T16:11:38.972Z",
   "count": 7,
   "assets": {
     "/MainHero.png": "https://9vz4mt3cvgnkh88m.public.blob.vercel-storage.com/MainHero.png",
