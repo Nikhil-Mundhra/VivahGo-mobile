@@ -78,6 +78,42 @@ function upsertLink(doc, rel, href) {
   return element;
 }
 
+function clearManagedAlternateLinks(doc) {
+  if (!doc?.head) {
+    return;
+  }
+
+  doc.head.querySelectorAll('link[data-managed-seo-alternate="true"]').forEach((node) => {
+    node.remove();
+  });
+}
+
+function appendAlternateLinks(doc, links = []) {
+  if (!doc?.head) {
+    return;
+  }
+
+  clearManagedAlternateLinks(doc);
+
+  links
+    .filter((item) => item?.href && item?.rel)
+    .forEach((item) => {
+      const element = doc.createElement("link");
+      element.setAttribute("rel", String(item.rel));
+      element.setAttribute("href", String(item.href));
+
+      if (item.type) {
+        element.setAttribute("type", String(item.type));
+      }
+      if (item.title) {
+        element.setAttribute("title", String(item.title));
+      }
+
+      element.dataset.managedSeoAlternate = "true";
+      doc.head.appendChild(element);
+    });
+}
+
 function clearManagedStructuredData(doc) {
   if (!doc?.head) {
     return;
@@ -127,6 +163,7 @@ export function applySeoMetadata(config = {}, options = {}) {
   const imageAlt = String(config.imageAlt || "VivahGo wedding planning preview").trim();
   const locale = String(config.locale || "en_IN").trim();
   const themeColor = String(config.themeColor || "#6b0f0f").trim();
+  const alternateLinks = Array.isArray(config.alternateLinks) ? config.alternateLinks : [];
 
   if (!doc?.head) {
     return {
@@ -159,6 +196,7 @@ export function applySeoMetadata(config = {}, options = {}) {
   upsertMeta(doc, "name", "twitter:image", imageUrl);
   upsertMeta(doc, "name", "twitter:image:alt", imageAlt);
   upsertLink(doc, "canonical", canonicalUrl);
+  appendAlternateLinks(doc, alternateLinks);
   appendStructuredData(doc, config.structuredData || null);
 
   return {
@@ -182,8 +220,10 @@ export function usePageSeo(config) {
   const themeColor = config?.themeColor;
   const title = config?.title;
   const type = config?.type;
+  const alternateLinks = config?.alternateLinks || [];
   const structuredData = config?.structuredData || null;
   const structuredDataKey = JSON.stringify(structuredData);
+  const alternateLinksKey = JSON.stringify(alternateLinks);
 
   useEffect(() => {
     applySeoMetadata({
@@ -193,6 +233,7 @@ export function usePageSeo(config) {
       imageAlt,
       noindex,
       path,
+      alternateLinks,
       structuredData,
       themeColor,
       title,
@@ -205,6 +246,8 @@ export function usePageSeo(config) {
     imageAlt,
     noindex,
     path,
+    alternateLinksKey,
+    alternateLinks,
     structuredDataKey,
     structuredData,
     themeColor,

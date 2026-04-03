@@ -17,6 +17,7 @@ import { confirmCheckoutPayment, createCheckoutSession, getCheckoutQuote, getSub
 import { createDemoPlanner } from "../plannerDefaults";
 import { DEFAULT_SITE_URL, usePageSeo } from "../seo.js";
 import { getMarketingUrl, getPlannerUrl } from "../siteUrls.js";
+import { resolvePublicAssetUrl } from "../publicAssetUrls.js";
 import seoKeywordLibrary from "../generated/seo-keywords.json";
 
 const DEMO_PLANNER = createDemoPlanner();
@@ -949,7 +950,7 @@ export default function MarketingHomePage({ page = "home" }) {
             <p className="marketing-kicker">Wedding planner app for Indian weddings with too many chats, lists, and opinions</p>
             <figure className="marketing-hero-visual marketing-hero-visual-inline">
               <img
-                src="/MainHero.png"
+                src={resolvePublicAssetUrl("/MainHero.png")}
                 alt="A stressed couple handling scattered wedding paperwork contrasted with a calmer couple reviewing everything together on VivahGo."
                 className="marketing-hero-visual-image"
                 decoding="async"

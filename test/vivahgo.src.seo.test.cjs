@@ -85,6 +85,50 @@ describe('VivahGo/src/seo.js', function () {
     );
   });
 
+  it('manages alternate feed links alongside canonical metadata', async function () {
+    const mod = await loadSeoModule();
+    const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', {
+      url: 'https://vivahgo.com/guides',
+    });
+
+    mod.applySeoMetadata({
+      title: 'VivahGo Guides',
+      description: 'Guide library.',
+      path: '/guides',
+      alternateLinks: [
+        {
+          rel: 'alternate',
+          type: 'application/rss+xml',
+          title: 'VivahGo Guides RSS Feed',
+          href: 'https://vivahgo.com/guides/feed.xml',
+        },
+      ],
+    }, {
+      doc: dom.window.document,
+      win: dom.window,
+      env: {},
+    });
+
+    const alternateLink = dom.window.document.querySelector('link[rel="alternate"][type="application/rss+xml"]');
+    assert.ok(alternateLink);
+    assert.equal(alternateLink.getAttribute('href'), 'https://vivahgo.com/guides/feed.xml');
+
+    mod.applySeoMetadata({
+      title: 'VivahGo Pricing',
+      description: 'Compare plans.',
+      path: '/pricing',
+    }, {
+      doc: dom.window.document,
+      win: dom.window,
+      env: {},
+    });
+
+    assert.equal(
+      dom.window.document.querySelectorAll('link[rel="alternate"][type="application/rss+xml"]').length,
+      0
+    );
+  });
+
   it('switches robots directives and clears old structured data when needed', async function () {
     const mod = await loadSeoModule();
     const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', {

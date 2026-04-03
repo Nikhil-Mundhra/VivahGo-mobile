@@ -8,9 +8,11 @@ import { readAuthSession } from "../authStorage";
 import { DEFAULT_SITE_URL, usePageSeo } from "../seo.js";
 import { getMarketingUrl, getPlannerUrl } from "../siteUrls.js";
 import guides from "../content/guides.json";
+import { resolvePublicAssetUrl } from "../publicAssetUrls.js";
 
 const MARKETING_HOME_URL = getMarketingUrl("/");
 const PLANNER_HOME_URL = getPlannerUrl("/");
+const GUIDES_FEED_URL = getMarketingUrl("/guides/feed.xml");
 
 const guideFaqs = [
   {
@@ -101,6 +103,14 @@ export default function GuidesPage() {
     title: "VivahGo Guides | Indian Wedding Planning Resources",
     description: "Browse Indian wedding planning guides for checklists, budgets, guest lists, vendor coordination, cultural wedding timelines, and destination weddings.",
     canonicalUrl: getMarketingUrl("/guides"),
+    alternateLinks: [
+      {
+        rel: "alternate",
+        type: "application/rss+xml",
+        title: "VivahGo Guides RSS Feed",
+        href: GUIDES_FEED_URL,
+      },
+    ],
     structuredData: guideStructuredData,
   });
 
@@ -160,7 +170,7 @@ export default function GuidesPage() {
                 <div className="marketing-guide-card-media">
                   {guide.coverImage ? (
                     <img
-                      src={guide.coverImage}
+                      src={resolvePublicAssetUrl(guide.coverImage)}
                       alt={guide.coverAlt || guide.title}
                       className="marketing-guide-card-image"
                       loading="lazy"

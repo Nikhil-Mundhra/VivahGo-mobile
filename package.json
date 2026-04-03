@@ -15,6 +15,7 @@
     "@capacitor/core": "^8.2.0",
     "@capacitor/ios": "^8.2.0",
     "@clerk/nextjs": "^7.0.8",
+    "@vercel/blob": "^2.3.3",
     "build": "^0.1.4",
     "google-auth-library": "^10.6.2",
     "jsonwebtoken": "^9.0.2",

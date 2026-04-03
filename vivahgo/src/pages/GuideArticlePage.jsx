@@ -8,6 +8,7 @@ import { readAuthSession } from "../authStorage";
 import { DEFAULT_SITE_URL, usePageSeo } from "../seo.js";
 import { getMarketingUrl, getPlannerUrl } from "../siteUrls.js";
 import guides from "../content/guides.json";
+import { resolvePublicAssetUrl } from "../publicAssetUrls.js";
 
 const MARKETING_HOME_URL = getMarketingUrl("/");
 const PLANNER_HOME_URL = getPlannerUrl("/");
@@ -175,7 +176,7 @@ export default function GuideArticlePage({ guideSlug = "" }) {
             <div className="marketing-guide-article-media">
               {guide.coverImage ? (
                 <img
-                  src={guide.coverImage}
+                  src={resolvePublicAssetUrl(guide.coverImage)}
                   alt={guide.coverAlt || guide.title}
                   className="marketing-guide-card-image"
                   decoding="async"
@@ -241,7 +242,7 @@ export default function GuideArticlePage({ guideSlug = "" }) {
                 <div className="marketing-guide-card-media">
                   {item.coverImage ? (
                     <img
-                      src={item.coverImage}
+                      src={resolvePublicAssetUrl(item.coverImage)}
                       alt={item.coverAlt || item.title}
                       className="marketing-guide-card-image"
                       loading="lazy"
