@@ -36,7 +36,14 @@ export function useBackButtonClose(isOpen, onClose) {
 
     return () => {
       window.removeEventListener("popstate", onPopState);
+      // If the token is still set, the modal was closed normally (not via the
+      // back button), so we need to pop the history entry we pushed to keep
+      // back-button behaviour intuitive.
+      const hadToken = !!tokenRef.current;
       tokenRef.current = null;
+      if (hadToken) {
+        window.history.back();
+      }
     };
   }, [isOpen]);
 }
