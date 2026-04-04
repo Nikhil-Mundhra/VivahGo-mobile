@@ -15,20 +15,20 @@ export const COLORS = {
 };
 
 export const EVENT_COLORS = [
-  ["#FF8F00","#E65100"],  // 0  Roka          – marigold amber
-  ["#F9A825","#F57F17"],  // 1  Sagai         – gold
-  ["#FF6F00","#BF360C"],  // 2  Ganesh Puja   – deep saffron
-  ["#FFC107","#FF8F00"],  // 3  Haldi         – turmeric yellow
-  ["#C62828","#8B0000"],  // 4  Mehndi        – henna red
-  ["#7B1FA2","#4A148C"],  // 5  Sangeet       – royal purple
-  ["#B71C1C","#7B0000"],  // 6  Baraat        – dark maroon
-  ["#E53935","#B71C1C"],  // 7  Jaimala       – floral red
-  ["#FF5722","#BF360C"],  // 8  Pheras        – sacred fire
+  ["#F4A582","#F4A582"],  // 0  Roka          – marigold amber
+  ["#FFC5D3","#FFC5D3"],  // 1  Sagai/Ring Ceremony         – pink
+  ["#FFB347","#FFB347"],  // 2  Ganesh Puja   – deep saffron
+  ["#E7DB59","#E7DB59"],  // 3  Haldi         – turmeric light yellow
+  ["#708238","#4A7C38"],  // 4  Mehndi        – mehndi light green
+  ["#E6A8D7","#E6A8D7"],  // 5  Sangeet       – royal purple
+  ["#FF9AA2","#FF9AA2"],  // 6  Baraat        – dark maroon
+  ["#E6A8D7","#E6A8D7"],  // 7  Jaimala       – floral red
+  ["#F8DE7E","#F8DE7E"],  // 8  Pheras        – sacred fire
   ["#EF6C00","#BA4A00"],  // 9  Kanyadaan     – warm amber
-  ["#2E7D32","#1B5E20"],  // 10 Saptapadi     – forest green
+  ["#C5E1A5","#C5E1A5"],  // 10 Saptapadi     – forest green
   ["#880E4F","#560027"],  // 11 Sindoor Daan  – sindoor crimson
-  ["#1565C0","#0D47A1"],  // 12 Reception     – royal blue
-  ["#E91E63","#C2185B"],  // 13 Vidaai        – rose pink
+  ["#77DDDD","#77DDDD"],  // 12 Reception     – royal blue
+  ["#EAE0C8","#EAE0C8"],  // 13 Vidaai        – rose pink
   ["#D84315","#BF360C"],  // 14 Griha Pravesh – terracotta
 ];
 
