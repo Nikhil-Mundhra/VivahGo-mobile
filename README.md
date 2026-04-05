@@ -12,6 +12,8 @@ VivahGo is a wedding planning platform built for Indian weddings. It combines a 
 - [Run Locally](#run-locally)
 - [Routes and Product Areas](#routes-and-product-areas)
 - [API Overview](#api-overview)
+- [API and Architecture Doc](#api-and-architecture-doc)
+- [Automation and Security](#automation-and-security)
 - [Testing and Linting](#testing-and-linting)
 - [Deployment Notes](#deployment-notes)
 - [Security](#security)
@@ -191,6 +193,8 @@ make run_local
 
 ## API Overview
 
+For a fuller route map and backend architecture walkthrough, see [docs/api-architecture.md](/Users/nikhil/Documents/VivahGo-mobile/docs/api-architecture.md).
+
 ### Auth and account
 
 - `POST /api/auth/google`
@@ -251,6 +255,24 @@ make run_local
 - `GET /api/careers`
 - `POST /api/careers`
 - `POST /api/feedback`
+
+## API and Architecture Doc
+
+The main backend architecture and route documentation lives in [docs/api-architecture.md](/Users/nikhil/Documents/VivahGo-mobile/docs/api-architecture.md).
+
+## Automation and Security
+
+The repository includes baseline automation for dependency maintenance, static security analysis, and deployment workflows:
+
+- Dependabot config in [.github/dependabot.yml](/Users/nikhil/Documents/VivahGo-mobile/.github/dependabot.yml) for the root, `vivahgo`, and `my-video` npm workspaces
+- CodeQL SAST scanning in [.github/workflows/codeql.yml](/Users/nikhil/Documents/VivahGo-mobile/.github/workflows/codeql.yml)
+- Vercel deployment automation in [.github/workflows/vercel-deploy.yml](/Users/nikhil/Documents/VivahGo-mobile/.github/workflows/vercel-deploy.yml)
+
+To use the Vercel deployment workflow, configure these GitHub repository secrets:
+
+- `VERCEL_TOKEN`
+- `VERCEL_ORG_ID`
+- `VERCEL_PROJECT_ID`
 
 ## Testing and Linting
 
