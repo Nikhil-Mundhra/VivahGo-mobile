@@ -1,0 +1,125 @@
+name: Dependency Check
+
+on:
+  schedule:
+    - cron: "0 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dependency-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dependency-check:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project:
+          - name: root
+            path: .
+            lockfile: package-lock.json
+          - name: vivahgo
+            path: vivahgo
+            lockfile: vivahgo/package-lock.json
+          - name: my-video
+            path: my-video
+            lockfile: my-video/package-lock.json
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: npm
+          cache-dependency-path: ${{ matrix.project.lockfile }}
+
+      - name: Install dependencies
+        working-directory: ${{ matrix.project.path }}
+        run: npm ci
+
+      - name: Run dependency checks
+        id: checks
+        working-directory: ${{ matrix.project.path }}
+        shell: bash
+        run: |
+          audit_status=0
+          outdated_status=0
+
+          npm audit --json > audit.json || audit_status=$?
+          npm outdated --json > outdated.json || outdated_status=$?
+
+          if [ ! -s outdated.json ]; then
+            printf '{}\n' > outdated.json
+          fi
+
+          echo "audit_status=$audit_status" >> "$GITHUB_OUTPUT"
+          echo "outdated_status=$outdated_status" >> "$GITHUB_OUTPUT"
+
+      - name: Build job summary
+        working-directory: ${{ matrix.project.path }}
+        env:
+          PROJECT_NAME: ${{ matrix.project.name }}
+          AUDIT_STATUS: ${{ steps.checks.outputs.audit_status }}
+          OUTDATED_STATUS: ${{ steps.checks.outputs.outdated_status }}
+        run: |
+          node -e "
+          const fs = require('fs');
+          const project = process.env.PROJECT_NAME;
+          const audit = JSON.parse(fs.readFileSync('audit.json', 'utf8'));
+          const outdated = JSON.parse(fs.readFileSync('outdated.json', 'utf8'));
+          const auditTotals = audit.metadata?.vulnerabilities || {};
+          const outdatedPackages = Object.keys(outdated || {});
+          const lines = [
+            '## ' + project,
+            '',
+            '| Check | Result |',
+            '| --- | --- |',
+            '| npm audit exit code | ' + process.env.AUDIT_STATUS + ' |',
+            '| npm outdated exit code | ' + process.env.OUTDATED_STATUS + ' |',
+            '| Audit vulnerabilities | ' + (auditTotals.total ?? 0) + ' |',
+            '| Outdated packages | ' + outdatedPackages.length + ' |',
+            ''
+          ];
+          if (auditTotals.total) {
+            lines.push('Audit totals:'
+              + ' low=' + (auditTotals.low ?? 0)
+              + ', moderate=' + (auditTotals.moderate ?? 0)
+              + ', high=' + (auditTotals.high ?? 0)
+              + ', critical=' + (auditTotals.critical ?? 0));
+            lines.push('');
+          }
+          if (outdatedPackages.length) {
+            lines.push('Outdated packages: ' + outdatedPackages.join(', '));
+            lines.push('');
+          }
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join('\n') + '\n');
+          "
+
+      - name: Upload dependency reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-check-${{ matrix.project.name }}
+          path: |
+            ${{ matrix.project.path }}/audit.json
+            ${{ matrix.project.path }}/outdated.json
+
+      - name: Fail on unresolved vulnerabilities
+        working-directory: ${{ matrix.project.path }}
+        run: |
+          node -e "
+          const fs = require('fs');
+          const audit = JSON.parse(fs.readFileSync('audit.json', 'utf8'));
+          const total = audit.metadata?.vulnerabilities?.total || 0;
+          if (total > 0) {
+            console.error('Unresolved vulnerabilities found:', total);
+            process.exit(1);
+          }
+          "

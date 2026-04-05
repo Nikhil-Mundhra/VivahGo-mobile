@@ -16,8 +16,8 @@
     "start:server": "node server/index.js"
   },
   "dependencies": {
-    "@capacitor/core": "^8.2.0",
-    "@capacitor/ios": "^8.2.0",
+    "@capacitor/core": "^8.3.0",
+    "@capacitor/ios": "^8.3.0",
     "@clerk/react": "^6.1.4",
     "@react-oauth/google": "^0.13.4",
     "@vercel/analytics": "^2.0.1",
@@ -31,14 +31,14 @@
     "google-auth-library": "^10.6.2",
     "jsonwebtoken": "^9.0.2",
     "jwt-decode": "^4.0.0",
-    "mongodb": "^7.1.0",
+    "mongodb": "^7.1.1",
     "mongoose": "^8.19.3",
     "razorpay": "^2.9.6",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"
   },
   "devDependencies": {
-    "@capacitor/cli": "^7.6.0",
+    "@capacitor/cli": "^7.6.1",
     "@eslint/js": "^9.39.4",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
@@ -50,6 +50,6 @@
     "globals": "^17.4.0",
     "postcss": "^8.5.8",
     "tailwindcss": "^3.4.19",
-    "vite": "^8.0.1"
+    "vite": "^8.0.3"
   }
 }

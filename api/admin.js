@@ -339,6 +339,7 @@ function normalizeChoiceAvailabilitySettings(value, fallback = null) {
           item.maxCapacity,
           { min: 0, fieldName: 'availabilitySettings.dateOverrides[].maxCapacity' }
         ),
+        // Preserve imported booking counts, but clamp them after capacity is validated.
         rawBookingsCount: item.bookingsCount ?? 0,
       };
     })
@@ -402,6 +403,7 @@ function buildAggregatedAvailabilitySettings(vendors) {
   }
 
   const vendorStates = normalizedVendors.map(buildVendorAvailabilityState);
+  // Default capacity is the sum of each source vendor's baseline availability.
   const defaultMaxCapacity = Math.min(
     99,
     vendorStates.reduce((sum, availability) => (
@@ -415,6 +417,8 @@ function buildAggregatedAvailabilitySettings(vendors) {
   )).sort((a, b) => a.localeCompare(b));
 
   const dateOverrides = dateKeys.map((date) => {
+    // For each date we aggregate both explicit overrides and vendor defaults, then
+    // drop rows that would serialize back to the unchanged default state.
     const totals = vendorStates.reduce((accumulator, availability) => {
       const day = getAvailabilityDayForDate(availability, date);
       return {
@@ -556,6 +560,7 @@ function resolveAdminChoiceMedia(choiceProfile, vendorsForType) {
       const vendor = sourceVendorMap.get(String(item?.vendorId || ''));
       const vendorMediaItem = collectChoiceableVendorMedia(vendor).find(mediaItem => String(mediaItem?._id || '') === String(item?.sourceMediaId || ''));
       if (!vendor || !vendorMediaItem) {
+        // Skip stale references when a vendor or media item has been removed or hidden.
         return null;
       }
 
@@ -607,6 +612,7 @@ function resolveAdminChoiceMedia(choiceProfile, vendorsForType) {
     })
     .filter(Boolean);
 
+  // Re-sort the merged list so admin-owned and vendor-owned media share one cover item.
   return sortChoiceMedia([...vendorMedia, ...ownedMedia]).map((item, index) => ({
     ...item,
     sortOrder: index,
@@ -672,6 +678,7 @@ async function bootstrapChoiceProfiles(ChoiceProfile) {
       && String(existingProfile?._id || '') !== seedProfile._id
       && typeof ChoiceProfile.deleteOne === 'function'
     ) {
+      // Choice profiles are keyed by static IDs so the admin UI can safely address them by type.
       await ChoiceProfile.deleteOne({ _id: existingProfile._id });
       existingProfile = {
         ...existingProfile,
@@ -1052,6 +1059,7 @@ async function handleAdminChoice(req, res) {
       const selectedVendorMedia = selectedVendorMediaInput.map((item, index) => normalizeChoiceSelectedVendorMediaInput(item, index, vendorsById));
       const ownedMedia = ownedMediaInput.map((item, index) => normalizeChoiceOwnedMediaInput(item, index));
 
+      // When admins do not override these fields, we persist the live aggregate from the chosen vendors.
       const aggregatedBudgetRange = buildAggregatedBudgetRange(sourceVendors);
       const aggregatedAvailabilitySettings = buildAggregatedAvailabilitySettings(sourceVendors);
       const seedProfile = buildDefaultChoiceProfileSeed(effectiveType);
@@ -1319,6 +1327,7 @@ async function handleAdminApplications(req, res) {
 
         const resumeKey = normalizeResumeStorageKey(application.resumeFileId);
         if (resumeKey) {
+          // Remove the stored resume once the rejection email has been sent successfully.
           await deleteB2Object(resumeKey);
         }
 
@@ -1474,6 +1483,7 @@ async function handler(req, res) {
   }
   setCorsHeaders(req, res);
 
+  // This file multiplexes several legacy admin endpoints through one serverless entrypoint.
   const route = resolveAdminRoute(req);
 
   const shouldProtectAdminMutation = (route === 'vendors' && req.method === 'PATCH')
