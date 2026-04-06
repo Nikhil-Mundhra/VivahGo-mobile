@@ -19,6 +19,11 @@ updates:
       - "dependencies"
     commit-message:
       prefix: "deps"
+    ignore:
+      - dependency-name: "eslint"
+      - dependency-name: "@eslint/js"
+      - dependency-name: "eslint-plugin-react-hooks"
+      - dependency-name: "eslint-plugin-react-refresh"
 
   - package-ecosystem: "npm"
     directory: "/my-video"
