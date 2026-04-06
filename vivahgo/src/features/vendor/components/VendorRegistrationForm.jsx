@@ -48,7 +48,7 @@ function readVendorRegistrationDraft() {
   }
 }
 
-export default function VendorRegistrationForm({ token, onRegistered }) {
+export default function VendorRegistrationForm({ token, onRegistered, onRegisterVendor }) {
   const [form, setForm] = useState(() => readVendorRegistrationDraft());
   const [coverageDraft, setCoverageDraft] = useState({ country: '', state: '', city: '' });
   const [showCoverageForm, setShowCoverageForm] = useState(false);
@@ -180,7 +180,9 @@ export default function VendorRegistrationForm({ token, onRegistered }) {
 
     setLoading(true);
     try {
-      const data = await registerVendor(token, form);
+      const data = onRegisterVendor
+        ? await onRegisterVendor(form)
+        : await registerVendor(token, form);
       if (typeof window !== 'undefined') {
         window.localStorage.removeItem(VENDOR_REGISTRATION_DRAFT_KEY);
       }

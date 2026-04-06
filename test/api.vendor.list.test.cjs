@@ -9,18 +9,23 @@ describe('api/vendor.js -> list route', function () {
   const originalCore = require(corePath);
 
   afterEach(function () {
+    originalCore.resetPublicCache();
     require.cache[corePath].exports = originalCore;
     delete require.cache[handlerPath];
   });
 
-  it('returns plus vendors individually and aggregates free vendors into Choice profiles', async function () {
+  it('returns plus vendors individually, aggregates free vendors, and caches the public payload', async function () {
+    let vendorReads = 0;
+
     require.cache[corePath].exports = {
       ...originalCore,
       connectDb: async () => {},
       getVendorModel: () => ({
         find: () => ({
           select: () => ({
-            lean: async () => ([
+            lean: async () => {
+              vendorReads += 1;
+              return [
               {
                 _id: 'plus-1',
                 googleId: 'plus-1',
@@ -80,7 +85,8 @@ describe('api/vendor.js -> list route', function () {
                   },
                 ],
               },
-            ]),
+              ];
+            },
           }),
         }),
       }),
@@ -121,5 +127,26 @@ describe('api/vendor.js -> list route', function () {
     assert.deepEqual(choiceProfile.budgetRange, { min: 70000, max: 120000 });
     assert.equal(choiceProfile.media.length, 1);
     assert.equal(choiceProfile.media[0].url, 'https://media.vivahgo.com/portfolio/vendors/free-1/sample.jpg');
+    assert.equal(res.headers['Cache-Control'], 'public, s-maxage=300, stale-while-revalidate=3600');
+
+    require.cache[corePath].exports = {
+      ...require.cache[corePath].exports,
+      getVendorModel: () => ({
+        find: () => ({
+          select: () => ({
+            lean: async () => {
+              throw new Error('should have used the cached vendor snapshot');
+            },
+          }),
+        }),
+      }),
+    };
+
+    const cachedRes = createRes();
+    await handler(req, cachedRes);
+
+    assert.equal(cachedRes.statusCode, 200);
+    assert.equal(cachedRes.body.vendors.length, 2);
+    assert.equal(vendorReads, 1);
   });
 });

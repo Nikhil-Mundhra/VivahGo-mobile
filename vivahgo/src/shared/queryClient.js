@@ -1,0 +1,18 @@
+import { QueryClient } from "@tanstack/react-query";
+
+export const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+      staleTime: 0,
+    },
+    mutations: {
+      retry: 0,
+    },
+  },
+});
+
+export function clearAppQueryState() {
+  queryClient.clear();
+}

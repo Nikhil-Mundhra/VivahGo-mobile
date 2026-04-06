@@ -106,6 +106,7 @@ describe('api/vendor.js -> me route', function () {
 
   it('stores sorted day overrides when vendor availability is updated', async function () {
     let savedAvailability = null;
+    let updateQuery = null;
 
     require.cache[corePath].exports = {
       ...originalCore,
@@ -119,15 +120,18 @@ describe('api/vendor.js -> me route', function () {
             googleId: 'vendor-123',
             type: 'Venue',
             bundledServices: [],
+            vendorRevision: 2,
           }),
         }),
         findOneAndUpdate: async (_query, update) => {
+          updateQuery = _query;
           savedAvailability = update.$set.availabilitySettings;
           return {
             googleId: 'vendor-123',
             businessName: 'Lotus Events',
             type: 'Venue',
             bundledServices: [],
+            vendorRevision: 3,
             verificationDocuments: [],
             verificationStatus: 'not_submitted',
             availabilitySettings: savedAvailability,
@@ -141,6 +145,9 @@ describe('api/vendor.js -> me route', function () {
       method: 'PATCH',
       headers: { authorization: `Bearer ${makeToken()}` },
       body: {
+        baseRevision: 2,
+        correlationId: 'vendor-mutation-1',
+        clientSequence: 4,
         availabilitySettings: {
           hasDefaultCapacity: true,
           defaultMaxCapacity: 3,
@@ -156,6 +163,7 @@ describe('api/vendor.js -> me route', function () {
     await handler(req, res);
 
     assert.equal(res.statusCode, 200);
+    assert.equal(updateQuery.vendorRevision, 2);
     assert.deepEqual(savedAvailability, {
       hasDefaultCapacity: true,
       defaultMaxCapacity: 3,
@@ -165,5 +173,49 @@ describe('api/vendor.js -> me route', function () {
       ],
     });
     assert.deepEqual(res.body.vendor.availabilitySettings, savedAvailability);
+    assert.equal(res.body.vendorRevision, 3);
+    assert.equal(res.body.correlationId, 'vendor-mutation-1');
+    assert.equal(res.body.clientSequence, 4);
+  });
+
+  it('returns 409 when a stale vendor baseRevision is submitted', async function () {
+    require.cache[corePath].exports = {
+      ...originalCore,
+      connectDb: async () => {},
+      getUserModel: () => ({
+        findOneAndUpdate: async () => null,
+      }),
+      getVendorModel: () => ({
+        findOne: () => ({
+          lean: async () => ({
+            googleId: 'vendor-123',
+            type: 'Venue',
+            bundledServices: [],
+            vendorRevision: 5,
+          }),
+        }),
+      }),
+    };
+
+    const { handleVendorMe: handler } = require(handlerPath);
+    const req = {
+      method: 'PATCH',
+      headers: { authorization: `Bearer ${makeToken()}` },
+      body: {
+        baseRevision: 4,
+        correlationId: 'vendor-mutation-2',
+        clientSequence: 7,
+        description: 'Fresh copy',
+      },
+    };
+    const res = createRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 409);
+    assert.equal(res.body.code, 'VENDOR_CONFLICT');
+    assert.equal(res.body.vendorRevision, 5);
+    assert.equal(res.body.correlationId, 'vendor-mutation-2');
+    assert.equal(res.body.clientSequence, 7);
   });
 });

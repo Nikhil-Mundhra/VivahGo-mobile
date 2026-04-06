@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import '../../../vendor.css';
 import '../../../styles.css';
 import AuthOptionList from '../../../components/AuthOptionList';
@@ -14,12 +15,31 @@ import NavIcon from '../../../components/NavIcon';
 import LegalFooter from '../../../components/LegalFooter';
 import { clearAuthStorage, persistAuthSession, readAuthSession, revokeClerkSession, revokeGoogleIdTokenConsent } from '../../../authStorage';
 import { deleteAccount, logoutSession, loginWithGoogle, loginWithClerk } from '../../auth/api.js';
-import { fetchVendorProfile } from '../api.js';
+import {
+  fetchVendorProfile,
+  registerVendor,
+  updateVendorProfile,
+  saveVendorMedia,
+  updateVendorMedia,
+  removeVendorMedia,
+  saveVendorVerificationDocument,
+  removeVendorVerificationDocument,
+  vendorDirectoryQueryKey,
+  vendorProfileQueryKey,
+} from '../api.js';
 import { buildLoginAuthOptions } from '../../../loginAuthOptions.js';
 import { getMarketingUrl, getPlannerUrl } from '../../../siteUrls.js';
+import {
+  ackMutation,
+  createVendorMutationJournal,
+  enqueueMutation,
+  failMutation,
+  maybeRollback,
+} from '../lib/vendorMutationManager.js';
 
 const MARKETING_HOME_URL = getMarketingUrl('/');
 const PLANNER_HOME_URL = getPlannerUrl('/');
+const VENDOR_CONFLICT_CODE = 'VENDOR_CONFLICT';
 
 const VENDOR_PORTAL_SECTIONS = [
   { id: 'dashboard', label: 'Dashboard', icon: 'home' },
@@ -29,13 +49,39 @@ const VENDOR_PORTAL_SECTIONS = [
   { id: 'details', label: 'Business Details', icon: 'budget' },
 ];
 
+function createCorrelationId() {
+  if (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function') {
+    return globalThis.crypto.randomUUID();
+  }
+
+  return `vendor_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function createTempSubdocumentId() {
+  const timestamp = Math.floor(Date.now() / 1000).toString(16).padStart(8, '0');
+  const random = Math.random().toString(16).slice(2).padEnd(16, '0');
+  return `${timestamp}${random}`.slice(0, 24);
+}
+
+function normalizeVendorRevision(value) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : 0;
+}
+
+function sortVendorMediaItems(media) {
+  return [...(Array.isArray(media) ? media : [])].sort((a, b) => (a?.sortOrder ?? 0) - (b?.sortOrder ?? 0));
+}
+
 export default function VendorPortalPage() {
+  const queryClient = useQueryClient();
   const isClerkEnabled = Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
   const [session, setSession] = useState(() => readAuthSession());
   const [loginError, setLoginError] = useState('');
   const [vendor, setVendor] = useState(null);
+  const [vendorRevision, setVendorRevision] = useState(0);
   const [vendorLoadError, setVendorLoadError] = useState('');
   const [previewVendor, setPreviewVendor] = useState(null);
+  const [isPreviewDirty, setIsPreviewDirty] = useState(false);
   const [activeSection, setActiveSection] = useState('dashboard');
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [showSupportModal, setShowSupportModal] = useState(false);
@@ -43,11 +89,11 @@ export default function VendorPortalPage() {
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [avatarLoadError, setAvatarLoadError] = useState(false);
-  // Track which token we last completed a fetch for.
-  // loadingVendor is derived: we have a token but haven't finished fetching for it yet.
-  const [lastFetchedToken, setLastFetchedToken] = useState(null);
-  const loadingVendor = Boolean(session?.token) && session.token !== lastFetchedToken;
   const profileEditorRef = useRef(null);
+  const currentVendorRef = useRef(null);
+  const lastSyncedVendorRef = useRef(null);
+  const lastDispatchedVendorRef = useRef(null);
+  const vendorMutationJournalRef = useRef(createVendorMutationJournal(0));
   const accountFirstName = session?.user?.given_name || session?.user?.name?.split(' ')[0] || 'You';
   const profileInitial = accountFirstName.trim().charAt(0).toUpperCase() || 'Y';
   const mobileBenefitItems = [
@@ -62,42 +108,211 @@ export default function VendorPortalPage() {
     { icon: 'tasks', text: 'Keep your portfolio fresh with photos that show your best work and style.' },
     { icon: 'events', text: 'Manage your listing anytime and stay ready for approval, discovery, and future bookings.' },
   ];
+  const vendorQuery = useQuery({
+    queryKey: vendorProfileQueryKey(),
+    queryFn: async () => {
+      try {
+        return await fetchVendorProfile(session?.token || '');
+      } catch (error) {
+        if (error?.status === 404) {
+          return { vendor: null, vendorRevision: 0 };
+        }
+        throw error;
+      }
+    },
+    enabled: Boolean(session?.token),
+    retry: false,
+  });
+  const loadingVendor = Boolean(session?.token) && vendorQuery.fetchStatus === 'fetching' && !vendor && !vendorLoadError;
 
   useEffect(() => {
     document.title = 'VivahGo | Vendor Portal';
   }, []);
 
-  useEffect(() => {
-    if (!session?.token) { return; }
+  const syncVendorAuthority = useCallback((nextVendor, nextVendorRevision, options = {}) => {
+    const normalizedVendor = nextVendor ? { ...nextVendor } : null;
+    const normalizedRevision = normalizeVendorRevision(nextVendorRevision);
 
-    let cancelled = false;
+    lastSyncedVendorRef.current = normalizedVendor;
+    setVendorRevision(normalizedRevision);
 
-    fetchVendorProfile(session.token)
-      .then(data => {
-        if (cancelled) { return; }
-        setVendor(data.vendor);
-        setPreviewVendor(data.vendor);
-        setLastFetchedToken(session.token);
-      })
-      .catch(err => {
-        if (cancelled) { return; }
-        if (err.message && /Authentication required|Session expired/i.test(err.message)) {
-          clearAuthStorage('vendor');
-          setSession(null);
-          setLastFetchedToken(null);
-          return;
-        }
-        // 404 is expected when the user hasn't registered yet — not an error state
-        if (err.message && !err.message.includes('404') && !err.message.includes('No vendor profile')) {
-          setVendorLoadError(err.message || 'Could not load vendor profile.');
-        }
-        setVendor(null);
-        setPreviewVendor(null);
-        setLastFetchedToken(session.token);
+    if (options.resetJournal) {
+      vendorMutationJournalRef.current = createVendorMutationJournal(normalizedRevision);
+      lastDispatchedVendorRef.current = normalizedVendor;
+    } else {
+      vendorMutationJournalRef.current.latestAcknowledgedRevision = Math.max(
+        vendorMutationJournalRef.current.latestAcknowledgedRevision,
+        normalizedRevision
+      );
+      if (!vendorMutationJournalRef.current.pendingMutations.size) {
+        lastDispatchedVendorRef.current = normalizedVendor;
+      }
+    }
+
+    currentVendorRef.current = normalizedVendor;
+    setVendor(normalizedVendor);
+    if (options.syncPreview || (!isPreviewDirty && options.syncPreview !== false)) {
+      setPreviewVendor(normalizedVendor);
+      setIsPreviewDirty(false);
+    }
+    return normalizedVendor;
+  }, [isPreviewDirty]);
+
+  const applyOptimisticVendorState = useCallback((nextVendor, options = {}) => {
+    const normalizedVendor = nextVendor ? { ...nextVendor } : null;
+    currentVendorRef.current = normalizedVendor;
+    setVendor(normalizedVendor);
+    if (options.syncPreview) {
+      setPreviewVendor(normalizedVendor);
+      setIsPreviewDirty(false);
+    }
+    queryClient.setQueryData(vendorProfileQueryKey(), (current) => ({
+      ...(current || {}),
+      vendor: normalizedVendor,
+      vendorRevision,
+    }));
+    return normalizedVendor;
+  }, [queryClient, vendorRevision]);
+
+  const vendorMutation = useMutation({
+    mutationFn: async ({ buildOptimisticVendor, request, syncPreview = false }) => {
+      const previousVendor = currentVendorRef.current;
+      const optimisticVendor = buildOptimisticVendor(previousVendor);
+      const mutation = enqueueMutation(vendorMutationJournalRef.current, {
+        correlationId: createCorrelationId(),
+        baseRevision: vendorMutationJournalRef.current.latestAcknowledgedRevision,
+        nextVendor: optimisticVendor,
+        previousVendor,
       });
 
-    return () => { cancelled = true; };
-  }, [session]);
+      lastDispatchedVendorRef.current = optimisticVendor;
+      applyOptimisticVendorState(optimisticVendor, { syncPreview });
+
+      try {
+        const response = await request(optimisticVendor, mutation);
+        return { response, mutation, syncPreview };
+      } catch (error) {
+        error.vendorMutation = mutation;
+        throw error;
+      }
+    },
+    onSuccess: async ({ response, mutation, syncPreview }) => {
+      ackMutation(vendorMutationJournalRef.current, {
+        correlationId: mutation.correlationId,
+        vendorRevision: response?.vendorRevision,
+      });
+
+      const normalizedVendor = syncVendorAuthority(response?.vendor, response?.vendorRevision, { syncPreview });
+      queryClient.setQueryData(vendorProfileQueryKey(), {
+        ...response,
+        vendor: normalizedVendor,
+      });
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: vendorProfileQueryKey() }),
+        queryClient.invalidateQueries({ queryKey: vendorDirectoryQueryKey() }),
+      ]);
+    },
+    onError: async (error) => {
+      const failedMutation = failMutation(vendorMutationJournalRef.current, {
+        correlationId: error?.vendorMutation?.correlationId,
+      }) || error?.vendorMutation;
+
+      if (error?.code === VENDOR_CONFLICT_CODE) {
+        try {
+          const latest = await queryClient.fetchQuery({
+            queryKey: vendorProfileQueryKey(),
+            queryFn: () => fetchVendorProfile(session?.token || ''),
+          });
+          syncVendorAuthority(latest?.vendor, latest?.vendorRevision, { resetJournal: true, syncPreview: true });
+        } catch (refreshError) {
+          console.error('Failed to refresh vendor after conflict:', refreshError);
+        }
+        return;
+      }
+
+      const rollbackDecision = maybeRollback(vendorMutationJournalRef.current, {
+        mutation: failedMutation,
+        currentVendor: currentVendorRef.current,
+      });
+
+      if (rollbackDecision.shouldRollback) {
+        const rollbackVendor = syncVendorAuthority(
+          rollbackDecision.rollbackVendor,
+          vendorMutationJournalRef.current.latestAcknowledgedRevision,
+          { syncPreview: true }
+        );
+        lastDispatchedVendorRef.current = rollbackVendor;
+        currentVendorRef.current = rollbackVendor;
+        queryClient.setQueryData(vendorProfileQueryKey(), (current) => ({
+          ...(current || {}),
+          vendor: rollbackVendor,
+          vendorRevision: vendorMutationJournalRef.current.latestAcknowledgedRevision,
+        }));
+        return;
+      }
+
+      try {
+        await queryClient.invalidateQueries({ queryKey: vendorProfileQueryKey() });
+      } catch {}
+    },
+  });
+
+  const runVendorMutation = useCallback(async (variables) => (
+    vendorMutation.mutateAsync(variables)
+  ), [vendorMutation]);
+
+  useEffect(() => {
+    if (!session?.token) {
+      currentVendorRef.current = null;
+      lastSyncedVendorRef.current = null;
+      lastDispatchedVendorRef.current = null;
+      vendorMutationJournalRef.current = createVendorMutationJournal(0);
+      setVendor(null);
+      setVendorRevision(0);
+      setPreviewVendor(null);
+      setIsPreviewDirty(false);
+      setVendorLoadError('');
+      return;
+    }
+
+    if (vendorQuery.data) {
+      if (vendorMutationJournalRef.current.pendingMutations.size > 0) {
+        return;
+      }
+
+      syncVendorAuthority(vendorQuery.data.vendor, vendorQuery.data.vendorRevision, {
+        resetJournal: !lastSyncedVendorRef.current,
+        syncPreview: !isPreviewDirty,
+      });
+      setVendorLoadError('');
+    }
+  }, [isPreviewDirty, session?.token, syncVendorAuthority, vendorQuery.data]);
+
+  useEffect(() => {
+    if (!vendorQuery.error) {
+      return;
+    }
+
+    const error = vendorQuery.error;
+    if (error?.message && /Authentication required|Session expired/i.test(error.message)) {
+      clearAuthStorage('vendor');
+      setSession(null);
+      return;
+    }
+
+    if (error?.status === 404 || String(error?.message || '').includes('No vendor profile')) {
+      setVendor(null);
+      setVendorRevision(0);
+      if (!isPreviewDirty) {
+        setPreviewVendor(null);
+      }
+      setVendorLoadError('');
+      return;
+    }
+
+    setVendorLoadError(error?.message || 'Could not load vendor profile.');
+  }, [isPreviewDirty, vendorQuery.error]);
 
   async function handleLoginSuccess(credentialResponse) {
     setLoginError('');
@@ -111,8 +326,9 @@ export default function VendorPortalPage() {
       });
       // Reset vendor state before the new session triggers a fresh fetch
       setVendor(null);
+      setVendorRevision(0);
       setPreviewVendor(null);
-      setLastFetchedToken(null);
+      setIsPreviewDirty(false);
       setVendorLoadError('');
       setAvatarLoadError(false);
       setSession(newSession);
@@ -135,8 +351,9 @@ export default function VendorPortalPage() {
       });
       // Reset vendor state before the new session triggers a fresh fetch
       setVendor(null);
+      setVendorRevision(0);
       setPreviewVendor(null);
-      setLastFetchedToken(null);
+      setIsPreviewDirty(false);
       setVendorLoadError('');
       setAvatarLoadError(false);
       setSession(newSession);
@@ -174,8 +391,9 @@ export default function VendorPortalPage() {
     clearAuthStorage('vendor');
     setSession(null);
     setVendor(null);
+    setVendorRevision(0);
     setPreviewVendor(null);
-    setLastFetchedToken(null);
+    setIsPreviewDirty(false);
     setShowSettingsMenu(false);
     setDeleteError('');
     setVendorLoadError('');
@@ -216,6 +434,238 @@ export default function VendorPortalPage() {
     setShowSettingsMenu(false);
     setShowSupportModal(true);
   }
+
+  const handlePreviewChange = useCallback((nextPreviewVendor) => {
+    setPreviewVendor(nextPreviewVendor);
+    setIsPreviewDirty(true);
+  }, []);
+
+  const handleRegisterVendor = useCallback(async (form) => {
+    const result = await runVendorMutation({
+      syncPreview: true,
+      buildOptimisticVendor: () => ({
+        businessName: form.businessName,
+        type: form.type,
+        subType: form.subType,
+        bundledServices: [...(form.bundledServices || [])],
+        description: form.description || '',
+        country: form.country || '',
+        state: form.state || '',
+        city: form.city || '',
+        googleMapsLink: form.googleMapsLink || '',
+        coverageAreas: [...(form.coverageAreas || [])],
+        phone: form.phone || '',
+        website: form.website || '',
+        budgetRange: form.budgetRange || null,
+        availabilitySettings: {
+          hasDefaultCapacity: true,
+          defaultMaxCapacity: 1,
+          dateOverrides: [],
+        },
+        media: [],
+        verificationDocuments: [],
+        verificationStatus: 'not_submitted',
+        verificationNotes: '',
+        verificationReviewedAt: null,
+        verificationReviewedBy: '',
+        isApproved: false,
+        tier: 'Free',
+      }),
+      request: (_optimisticVendor, mutation) => registerVendor(session?.token || '', form, mutation),
+    });
+    return result.response;
+  }, [runVendorMutation, session?.token]);
+
+  const handleSaveVendorProfile = useCallback(async (payload) => {
+    const result = await runVendorMutation({
+      syncPreview: true,
+      buildOptimisticVendor: (currentVendor) => ({
+        ...(currentVendor || {}),
+        ...payload,
+        bundledServices: Array.isArray(payload?.bundledServices)
+          ? [...payload.bundledServices]
+          : [...(currentVendor?.bundledServices || [])],
+        coverageAreas: Array.isArray(payload?.coverageAreas)
+          ? [...payload.coverageAreas]
+          : [...(currentVendor?.coverageAreas || [])],
+        budgetRange: payload?.budgetRange || currentVendor?.budgetRange || null,
+        availabilitySettings: payload?.availabilitySettings || currentVendor?.availabilitySettings || {
+          hasDefaultCapacity: true,
+          defaultMaxCapacity: 1,
+          dateOverrides: [],
+        },
+      }),
+      request: (_optimisticVendor, mutation) => updateVendorProfile(session?.token || '', payload, mutation),
+    });
+    return result.response;
+  }, [runVendorMutation, session?.token]);
+
+  const handleSaveVendorAvailability = useCallback(async (nextAvailability) => {
+    const result = await runVendorMutation({
+      buildOptimisticVendor: (currentVendor) => ({
+        ...(currentVendor || {}),
+        availabilitySettings: nextAvailability,
+      }),
+      request: (_optimisticVendor, mutation) => updateVendorProfile(
+        session?.token || '',
+        { availabilitySettings: nextAvailability },
+        mutation
+      ),
+    });
+    return result.response;
+  }, [runVendorMutation, session?.token]);
+
+  const handleSaveVendorMediaRecord = useCallback(async (payload) => {
+    const tempMediaId = createTempSubdocumentId();
+    const result = await runVendorMutation({
+      buildOptimisticVendor: (currentVendor) => {
+        const currentMedia = sortVendorMediaItems(currentVendor?.media);
+        const nextSortOrder = typeof payload?.sortOrder === 'number'
+          ? payload.sortOrder
+          : currentMedia.reduce((highest, item, index) => Math.max(highest, item?.sortOrder ?? index), -1) + 1;
+        const nextMedia = sortVendorMediaItems([
+          ...currentMedia,
+          {
+            _id: tempMediaId,
+            key: payload.key,
+            url: payload.url || '',
+            type: payload.type,
+            sortOrder: nextSortOrder,
+            filename: payload.filename || '',
+            size: typeof payload.size === 'number' ? payload.size : 0,
+            caption: payload.caption || '',
+            altText: payload.altText || '',
+            isVisible: payload.isVisible !== false,
+            isCover: currentMedia.length === 0,
+          },
+        ]).map((item, index) => ({
+          ...item,
+          sortOrder: index,
+          isCover: currentMedia.length === 0 ? index === 0 : Boolean(item.isCover),
+        }));
+
+        return {
+          ...(currentVendor || {}),
+          media: nextMedia,
+        };
+      },
+      request: (_optimisticVendor, mutation) => saveVendorMedia(session?.token || '', payload, mutation),
+    });
+    return result.response;
+  }, [runVendorMutation, session?.token]);
+
+  const handleUpdateVendorMediaRecord = useCallback(async (payload) => {
+    const result = await runVendorMutation({
+      buildOptimisticVendor: (currentVendor) => {
+        const currentMedia = sortVendorMediaItems(currentVendor?.media);
+
+        if (Array.isArray(payload?.mediaIds)) {
+          const mediaById = new Map(currentMedia.map((item) => [String(item?._id || ''), item]));
+          return {
+            ...(currentVendor || {}),
+            media: payload.mediaIds
+              .map((id, index) => {
+                const item = mediaById.get(String(id || ''));
+                return item ? { ...item, sortOrder: index } : null;
+              })
+              .filter(Boolean),
+          };
+        }
+
+        return {
+          ...(currentVendor || {}),
+          media: currentMedia.map((item) => {
+            if (String(item?._id || '') !== String(payload?.mediaId || '')) {
+              return payload?.makeCover === true ? { ...item, isCover: false } : item;
+            }
+
+            return {
+              ...item,
+              caption: typeof payload?.caption === 'string' ? payload.caption : item.caption,
+              altText: typeof payload?.altText === 'string' ? payload.altText : item.altText,
+              isVisible: typeof payload?.isVisible === 'boolean' ? payload.isVisible : item.isVisible,
+              isCover: payload?.makeCover === true ? true : item.isCover,
+            };
+          }),
+        };
+      },
+      request: (_optimisticVendor, mutation) => updateVendorMedia(session?.token || '', payload, mutation),
+    });
+    return result.response;
+  }, [runVendorMutation, session?.token]);
+
+  const handleRemoveVendorMediaRecord = useCallback(async (mediaId) => {
+    const result = await runVendorMutation({
+      buildOptimisticVendor: (currentVendor) => {
+        const remainingMedia = sortVendorMediaItems(currentVendor?.media)
+          .filter((item) => String(item?._id || '') !== String(mediaId || ''))
+          .map((item, index) => ({ ...item, sortOrder: index }));
+        const hadCover = sortVendorMediaItems(currentVendor?.media).find((item) => String(item?._id || '') === String(mediaId || ''))?.isCover;
+
+        if (hadCover && remainingMedia.length > 0) {
+          remainingMedia[0] = { ...remainingMedia[0], isCover: true };
+        }
+
+        return {
+          ...(currentVendor || {}),
+          media: remainingMedia.map((item, index) => ({
+            ...item,
+            sortOrder: index,
+            isCover: index === 0 ? Boolean(item.isCover) : Boolean(item.isCover),
+          })),
+        };
+      },
+      request: (_optimisticVendor, mutation) => removeVendorMedia(session?.token || '', mediaId, mutation),
+    });
+    return result.response;
+  }, [runVendorMutation, session?.token]);
+
+  const handleSaveVendorVerificationDocument = useCallback(async (payload) => {
+    const tempDocumentId = createTempSubdocumentId();
+    const result = await runVendorMutation({
+      buildOptimisticVendor: (currentVendor) => ({
+        ...(currentVendor || {}),
+        verificationStatus: 'submitted',
+        verificationReviewedAt: null,
+        verificationReviewedBy: '',
+        verificationDocuments: [
+          ...(Array.isArray(currentVendor?.verificationDocuments) ? currentVendor.verificationDocuments : []),
+          {
+            _id: tempDocumentId,
+            key: payload.key,
+            filename: payload.filename || '',
+            size: typeof payload.size === 'number' ? payload.size : 0,
+            contentType: payload.contentType || '',
+            documentType: payload.documentType || 'OTHER',
+            uploadedAt: new Date().toISOString(),
+            accessUrl: '',
+          },
+        ],
+      }),
+      request: (_optimisticVendor, mutation) => saveVendorVerificationDocument(session?.token || '', payload, mutation),
+    });
+    return result.response;
+  }, [runVendorMutation, session?.token]);
+
+  const handleRemoveVendorVerificationDocument = useCallback(async (documentId) => {
+    const result = await runVendorMutation({
+      buildOptimisticVendor: (currentVendor) => {
+        const nextDocuments = (Array.isArray(currentVendor?.verificationDocuments) ? currentVendor.verificationDocuments : [])
+          .filter((item) => String(item?._id || '') !== String(documentId || ''));
+
+        return {
+          ...(currentVendor || {}),
+          verificationDocuments: nextDocuments,
+          verificationStatus: nextDocuments.length === 0 ? 'not_submitted' : (currentVendor?.verificationStatus === 'approved' ? 'submitted' : currentVendor?.verificationStatus),
+          verificationNotes: nextDocuments.length === 0 ? '' : (currentVendor?.verificationNotes || ''),
+          verificationReviewedAt: nextDocuments.length === 0 ? null : (currentVendor?.verificationReviewedAt || null),
+          verificationReviewedBy: nextDocuments.length === 0 ? '' : (currentVendor?.verificationReviewedBy || ''),
+        };
+      },
+      request: (_optimisticVendor, mutation) => removeVendorVerificationDocument(session?.token || '', documentId, mutation),
+    });
+    return result.response;
+  }, [runVendorMutation, session?.token]);
 
   if (!session?.token) {
     const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173';
@@ -427,9 +877,11 @@ export default function VendorPortalPage() {
         {!vendor ? (
           <VendorRegistrationForm
             token={session.token}
+            onRegisterVendor={handleRegisterVendor}
             onRegistered={registeredVendor => {
               setVendor(registeredVendor);
               setPreviewVendor(registeredVendor);
+              setIsPreviewDirty(false);
             }}
           />
         ) : (
@@ -513,9 +965,16 @@ export default function VendorPortalPage() {
                       token={session.token}
                       vendor={{ ...(vendor || {}), ...(previewVendor || {}) }}
                       media={vendor.media || []}
+                      onSaveVendorMediaRecord={handleSaveVendorMediaRecord}
+                      onUpdateVendorMediaRecord={handleUpdateVendorMediaRecord}
+                      onRemoveVendorMediaRecord={handleRemoveVendorMediaRecord}
+                      onSaveVendorVerificationDocument={handleSaveVendorVerificationDocument}
+                      onRemoveVendorVerificationDocument={handleRemoveVendorVerificationDocument}
                       onVendorUpdated={updatedVendor => {
                         setVendor(updatedVendor);
-                        setPreviewVendor(updatedVendor);
+                        if (!isPreviewDirty) {
+                          setPreviewVendor(updatedVendor);
+                        }
                       }}
                     />
                   </div>
@@ -528,11 +987,13 @@ export default function VendorPortalPage() {
                     <VendorBusinessProfileEditor
                       token={session.token}
                       vendor={vendor}
+                      onSaveVendorProfile={handleSaveVendorProfile}
                       onVendorUpdated={updatedVendor => {
                         setVendor(updatedVendor);
                         setPreviewVendor(updatedVendor);
+                        setIsPreviewDirty(false);
                       }}
-                      onPreviewChange={setPreviewVendor}
+                      onPreviewChange={handlePreviewChange}
                     />
                     {deleteError && (
                       <p className="mt-3 text-sm text-red-600">{deleteError}</p>
@@ -547,9 +1008,12 @@ export default function VendorPortalPage() {
                     <VendorAvailabilityManager
                       token={session.token}
                       vendor={vendor}
+                      onSaveVendorAvailability={handleSaveVendorAvailability}
                       onVendorUpdated={(updatedVendor) => {
                         setVendor(updatedVendor);
-                        setPreviewVendor(updatedVendor);
+                        if (!isPreviewDirty) {
+                          setPreviewVendor(updatedVendor);
+                        }
                       }}
                     />
                   </div>

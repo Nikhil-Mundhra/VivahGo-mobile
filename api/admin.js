@@ -1,7 +1,20 @@
 const { randomUUID } = require('crypto');
 const mongoose = require('mongoose');
 
-const { getBillingReceiptModel, getCareerApplicationModel, getCareerEmailTemplateModel, getChoiceProfileModel, getVendorModel, handlePreflight, normalizeEmail, normalizeStaffRole, requireCsrfProtection, setCorsHeaders } = require('./_lib/core');
+const {
+  getBillingReceiptModel,
+  getCareerApplicationModel,
+  getCareerEmailTemplateModel,
+  getChoiceProfileModel,
+  getVendorModel,
+  handlePreflight,
+  invalidatePublicCache,
+  normalizeEmail,
+  normalizeStaffRole,
+  requireCsrfProtection,
+  setCacheControl,
+  setCorsHeaders,
+} = require('./_lib/core');
 const { requireAdminSession, sanitizeStaffUser } = require('./_lib/admin');
 const { createPresignedPutUrl, createPublicObjectUrl, normalizeMediaList, objectKeyMatchesScope } = require('./_lib/r2');
 const { createB2PresignedGetUrl, deleteB2Object } = require('./_lib/b2');
@@ -11,6 +24,7 @@ const { buildAggregatedBudgetRange, buildAggregatedServices, buildChoiceProfileN
 const { DEFAULT_VCA_TYPES, buildChoiceProfileId, buildDefaultChoiceProfileSeed } = require('./_lib/vca');
 
 const CAREER_REJECTION_TEMPLATE_KEY = 'career-application-rejection';
+const VENDOR_DIRECTORY_CACHE_TAG = 'vendors';
 
 /******************************************************************************
  * Shared Helpers
@@ -850,6 +864,8 @@ async function handleAdminMe(req, res) {
  ******************************************************************************/
 
 async function handleAdminVendors(req, res) {
+  setCacheControl(res, 'noStore');
+
   try {
     if (req.method === 'GET') {
       const session = await requireAdminSession(req, 'viewer');
@@ -947,6 +963,8 @@ async function handleAdminVendors(req, res) {
         return res.status(404).json({ error: 'Vendor not found.' });
       }
 
+      invalidatePublicCache(VENDOR_DIRECTORY_CACHE_TAG, { scope: 'tag' });
+
       return res.status(200).json({
         vendor: await serializeAdminVendor(vendor),
       });
@@ -965,6 +983,8 @@ async function handleAdminVendors(req, res) {
  ******************************************************************************/
 
 async function handleAdminChoice(req, res) {
+  setCacheControl(res, 'noStore');
+
   try {
     if (req.method === 'GET') {
       const session = await requireAdminSession(req, 'viewer');
@@ -1082,6 +1102,8 @@ async function handleAdminChoice(req, res) {
         },
         { new: true, upsert: true, setDefaultsOnInsert: true }
       ));
+
+      invalidatePublicCache(VENDOR_DIRECTORY_CACHE_TAG, { scope: 'tag' });
 
       return res.status(200).json({
         choiceProfile: serializeAdminChoiceProfile(updatedProfile, vendorsForType),
@@ -1482,6 +1504,7 @@ async function handler(req, res) {
     return;
   }
   setCorsHeaders(req, res);
+  setCacheControl(res, 'noStore');
 
   // This file multiplexes several legacy admin endpoints through one serverless entrypoint.
   const route = resolveAdminRoute(req);

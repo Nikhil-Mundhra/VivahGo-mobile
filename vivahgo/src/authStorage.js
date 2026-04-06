@@ -1,3 +1,6 @@
+import { resetRequestCache } from "./shared/api/request.js";
+import { clearAppQueryState } from "./shared/queryClient.js";
+
 const SESSION_STORAGE_KEY = 'vivahgo.session';
 const DEMO_PLANNER_STORAGE_KEY = 'vivahgo.demoPlanner';
 const PLANNER_VENDOR_FILTERS_SESSION_KEY = 'vivahgo.vendorFilters';
@@ -57,6 +60,8 @@ export function persistAuthSession(session, options = {}) {
   }
 
   const { token: _token, ...persistableSession } = session;
+  resetRequestCache();
+  clearAppQueryState();
   localStorageRef.setItem(SESSION_STORAGE_KEY, JSON.stringify(persistableSession));
   return hydrateSession(persistableSession);
 }
@@ -69,6 +74,8 @@ export function clearAuthStorage(scope, options = {}) {
   clearKey(localStorageRef, SESSION_STORAGE_KEY);
   clearKey(localStorageRef, LEGACY_GOOGLE_USER_KEY);
   clearKey(localStorageRef, LEGACY_GOOGLE_LOGIN_FLAG_KEY);
+  resetRequestCache();
+  clearAppQueryState();
 
   if (scope === 'planner') {
     clearKey(localStorageRef, DEMO_PLANNER_STORAGE_KEY);

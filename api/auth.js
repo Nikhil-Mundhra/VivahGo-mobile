@@ -138,6 +138,7 @@ async function handleGoogleAuth(req, res) {
         staffRole: resolveStaffRole(user.email, user.staffRole),
       },
       planner: sanitizePlanner(planner.toObject(), { ownerEmail: user.email, ownerId: user.googleId }),
+      plannerRevision: Math.max(0, Number(planner?.plannerRevision) || 0),
       plannerOwnerId: user.googleId,
     });
   } catch (error) {
@@ -246,6 +247,7 @@ async function handleClerkAuth(req, res) {
         staffRole: resolveStaffRole(user.email, user.staffRole),
       },
       planner: sanitizePlanner(planner, { ownerEmail: user.email, ownerId: user.googleId }),
+      plannerRevision: Math.max(0, Number(planner?.plannerRevision) || 0),
       plannerOwnerId: user.googleId,
     });
   } catch (error) {

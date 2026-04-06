@@ -139,7 +139,7 @@ function buildNextAvailabilityForDate(availability, selectedDate, selectedDayDra
   };
 }
 
-export default function VendorAvailabilityManager({ token, vendor, onVendorUpdated }) {
+export default function VendorAvailabilityManager({ token, vendor, onVendorUpdated, onSaveVendorAvailability }) {
   const [availability, setAvailability] = useState(() => buildAvailabilityState(vendor));
   const [displayMonth, setDisplayMonth] = useState(() => startOfMonth(new Date()));
   const [selectedDate, setSelectedDate] = useState(() => dateKeyFromDate(new Date()));
@@ -224,13 +224,15 @@ export default function VendorAvailabilityManager({ token, vendor, onVendorUpdat
   }
 
   const persistAvailability = useCallback(async (nextAvailability, successCopy) => {
-    const data = await updateVendorProfile(token, { availabilitySettings: nextAvailability });
+    const data = onSaveVendorAvailability
+      ? await onSaveVendorAvailability(nextAvailability)
+      : await updateVendorProfile(token, { availabilitySettings: nextAvailability });
     const normalized = buildAvailabilityState(data.vendor);
     setAvailability(normalized);
     setSelectedDayDraft(buildSelectedDayDraft(normalized, selectedDateRef.current));
     onVendorUpdated?.(data.vendor);
     queueSuccess(successCopy);
-  }, [onVendorUpdated, token]);
+  }, [onSaveVendorAvailability, onVendorUpdated, token]);
 
   function handleToggleUnavailable() {
     setSelectedDayDraft((current) => {

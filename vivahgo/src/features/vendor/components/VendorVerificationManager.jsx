@@ -28,7 +28,13 @@ function getStatusCopy(status) {
   return { label: 'Not submitted', className: 'bg-stone-100 text-stone-700' };
 }
 
-export default function VendorVerificationManager({ token, vendor, onVendorUpdated }) {
+export default function VendorVerificationManager({
+  token,
+  vendor,
+  onVendorUpdated,
+  onSaveVendorVerificationDocument,
+  onRemoveVendorVerificationDocument,
+}) {
   const [documentType, setDocumentType] = useState('AADHAAR');
   const [error, setError] = useState('');
   const [isUploading, setIsUploading] = useState(false);
@@ -76,13 +82,16 @@ export default function VendorVerificationManager({ token, vendor, onVendorUpdat
         xhr.send(file);
       });
 
-      const data = await saveVendorVerificationDocument(token, {
+      const payload = {
         key: presigned.key,
         filename: file.name,
         size: file.size,
         contentType: file.type,
         documentType,
-      });
+      };
+      const data = onSaveVendorVerificationDocument
+        ? await onSaveVendorVerificationDocument(payload)
+        : await saveVendorVerificationDocument(token, payload);
       onVendorUpdated?.(data.vendor);
     } catch (nextError) {
       setError(nextError.message || 'Could not upload verification document.');
@@ -95,7 +104,9 @@ export default function VendorVerificationManager({ token, vendor, onVendorUpdat
     setError('');
     setRemovingId(documentId);
     try {
-      const data = await removeVendorVerificationDocument(token, documentId);
+      const data = onRemoveVendorVerificationDocument
+        ? await onRemoveVendorVerificationDocument(documentId)
+        : await removeVendorVerificationDocument(token, documentId);
       onVendorUpdated?.(data.vendor);
     } catch (nextError) {
       setError(nextError.message || 'Could not remove verification document.');

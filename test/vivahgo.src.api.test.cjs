@@ -6,7 +6,16 @@ async function loadApiModule() {
   return import(`${toFileUrl(appPath('src/api.js'))}?t=${Date.now()}`);
 }
 
+async function loadRequestModule() {
+  return import(`${toFileUrl(appPath('src/shared/api/request.js'))}?t=${Date.now()}`);
+}
+
 describe('VivahGo/src/api.js', function () {
+  afterEach(async function () {
+    const requestMod = await loadRequestModule();
+    requestMod.resetRequestCache();
+  });
+
   it('resolves base URL across local, configured, and fallback cases', async function () {
     const mod = await loadApiModule();
 
@@ -274,5 +283,92 @@ describe('VivahGo/src/api.js', function () {
     assert.equal(calls[firstRequestIndex + 18].options.method, 'POST');
     assert.equal(calls[firstRequestIndex + 19].options.method, 'PUT');
     assert.match(calls[firstRequestIndex + 20].url, /\/admin\/staff\?email=staff%40example\.com$/);
+  });
+
+  it('dedupes identical GET requests while one is in flight', async function () {
+    const mod = await loadRequestModule();
+    const calls = [];
+
+    const fetchImpl = async (url) => {
+      calls.push(url);
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return { vendors: ['cached'] };
+        },
+      };
+    };
+
+    const [first, second] = await Promise.all([
+      mod.request('/vendors', { ttlMs: 1000, cacheKey: 'vendors:list' }, { fetchImpl, baseUrl: 'https://api.example.com' }),
+      mod.request('/vendors', { ttlMs: 1000, cacheKey: 'vendors:list' }, { fetchImpl, baseUrl: 'https://api.example.com' }),
+    ]);
+
+    assert.deepEqual(first, { vendors: ['cached'] });
+    assert.deepEqual(second, { vendors: ['cached'] });
+    assert.equal(calls.length, 1);
+  });
+
+  it('invalidates cached GET entries after a related mutation succeeds', async function () {
+    const mod = await loadRequestModule();
+    const calls = [];
+
+    const fetchImpl = async (url, options = {}) => {
+      calls.push({ url, options });
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          if (options.method === 'PATCH') {
+            return { ok: true };
+          }
+
+          return { ts: calls.filter((entry) => entry.options.method !== 'PATCH').length };
+        },
+      };
+    };
+
+    const first = await mod.request('/vendor/me', {
+      token: 'jwt-token',
+      ttlMs: 1000,
+      cacheKey: 'vendor:me',
+    }, {
+      fetchImpl,
+      baseUrl: 'https://api.example.com',
+    });
+    const second = await mod.request('/vendor/me', {
+      token: 'jwt-token',
+      ttlMs: 1000,
+      cacheKey: 'vendor:me',
+    }, {
+      fetchImpl,
+      baseUrl: 'https://api.example.com',
+    });
+
+    assert.deepEqual(first, { ts: 1 });
+    assert.deepEqual(second, { ts: 1 });
+
+    await mod.request('/vendor/me', {
+      method: 'PATCH',
+      token: 'jwt-token',
+      body: { businessName: 'Updated Vendor' },
+      invalidateKeys: ['vendor:me'],
+    }, {
+      fetchImpl,
+      baseUrl: 'https://api.example.com',
+    });
+
+    const third = await mod.request('/vendor/me', {
+      token: 'jwt-token',
+      ttlMs: 1000,
+      cacheKey: 'vendor:me',
+    }, {
+      fetchImpl,
+      baseUrl: 'https://api.example.com',
+    });
+
+    assert.deepEqual(third, { ts: 2 });
   });
 });

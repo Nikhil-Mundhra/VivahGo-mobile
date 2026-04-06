@@ -7,6 +7,7 @@ const {
   connectDb,
   createGuestRsvpToken,
   getCollaboratorRoleForPlan,
+  getPublicCache,
   getPlannerModel,
   getPlanFromPlanner,
   getReminderJobModel,
@@ -14,6 +15,7 @@ const {
   getUserModel,
   handlePreflight,
   hasPlanRole,
+  invalidatePublicCache,
   normalizeEmail,
   normalizePlannerOwnership,
   normalizeRole,
@@ -21,11 +23,17 @@ const {
   sanitizeNotificationPreferences,
   sanitizePlanner,
   sanitizeReminderSettings,
+  setCacheControl,
   setCorsHeaders,
+  setPublicCache,
   verifyGuestRsvpToken,
   verifySession,
+  withRequestMetrics,
 } = require('./_lib/core');
 const { sendFcmNotification } = require('./_lib/fcm');
+
+const PLANNER_PUBLIC_CACHE_TAG = 'planner-public';
+const PLANNER_CONFLICT_CODE = 'PLANNER_CONFLICT';
 
 /******************************************************************************
  * Shared Helpers
@@ -76,6 +84,29 @@ function countOwners(collaborators) {
   return collaborators.filter(item => item?.role === 'owner').length;
 }
 
+function normalizePlannerRevision(value) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
+}
+
+function normalizeClientSequence(value) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+function buildPlannerRevisionFilter(currentRevision) {
+  if (currentRevision > 0) {
+    return { plannerRevision: currentRevision };
+  }
+
+  return {
+    $or: [
+      { plannerRevision: { $exists: false } },
+      { plannerRevision: 0 },
+    ],
+  };
+}
+
 function getPublicWeddingData(planner, publicPlan) {
   const wedding = {
     ...planner.wedding,
@@ -100,6 +131,40 @@ function getPublicWeddingData(planner, publicPlan) {
     },
     events: (planner.events || []).filter(item => item?.planId === publicPlan.id && item?.isPublicWebsiteVisible !== false),
   };
+}
+
+function getPlannerPublicCacheKey(slug) {
+  return `planner-public:${String(slug || '').trim().toLowerCase()}`;
+}
+
+function collectPlannerPublicSlugs(planner) {
+  return Array.isArray(planner?.marriages)
+    ? planner.marriages.map(item => String(item?.websiteSlug || '').trim().toLowerCase()).filter(Boolean)
+    : [];
+}
+
+function refreshPlannerPublicSnapshots(planner, previousPlanner) {
+  const slugsToInvalidate = new Set([
+    ...collectPlannerPublicSlugs(previousPlanner),
+    ...collectPlannerPublicSlugs(planner),
+  ]);
+
+  for (const slug of slugsToInvalidate) {
+    invalidatePublicCache(getPlannerPublicCacheKey(slug));
+  }
+
+  for (const marriage of Array.isArray(planner?.marriages) ? planner.marriages : []) {
+    const slug = String(marriage?.websiteSlug || '').trim().toLowerCase();
+    if (!slug || marriage?.websiteSettings?.isActive === false) {
+      continue;
+    }
+
+    setPublicCache(
+      getPlannerPublicCacheKey(slug),
+      getPublicWeddingData(planner, marriage),
+      { tags: [PLANNER_PUBLIC_CACHE_TAG] }
+    );
+  }
 }
 
 function getGuestDisplayName(guest) {
@@ -702,6 +767,8 @@ function upsertNotificationDevice(user, payload) {
  ******************************************************************************/
 
 async function handlePlannerMe(req, res) {
+  setCacheControl(res, 'noStore');
+
   if (req.method !== 'GET' && req.method !== 'PUT') {
     res.setHeader('Allow', 'GET, PUT, OPTIONS');
     return res.status(405).json({ error: 'Method not allowed.' });
@@ -737,8 +804,10 @@ async function handlePlannerMe(req, res) {
         return res.status(403).json({ error: 'You do not have access to this plan.' });
       }
 
+      const plannerRevision = Math.max(0, Number(plannerDoc?.plannerRevision) || 0);
       return res.status(200).json({
         planner: sanitizePlanner(normalized, { ownerEmail: findOwnerEmail(activePlan, email), ownerId }),
+        plannerRevision,
         plannerOwnerId: ownerId,
         access: {
           role: activeRole,
@@ -752,10 +821,25 @@ async function handlePlannerMe(req, res) {
     const nextPlanner = await assignWeddingWebsiteSlugs(sanitizedPlanner, Planner, ownerId);
     const ownerTier = await getSubscriptionTier(ownerId);
     const gatedPlanner = applyReminderTierGate(nextPlanner, ownerTier);
+    const currentPlannerRevision = Math.max(0, Number(plannerDoc?.plannerRevision) || 0);
+    const baseRevision = normalizePlannerRevision(req.body?.baseRevision);
+    const correlationId = typeof req.body?.correlationId === 'string' ? req.body.correlationId.trim() : '';
+    const clientSequence = normalizeClientSequence(req.body?.clientSequence);
     const nextPlan = getPlanFromPlanner(gatedPlanner, gatedPlanner.activePlanId);
     const ownerFallback = !email && ownerId === auth.sub;
     if (!ownerFallback && !hasPlanRole(nextPlan, email, 'editor')) {
       return res.status(403).json({ error: 'You have view-only access to this plan.' });
+    }
+
+    if (baseRevision !== null && baseRevision < currentPlannerRevision) {
+      return res.status(409).json({
+        error: 'Planner has newer changes. Refresh and try again.',
+        code: PLANNER_CONFLICT_CODE,
+        correlationId,
+        clientSequence,
+        plannerRevision: currentPlannerRevision,
+        plannerOwnerId: ownerId,
+      });
     }
 
     const currentPlanCount = Array.isArray(normalized.marriages) ? normalized.marriages.length : 0;
@@ -767,17 +851,36 @@ async function handlePlannerMe(req, res) {
     }
 
     const updated = await Planner.findOneAndUpdate(
-      { _id: plannerDoc._id || ownerId },
+      {
+        _id: plannerDoc._id || ownerId,
+        ...buildPlannerRevisionFilter(currentPlannerRevision),
+      },
       {
         $set: {
           ...gatedPlanner,
+        },
+        $inc: {
+          plannerRevision: 1,
         },
       },
       { new: true, upsert: true, setDefaultsOnInsert: true }
     );
 
+    if (!updated) {
+      return res.status(409).json({
+        error: 'Planner has newer changes. Refresh and try again.',
+        code: PLANNER_CONFLICT_CODE,
+        correlationId,
+        clientSequence,
+        plannerRevision: currentPlannerRevision + 1,
+        plannerOwnerId: ownerId,
+      });
+    }
+
     const updatedOwnerId = updated.googleId || ownerId;
+    const nextPlannerRevision = Math.max(currentPlannerRevision + 1, Number(updated?.plannerRevision) || 0);
     const updatedNormalized = normalizePlannerOwnership(updated.toObject(), email, updatedOwnerId);
+    refreshPlannerPublicSnapshots(updatedNormalized, normalized);
     await rebuildReminderJobsForPlanner(
       updatedNormalized,
       updatedOwnerId,
@@ -786,6 +889,9 @@ async function handlePlannerMe(req, res) {
     );
     return res.status(200).json({
       planner: sanitizePlanner(updatedNormalized, { ownerEmail: email, ownerId: updatedOwnerId }),
+      plannerRevision: nextPlannerRevision,
+      correlationId,
+      clientSequence,
       plannerOwnerId: updatedOwnerId,
     });
   } catch (err) {
@@ -799,6 +905,8 @@ async function handlePlannerMe(req, res) {
  ******************************************************************************/
 
 async function handlePlannerAccess(req, res) {
+  setCacheControl(res, 'noStore');
+
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET, OPTIONS');
     return res.status(405).json({ error: 'Method not allowed.' });
@@ -875,6 +983,8 @@ async function handlePlannerAccess(req, res) {
  ******************************************************************************/
 
 async function handlePlannerPublic(req, res) {
+  setCacheControl(res, 'noStore');
+
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET, OPTIONS');
     return res.status(405).json({ error: 'Method not allowed.' });
@@ -886,26 +996,40 @@ async function handlePlannerPublic(req, res) {
   }
 
   try {
-    await connectDb();
-    const Planner = getPlannerModel();
-    const plannerDoc = await Planner.findOne({ 'marriages.websiteSlug': slug });
+    return await withRequestMetrics('planner:public', async () => {
+      const cacheKey = getPlannerPublicCacheKey(slug);
+      const cached = getPublicCache(cacheKey);
+      if (cached) {
+        console.info('[cache] hit', { key: cacheKey, source: 'memory-snapshot' });
+        setCacheControl(res, 'plannerPublic');
+        return res.status(200).json(cached.value);
+      }
 
-    if (!plannerDoc) {
-      return res.status(404).json({ error: 'Wedding website not found.' });
-    }
+      await connectDb();
+      const Planner = getPlannerModel();
+      const plannerDoc = await Planner.findOne({ 'marriages.websiteSlug': slug });
 
-    const planner = sanitizePlanner(plannerDoc.toObject(), { ownerId: plannerDoc.googleId || '' });
-    const publicPlan = (planner.marriages || []).find(item => String(item.websiteSlug || '').toLowerCase() === slug);
+      if (!plannerDoc) {
+        return res.status(404).json({ error: 'Wedding website not found.' });
+      }
 
-    if (!publicPlan) {
-      return res.status(404).json({ error: 'Wedding website not found.' });
-    }
+      const planner = sanitizePlanner(plannerDoc.toObject(), { ownerId: plannerDoc.googleId || '' });
+      const publicPlan = (planner.marriages || []).find(item => String(item.websiteSlug || '').toLowerCase() === slug);
 
-    if (publicPlan.websiteSettings?.isActive === false) {
-      return res.status(404).json({ error: 'Wedding website not found.' });
-    }
+      if (!publicPlan) {
+        return res.status(404).json({ error: 'Wedding website not found.' });
+      }
 
-    return res.status(200).json(getPublicWeddingData(planner, publicPlan));
+      if (publicPlan.websiteSettings?.isActive === false) {
+        return res.status(404).json({ error: 'Wedding website not found.' });
+      }
+
+      const payload = getPublicWeddingData(planner, publicPlan);
+      setPublicCache(cacheKey, payload, { tags: [PLANNER_PUBLIC_CACHE_TAG] });
+      console.info('[cache] miss', { key: cacheKey, source: 'db' });
+      setCacheControl(res, 'plannerPublic');
+      return res.status(200).json(payload);
+    });
   } catch (error) {
     console.error('Public planner API failed:', error);
     return res.status(500).json({ error: 'Failed to load wedding website.' });
@@ -913,6 +1037,8 @@ async function handlePlannerPublic(req, res) {
 }
 
 async function handlePlannerRsvpLink(req, res) {
+  setCacheControl(res, 'noStore');
+
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST, OPTIONS');
     return res.status(405).json({ error: 'Method not allowed.' });
@@ -985,6 +1111,8 @@ async function handlePlannerRsvpLink(req, res) {
 }
 
 async function handlePlannerRsvp(req, res) {
+  setCacheControl(res, 'noStore');
+
   if (req.method !== 'GET' && req.method !== 'POST') {
     res.setHeader('Allow', 'GET, POST, OPTIONS');
     return res.status(405).json({ error: 'Method not allowed.' });
@@ -1120,6 +1248,8 @@ async function handlePlannerRsvp(req, res) {
  ******************************************************************************/
 
 async function handlePlannerCollaborators(req, res) {
+  setCacheControl(res, 'noStore');
+
   if (!['GET', 'POST', 'PUT', 'DELETE'].includes(req.method)) {
     res.setHeader('Allow', 'GET, POST, PUT, DELETE, OPTIONS');
     return res.status(405).json({ error: 'Method not allowed.' });
@@ -1297,6 +1427,8 @@ async function handlePlannerCollaborators(req, res) {
  ******************************************************************************/
 
 async function handlePlannerNotifications(req, res) {
+  setCacheControl(res, 'noStore');
+
   if (!['GET', 'PUT', 'POST', 'DELETE'].includes(req.method)) {
     res.setHeader('Allow', 'GET, PUT, POST, DELETE, OPTIONS');
     return res.status(405).json({ error: 'Method not allowed.' });
@@ -1400,6 +1532,8 @@ async function handlePlannerNotifications(req, res) {
  ******************************************************************************/
 
 async function handlePlannerReminderDispatch(req, res) {
+  setCacheControl(res, 'noStore');
+
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST, OPTIONS');
     return res.status(405).json({ error: 'Method not allowed.' });
@@ -1477,3 +1611,6 @@ module.exports.handlePlannerPublic = handlePlannerPublic;
 module.exports.handlePlannerReminderDispatch = handlePlannerReminderDispatch;
 module.exports.handlePlannerRsvp = handlePlannerRsvp;
 module.exports.handlePlannerRsvpLink = handlePlannerRsvpLink;
+module.exports.getPlannerPublicCacheKey = getPlannerPublicCacheKey;
+module.exports.getPublicWeddingData = getPublicWeddingData;
+module.exports.refreshPlannerPublicSnapshots = refreshPlannerPublicSnapshots;

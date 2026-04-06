@@ -66,7 +66,7 @@ function buildInitialForm(vendor) {
   };
 }
 
-export default function VendorBusinessProfileEditor({ token, vendor, onVendorUpdated, onPreviewChange }) {
+export default function VendorBusinessProfileEditor({ token, vendor, onVendorUpdated, onPreviewChange, onSaveVendorProfile }) {
   const [form, setForm] = useState(() => buildInitialForm(vendor));
   const [coverageDraft, setCoverageDraft] = useState({ country: '', state: '', city: '' });
   const [showCoverageForm, setShowCoverageForm] = useState(() => Array.isArray(vendor?.coverageAreas) && vendor.coverageAreas.length > 0);
@@ -252,7 +252,9 @@ export default function VendorBusinessProfileEditor({ token, vendor, onVendorUpd
           dateOverrides: Array.isArray(vendor?.availabilitySettings?.dateOverrides) ? vendor.availabilitySettings.dateOverrides : [],
         },
       };
-      const data = await updateVendorProfile(token, payload);
+      const data = onSaveVendorProfile
+        ? await onSaveVendorProfile(payload)
+        : await updateVendorProfile(token, payload);
       onVendorUpdated?.(data.vendor);
       setForm(buildInitialForm(data.vendor));
       setSaved(true);

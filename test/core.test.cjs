@@ -6,18 +6,25 @@ const {
   assignWeddingWebsiteSlugs,
   buildWeddingWebsiteBaseSlug,
   buildEmptyPlanner,
+  getCacheControlPolicy,
+  getPublicCache,
   createGuestRsvpToken,
   createSessionToken,
   ensureCsrfToken,
+  invalidatePublicCache,
   getPlannerModel,
   getBillingReceiptModel,
   getUserModel,
+  getVendorModel,
   handlePreflight,
   requireCsrfProtection,
+  resetPublicCache,
   resetRateLimitBuckets,
   resolveStaffRole,
   sanitizePlanner,
+  setCacheControl,
   setCorsHeaders,
+  setPublicCache,
   verifyGuestRsvpToken,
   verifySession,
 } = require('../api/_lib/core');
@@ -29,6 +36,7 @@ describe('core helpers', function () {
     delete process.env.NODE_ENV;
     delete process.env.RSVP_TOKEN_SECRET;
     resetRateLimitBuckets();
+    resetPublicCache();
   });
 
   describe('sanitizePlanner', function () {
@@ -266,6 +274,31 @@ describe('core helpers', function () {
 
       assert.equal(res.headers['Access-Control-Allow-Origin'], undefined);
       assert.equal(res.headers.Vary, undefined);
+    });
+  });
+
+  describe('public cache helpers', function () {
+    it('stores, reads, and invalidates cached public snapshots', function () {
+      setPublicCache('vendors:index', { vendors: [{ id: 'v1' }] }, { tags: ['vendors'] });
+
+      assert.deepEqual(getPublicCache('vendors:index')?.value, { vendors: [{ id: 'v1' }] });
+
+      invalidatePublicCache('vendors', { scope: 'tag' });
+
+      assert.equal(getPublicCache('vendors:index'), null);
+    });
+
+    it('applies centralized cache control policies', function () {
+      const res = {
+        headers: {},
+        setHeader(name, value) {
+          this.headers[name] = value;
+        },
+      };
+
+      assert.equal(getCacheControlPolicy('vendorDirectory'), 'public, s-maxage=300, stale-while-revalidate=3600');
+      setCacheControl(res, 'plannerPublic');
+      assert.equal(res.headers['Cache-Control'], 'public, s-maxage=60, stale-while-revalidate=600');
     });
   });
 
@@ -612,6 +645,26 @@ describe('core helpers', function () {
     it('returns the same model on repeated calls (cached)', function () {
       const first = getPlannerModel();
       const second = getPlannerModel();
+
+      assert.equal(first, second);
+    });
+  });
+
+  describe('getVendorModel', function () {
+    it('returns a mongoose model with expected schema paths', function () {
+      const Vendor = getVendorModel();
+
+      assert.equal(typeof Vendor, 'function');
+      assert.ok(Vendor.schema.path('googleId'));
+      assert.ok(Vendor.schema.path('businessName'));
+      assert.ok(Vendor.schema.path('media'));
+      assert.ok(Vendor.schema.path('verificationDocuments'));
+      assert.ok(Vendor.schema.path('vendorRevision'));
+    });
+
+    it('returns the same model on repeated calls (cached)', function () {
+      const first = getVendorModel();
+      const second = getVendorModel();
 
       assert.equal(first, second);
     });

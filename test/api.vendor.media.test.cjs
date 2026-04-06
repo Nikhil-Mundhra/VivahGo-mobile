@@ -59,23 +59,27 @@ function makeVendorDoc(items = [], verificationDocuments = []) {
   return {
     media,
     verificationDocuments: documents,
+    vendorRevision: 0,
     verificationStatus: documents.length ? 'submitted' : 'not_submitted',
     verificationNotes: '',
     verificationReviewedAt: null,
     verificationReviewedBy: '',
     async save() {
+      this.media = attachMediaHelpers(this.media);
+      this.verificationDocuments = attachVerificationHelpers(this.verificationDocuments);
       return this;
     },
     toObject() {
       return {
         googleId: 'vendor-123',
         businessName: 'Vendor Test',
-        media: media.map(item => {
+        vendorRevision: this.vendorRevision,
+        media: this.media.map(item => {
           const clone = { ...item };
           delete clone.deleteOne;
           return clone;
         }),
-        verificationDocuments: documents.map(item => {
+        verificationDocuments: this.verificationDocuments.map(item => {
           const clone = { ...item };
           delete clone.deleteOne;
           return clone;

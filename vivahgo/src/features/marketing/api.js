@@ -1,5 +1,7 @@
 import { request } from "../../shared/api/request.js";
 
+const CAREERS_CACHE_KEY = "marketing:careers";
+
 export function submitFeedback(payload) {
   return request("/feedback", {
     method: "POST",
@@ -8,7 +10,10 @@ export function submitFeedback(payload) {
 }
 
 export function fetchCareers() {
-  return request("/careers");
+  return request("/careers", {
+    ttlMs: 5 * 60 * 1000,
+    cacheKey: CAREERS_CACHE_KEY,
+  });
 }
 
 export function submitCareerApplication(payload) {
