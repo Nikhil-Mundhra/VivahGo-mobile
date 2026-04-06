@@ -12,7 +12,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "3.1024.0",
     "@aws-sdk/s3-request-presigner": "3.1016.0",
-    "@capacitor/core": "^8.2.0",
+    "@capacitor/core": "^8.3.0",
     "@capacitor/ios": "^8.2.0",
     "@clerk/nextjs": "^7.0.8",
     "@vercel/blob": "^2.3.3",
