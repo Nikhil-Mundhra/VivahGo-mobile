@@ -3,6 +3,8 @@ import { authStorageKeys } from "../../authStorage.js";
 const CSRF_COOKIE_NAME = "vivahgo_csrf";
 const SAFE_HTTP_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 let csrfTokenCache = "";
+const requestMemoryCache = new Map();
+const inflightRequestCache = new Map();
 
 function getRuntimeEnv() {
   if (typeof import.meta !== "undefined" && import.meta && import.meta.env) {
@@ -76,6 +78,48 @@ function isMutatingMethod(method) {
   return !SAFE_HTTP_METHODS.has(String(method || "GET").toUpperCase());
 }
 
+function normalizeInvalidateKeys(keys) {
+  if (!Array.isArray(keys)) {
+    return [];
+  }
+
+  return keys
+    .map((key) => String(key || "").trim())
+    .filter(Boolean);
+}
+
+function buildAuthScope(token) {
+  return token && token !== authStorageKeys.COOKIE_AUTH_PLACEHOLDER
+    ? `bearer:${token}`
+    : "cookie";
+}
+
+function buildRequestCacheKey(path, requestOptions = {}, baseUrl = API_BASE_URL) {
+  const { method = "GET", token, cacheKey } = requestOptions;
+  const authScope = buildAuthScope(token);
+
+  if (cacheKey) {
+    return `${String(cacheKey)}:${authScope}`;
+  }
+
+  const normalizedMethod = String(method || "GET").toUpperCase();
+  return `${normalizedMethod}:${baseUrl}${path}:${authScope}`;
+}
+
+export function invalidateRequestCache(keys) {
+  const normalizedKeys = Array.isArray(keys) ? keys : [keys];
+
+  for (const key of normalizedKeys.map((entry) => String(entry || "").trim()).filter(Boolean)) {
+    requestMemoryCache.delete(key);
+    inflightRequestCache.delete(key);
+  }
+}
+
+export function resetRequestCache() {
+  requestMemoryCache.clear();
+  inflightRequestCache.clear();
+}
+
 export async function fetchCsrfToken(options = {}) {
   const { fetchImpl = fetch, baseUrl = API_BASE_URL } = options;
   const cookieToken = readCookieValue(CSRF_COOKIE_NAME);
@@ -112,44 +156,97 @@ export async function fetchCsrfToken(options = {}) {
 }
 
 async function performRequest(path, requestOptions = {}, options = {}, hasRetriedCsrf = false) {
-  const { method = "GET", body, token } = requestOptions;
+  const {
+    method = "GET",
+    body,
+    token,
+    ttlMs = 0,
+    invalidateKeys = [],
+  } = requestOptions;
   const { fetchImpl = fetch, baseUrl = API_BASE_URL } = options;
   const shouldSendBearerToken = Boolean(token) && token !== authStorageKeys.COOKIE_AUTH_PLACEHOLDER;
   const shouldAttachCsrf = isMutatingMethod(method) && !shouldSendBearerToken;
-  const csrfToken = shouldAttachCsrf
-    ? (readCookieValue(CSRF_COOKIE_NAME) || csrfTokenCache || await fetchCsrfToken({ fetchImpl, baseUrl }))
-    : "";
+  const normalizedMethod = String(method || "GET").toUpperCase();
+  const isCacheableRequest = !hasRetriedCsrf && normalizedMethod === "GET" && Number(ttlMs) > 0 && !body;
+  const cacheKey = buildRequestCacheKey(path, requestOptions, baseUrl);
+  const now = Date.now();
 
-  let response;
+  if (isCacheableRequest) {
+    const cached = requestMemoryCache.get(cacheKey);
+    if (cached && cached.expiresAt > now) {
+      return cached.value;
+    }
 
-  try {
-    response = await fetchImpl(`${baseUrl}${path}`, {
-      method,
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-        ...(shouldSendBearerToken ? { Authorization: `Bearer ${token}` } : {}),
-        ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
-      },
-      ...(body ? { body: JSON.stringify(body) } : {}),
-    });
-  } catch {
-    throw new Error("Failed to fetch. Check API URL, server status, and CORS settings.");
+    if (inflightRequestCache.has(cacheKey)) {
+      return inflightRequestCache.get(cacheKey);
+    }
   }
 
-  const data = await response.json().catch(() => ({}));
+  const execute = async () => {
+    const csrfToken = shouldAttachCsrf
+      ? (readCookieValue(CSRF_COOKIE_NAME) || csrfTokenCache || await fetchCsrfToken({ fetchImpl, baseUrl }))
+      : "";
 
-  if (!response.ok && shouldAttachCsrf && !hasRetriedCsrf && (data.code === "CSRF_REQUIRED" || data.code === "CSRF_INVALID")) {
-    csrfTokenCache = "";
-    await fetchCsrfToken({ fetchImpl, baseUrl });
-    return performRequest(path, requestOptions, options, true);
+    let response;
+
+    try {
+      response = await fetchImpl(`${baseUrl}${path}`, {
+        method: normalizedMethod,
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          ...(shouldSendBearerToken ? { Authorization: `Bearer ${token}` } : {}),
+          ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
+        },
+        ...(body ? { body: JSON.stringify(body) } : {}),
+      });
+    } catch {
+      throw new Error("Failed to fetch. Check API URL, server status, and CORS settings.");
+    }
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok && shouldAttachCsrf && !hasRetriedCsrf && (data.code === "CSRF_REQUIRED" || data.code === "CSRF_INVALID")) {
+      csrfTokenCache = "";
+      await fetchCsrfToken({ fetchImpl, baseUrl });
+      return performRequest(path, requestOptions, options, true);
+    }
+
+    if (!response.ok) {
+      const requestError = new Error(data.error || `Request failed (${response.status}).`);
+      requestError.status = response.status;
+      requestError.code = typeof data.code === "string" ? data.code : "";
+      requestError.responseData = data;
+      throw requestError;
+    }
+
+    if (isCacheableRequest) {
+      requestMemoryCache.set(cacheKey, {
+        value: data,
+        expiresAt: Date.now() + Math.max(1, Number(ttlMs)),
+      });
+    }
+
+    if (isMutatingMethod(normalizedMethod)) {
+      const authScope = buildAuthScope(token);
+      const scopedKeys = normalizeInvalidateKeys(invalidateKeys).map(
+        (key) => `${key}:${authScope}`
+      );
+      invalidateRequestCache(scopedKeys);
+    }
+
+    return data;
+  };
+
+  if (!isCacheableRequest) {
+    return execute();
   }
 
-  if (!response.ok) {
-    throw new Error(data.error || `Request failed (${response.status}).`);
-  }
-
-  return data;
+  const requestPromise = execute().finally(() => {
+    inflightRequestCache.delete(cacheKey);
+  });
+  inflightRequestCache.set(cacheKey, requestPromise);
+  return requestPromise;
 }
 
 export async function request(path, requestOptions = {}, options = {}) {

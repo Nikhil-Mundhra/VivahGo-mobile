@@ -6,7 +6,11 @@ const { createRes } = require('./helpers/testUtils.cjs');
 const corePath = require.resolve('../api/_lib/core');
 const adminPath = require.resolve('../api/_lib/admin');
 const blobPath = require.resolve('../api/_lib/blob');
-const handlerPath = require.resolve('../api/media/app-upload');
+const handlerPath = require.resolve('../api/media');
+const appUploadHandlerPath = require.resolve('../api-handlers/media/appUpload');
+const presignedHandlerPath = require.resolve('../api-handlers/media/presignedUrl');
+const verificationHandlerPath = require.resolve('../api-handlers/media/verificationPresignedUrl');
+const readJsonBodyPath = require.resolve('../api-handlers/media/readJsonBody');
 
 function makeToken(payload = {}) {
   return jwt.sign(
@@ -16,7 +20,7 @@ function makeToken(payload = {}) {
   );
 }
 
-describe('api/media/app-upload.js', function () {
+describe('api/media.js -> app-upload route', function () {
   const originalCore = require(corePath);
   const originalAdmin = require(adminPath);
   const originalBlob = require(blobPath);
@@ -26,6 +30,10 @@ describe('api/media/app-upload.js', function () {
     require.cache[adminPath].exports = originalAdmin;
     require.cache[blobPath].exports = originalBlob;
     delete require.cache[handlerPath];
+    delete require.cache[appUploadHandlerPath];
+    delete require.cache[presignedHandlerPath];
+    delete require.cache[verificationHandlerPath];
+    delete require.cache[readJsonBodyPath];
   });
 
   it('uploads public guide images to Blob for staff editors', async function () {
@@ -59,6 +67,7 @@ describe('api/media/app-upload.js', function () {
     const req = {
       method: 'POST',
       query: {
+        route: 'app-upload',
         filename: 'guide-image.png',
         folder: 'guides',
       },
@@ -109,6 +118,7 @@ describe('api/media/app-upload.js', function () {
     const req = {
       method: 'POST',
       query: {
+        route: 'app-upload',
         filename: 'guide-image.svg',
         folder: 'guides',
       },

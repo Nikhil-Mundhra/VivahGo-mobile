@@ -4,17 +4,21 @@ import { GoogleOAuthProvider } from '@react-oauth/google'
 import { ClerkProvider } from '@clerk/react'
 import { Analytics } from '@vercel/analytics/react'
 import { SpeedInsights } from '@vercel/speed-insights/react'
+import { QueryClientProvider } from '@tanstack/react-query'
 import "../index.css";
 import App from "./App.jsx";
+import { queryClient } from "../shared/queryClient.js";
 
 const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
 const app = (
   <StrictMode>
-    <App />
-    <Analytics />
-    <SpeedInsights />
+    <QueryClientProvider client={queryClient}>
+      <App />
+      <Analytics />
+      <SpeedInsights />
+    </QueryClientProvider>
   </StrictMode>
 );
 

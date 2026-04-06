@@ -1,4 +1,4 @@
-const { applyRateLimit, handlePreflight, requireCsrfProtection, setCorsHeaders } = require('./_lib/core');
+const { applyRateLimit, handlePreflight, requireCsrfProtection, setCorsHeaders } = require('../../api/_lib/core');
 
 function getString(value, fallback) {
   if (typeof value !== 'string') {
@@ -9,7 +9,10 @@ function getString(value, fallback) {
   return trimmed || fallback;
 }
 
-module.exports = async function handler(req, res) {
+module.exports = async function handleFeedback(req, res) {
+  // ---------------------
+  // Request guardrails
+  // ---------------------
   if (handlePreflight(req, res)) {
     return;
   }
@@ -42,6 +45,9 @@ module.exports = async function handler(req, res) {
     return;
   }
 
+  // ---------------------
+  // Payload normalization
+  // ---------------------
   const body = req.body && typeof req.body === 'object' ? req.body : {};
   const message = getString(body.message, '');
 
@@ -61,6 +67,9 @@ module.exports = async function handler(req, res) {
   };
 
   try {
+    // ---------------------
+    // Webhook forward
+    // ---------------------
     const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: {
@@ -75,6 +84,9 @@ module.exports = async function handler(req, res) {
 
     res.status(200).json({ ok: true });
   } catch (error) {
+    // ---------------------
+    // Error handling
+    // ---------------------
     console.error('Feedback forward failed:', error);
     res.status(502).json({ error: 'Could not submit feedback right now. Please try again.' });
   }

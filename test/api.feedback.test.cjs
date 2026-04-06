@@ -3,7 +3,8 @@ const assert = require('node:assert/strict');
 const { resetRateLimitBuckets } = require('../api/_lib/core');
 const { createRes } = require('./helpers/testUtils.cjs');
 
-const handler = require('../api/feedback');
+const handler = require('../api/system');
+const feedbackHandlerPath = require.resolve('../api-handlers/system/feedback');
 
 function csrfHeaders(headers = {}) {
   return {
@@ -13,7 +14,7 @@ function csrfHeaders(headers = {}) {
   };
 }
 
-describe('api/feedback.js', function () {
+describe('api/system.js -> feedback route', function () {
   const originalEnv = { ...process.env };
   const originalFetch = global.fetch;
 
@@ -26,10 +27,11 @@ describe('api/feedback.js', function () {
     process.env = { ...originalEnv };
     global.fetch = originalFetch;
     resetRateLimitBuckets();
+    delete require.cache[feedbackHandlerPath];
   });
 
   it('handles OPTIONS preflight with 204', async function () {
-    const req = { method: 'OPTIONS', headers: { origin: 'https://example.com' } };
+    const req = { method: 'OPTIONS', query: { route: 'feedback' }, headers: { origin: 'https://example.com' } };
     const res = createRes();
 
     await handler(req, res);
@@ -39,7 +41,7 @@ describe('api/feedback.js', function () {
   });
 
   it('rejects non-POST methods', async function () {
-    const req = { method: 'GET', headers: {} };
+    const req = { method: 'GET', query: { route: 'feedback' }, headers: {} };
     const res = createRes();
 
     await handler(req, res);
@@ -51,7 +53,7 @@ describe('api/feedback.js', function () {
 
   it('returns 500 when feedback env vars are missing', async function () {
     delete process.env.FEEDBACK_WEBHOOK_URL;
-    const req = { method: 'POST', headers: csrfHeaders(), body: { message: 'hello' } };
+    const req = { method: 'POST', query: { route: 'feedback' }, headers: csrfHeaders(), body: { message: 'hello' } };
     const res = createRes();
 
     await handler(req, res);
@@ -70,6 +72,7 @@ describe('api/feedback.js', function () {
 
     const req = {
       method: 'POST',
+      query: { route: 'feedback' },
       headers: csrfHeaders({ 'user-agent': 'test-agent' }),
       body: {
         name: 'Nikhil',
@@ -94,7 +97,7 @@ describe('api/feedback.js', function () {
   });
 
   it('returns 400 when message is empty or whitespace', async function () {
-    const req = { method: 'POST', headers: csrfHeaders(), body: { message: '   ' } };
+    const req = { method: 'POST', query: { route: 'feedback' }, headers: csrfHeaders(), body: { message: '   ' } };
     const res = createRes();
 
     await handler(req, res);
@@ -108,6 +111,7 @@ describe('api/feedback.js', function () {
 
     const req = {
       method: 'POST',
+      query: { route: 'feedback' },
       headers: csrfHeaders(),
       body: { message: 'Test message' },
     };
@@ -124,6 +128,7 @@ describe('api/feedback.js', function () {
 
     const req = {
       method: 'POST',
+      query: { route: 'feedback' },
       headers: csrfHeaders(),
       body: { message: 'Test message' },
     };
@@ -144,6 +149,7 @@ describe('api/feedback.js', function () {
 
     const req = {
       method: 'POST',
+      query: { route: 'feedback' },
       headers: csrfHeaders({ 'user-agent': 'header-agent' }),
       body: { message: 'Hello', name: 42 },
     };
@@ -162,6 +168,7 @@ describe('api/feedback.js', function () {
     for (let attempt = 0; attempt < 6; attempt += 1) {
       const req = {
         method: 'POST',
+        query: { route: 'feedback' },
         headers: csrfHeaders({ 'x-forwarded-for': '198.51.100.25' }),
         body: { message: `Feedback ${attempt}` },
       };
@@ -174,6 +181,7 @@ describe('api/feedback.js', function () {
 
     const limitedReq = {
       method: 'POST',
+      query: { route: 'feedback' },
       headers: csrfHeaders({ 'x-forwarded-for': '198.51.100.25' }),
       body: { message: 'One more' },
     };

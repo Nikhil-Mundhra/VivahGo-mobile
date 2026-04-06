@@ -1,5 +1,5 @@
 const careerCatalog = require('../config/careers.json');
-const { applyRateLimit, connectDb, getCareerApplicationModel, handlePreflight, normalizeEmail, requireCsrfProtection, setCorsHeaders } = require('./_lib/core');
+const { applyRateLimit, connectDb, getCareerApplicationModel, handlePreflight, normalizeEmail, requireCsrfProtection, setCacheControl, setCorsHeaders } = require('./_lib/core');
 const { uploadResumeToB2 } = require('./_lib/b2');
 
 const MAX_RESUME_SIZE_BYTES = 2 * 1024 * 1024;
@@ -97,6 +97,7 @@ async function handler(req, res) {
   setCorsHeaders(req, res);
 
   if (req.method === 'GET') {
+    setCacheControl(res, 'careersCatalog');
     return res.status(200).json({
       careers: careerCatalog.map(serializeCareer),
       limits: {
@@ -107,9 +108,12 @@ async function handler(req, res) {
   }
 
   if (req.method !== 'POST') {
+    setCacheControl(res, 'noStore');
     res.setHeader('Allow', 'GET, POST, OPTIONS');
     return res.status(405).json({ error: 'Method not allowed.' });
   }
+
+  setCacheControl(res, 'noStore');
 
   if (requireCsrfProtection(req, res, { skipForBearer: false })) {
     return;

@@ -55,7 +55,17 @@ function MediaPreview({ item }) {
   );
 }
 
-export default function VendorPortfolioManager({ token, vendor, media, onVendorUpdated }) {
+export default function VendorPortfolioManager({
+  token,
+  vendor,
+  media,
+  onVendorUpdated,
+  onSaveVendorMediaRecord,
+  onUpdateVendorMediaRecord,
+  onRemoveVendorMediaRecord,
+  onSaveVendorVerificationDocument,
+  onRemoveVendorVerificationDocument,
+}) {
   const [fileItems, setFileItems] = useState([]);
   const [drafts, setDrafts] = useState(() => buildDraftMap(media));
   const [busyIds, setBusyIds] = useState({});
@@ -137,14 +147,17 @@ export default function VendorPortfolioManager({ token, vendor, media, onVendorU
         if (xhr.status >= 200 && xhr.status < 300) {
           updateItem(id, { progress: 100 });
           try {
-            const data = await saveVendorMedia(token, {
+            const payload = {
               key: presignedData.key,
               url: presignedData.publicUrl,
               type: getMediaType(file),
               filename: file.name,
               size: file.size,
               altText: file.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' '),
-            });
+            };
+            const data = onSaveVendorMediaRecord
+              ? await onSaveVendorMediaRecord(payload)
+              : await saveVendorMedia(token, payload);
             updateItem(id, { status: 'done' });
             onVendorUpdated?.(data.vendor);
           } catch (err) {
@@ -197,11 +210,14 @@ export default function VendorPortfolioManager({ token, vendor, media, onVendorU
     setPortfolioError('');
     setBusy(mediaId, true);
     try {
-      const data = await updateVendorMedia(token, {
+      const payload = {
         mediaId,
         caption: draft.caption,
         altText: draft.altText,
-      });
+      };
+      const data = onUpdateVendorMediaRecord
+        ? await onUpdateVendorMediaRecord(payload)
+        : await updateVendorMedia(token, payload);
       onVendorUpdated?.(data.vendor);
     } catch (err) {
       setPortfolioError(err.message || 'Could not save media details.');
@@ -214,7 +230,10 @@ export default function VendorPortfolioManager({ token, vendor, media, onVendorU
     setPortfolioError('');
     setBusy(mediaId, true);
     try {
-      const data = await updateVendorMedia(token, { mediaId, ...payload });
+      const nextPayload = { mediaId, ...payload };
+      const data = onUpdateVendorMediaRecord
+        ? await onUpdateVendorMediaRecord(nextPayload)
+        : await updateVendorMedia(token, nextPayload);
       onVendorUpdated?.(data.vendor);
     } catch (err) {
       setPortfolioError(err.message || fallbackMessage);
@@ -237,9 +256,12 @@ export default function VendorPortfolioManager({ token, vendor, media, onVendorU
     setPortfolioError('');
     setBusy(mediaId, true);
     try {
-      const data = await updateVendorMedia(token, {
+      const payload = {
         mediaIds: nextOrder.map(entry => entry._id),
-      });
+      };
+      const data = onUpdateVendorMediaRecord
+        ? await onUpdateVendorMediaRecord(payload)
+        : await updateVendorMedia(token, payload);
       onVendorUpdated?.(data.vendor);
     } catch (err) {
       setPortfolioError(err.message || 'Could not reorder portfolio items.');
@@ -252,7 +274,9 @@ export default function VendorPortfolioManager({ token, vendor, media, onVendorU
     setPortfolioError('');
     setBusy(mediaId, true);
     try {
-      const data = await removeVendorMedia(token, mediaId);
+      const data = onRemoveVendorMediaRecord
+        ? await onRemoveVendorMediaRecord(mediaId)
+        : await removeVendorMedia(token, mediaId);
       onVendorUpdated?.(data.vendor);
     } catch (err) {
       setPortfolioError(err.message || 'Could not remove media item.');
@@ -266,7 +290,13 @@ export default function VendorPortfolioManager({ token, vendor, media, onVendorU
 
   return (
     <div className="space-y-6">
-      <VendorVerificationManager token={token} vendor={vendor} onVendorUpdated={onVendorUpdated} />
+      <VendorVerificationManager
+        token={token}
+        vendor={vendor}
+        onVendorUpdated={onVendorUpdated}
+        onSaveVendorVerificationDocument={onSaveVendorVerificationDocument}
+        onRemoveVendorVerificationDocument={onRemoveVendorVerificationDocument}
+      />
 
       <div className="grid gap-3 md:grid-cols-3">
         <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4">

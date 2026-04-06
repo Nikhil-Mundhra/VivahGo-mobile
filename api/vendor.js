@@ -1,4 +1,18 @@
-const { connectDb, getChoiceProfileModel, getUserModel, getVendorModel, handlePreflight, requireCsrfProtection, setCorsHeaders, verifySession } = require('./_lib/core');
+const {
+  connectDb,
+  getChoiceProfileModel,
+  getPublicCache,
+  getUserModel,
+  getVendorModel,
+  handlePreflight,
+  invalidatePublicCache,
+  requireCsrfProtection,
+  setCacheControl,
+  setCorsHeaders,
+  setPublicCache,
+  verifySession,
+  withRequestMetrics,
+} = require('./_lib/core');
 const { createPublicObjectUrl, extractObjectKeyFromUrl, normalizeMediaList, objectKeyMatchesScope } = require('./_lib/r2');
 const { createB2PresignedGetUrl, deleteB2Object } = require('./_lib/b2');
 const { buildAggregatedBudgetRange, buildAggregatedServices, buildChoiceProfileName, normalizeVendorTier, normalizeWhatsappNumber, sortChoiceMedia } = require('./_lib/vendor-choice');
@@ -40,6 +54,9 @@ const MAX_ALT_TEXT_LENGTH = 180;
 const ALLOWED_VERIFICATION_DOCUMENT_TYPES = ['AADHAAR', 'PAN', 'PASSPORT', 'DRIVING_LICENSE', 'OTHER'];
 const MAX_VERIFICATION_NOTES_LENGTH = 1000;
 const MAX_VENDOR_CAPACITY = 99;
+const VENDOR_DIRECTORY_CACHE_KEY = 'vendors:index';
+const VENDOR_DIRECTORY_CACHE_TAG = 'vendors';
+const VENDOR_CONFLICT_CODE = 'VENDOR_CONFLICT';
 
 /******************************************************************************
  * Shared Helpers
@@ -91,6 +108,113 @@ function normalizeVendorSubtype(type, subType) {
   }
 
   return normalizedSubType;
+}
+
+function normalizeVendorRevision(value) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
+}
+
+function normalizeClientSequence(value) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+function buildVendorRevisionFilter(currentRevision) {
+  if (currentRevision > 0) {
+    return { vendorRevision: currentRevision };
+  }
+
+  return {
+    $or: [
+      { vendorRevision: { $exists: false } },
+      { vendorRevision: 0 },
+    ],
+  };
+}
+
+function buildVendorConflictPayload({ correlationId = '', clientSequence = null, vendorRevision = 0 } = {}) {
+  return {
+    error: 'Vendor profile changed before this update completed. Please refresh and try again.',
+    code: VENDOR_CONFLICT_CODE,
+    correlationId,
+    clientSequence,
+    vendorRevision,
+  };
+}
+
+function createSubdocumentId() {
+  const timestamp = Math.floor(Date.now() / 1000).toString(16).padStart(8, '0');
+  const random = Math.random().toString(16).slice(2).padEnd(16, '0');
+  return `${timestamp}${random}`.slice(0, 24);
+}
+
+function cloneVendorMediaItems(items) {
+  return (Array.isArray(items) ? items : []).map((item, index) => ({
+    ...item,
+    _id: item?._id || createSubdocumentId(),
+    sortOrder: typeof item?.sortOrder === 'number' ? item.sortOrder : index,
+    isCover: Boolean(item?.isCover),
+    isVisible: item?.isVisible !== false,
+    caption: item?.caption || '',
+    altText: item?.altText || '',
+    filename: item?.filename || '',
+    size: typeof item?.size === 'number' ? item.size : 0,
+  }));
+}
+
+function cloneVerificationDocuments(items) {
+  return (Array.isArray(items) ? items : []).map((item) => ({
+    ...item,
+    _id: item?._id || createSubdocumentId(),
+    filename: item?.filename || '',
+    size: typeof item?.size === 'number' ? item.size : 0,
+    contentType: item?.contentType || '',
+    documentType: item?.documentType || 'OTHER',
+    uploadedAt: item?.uploadedAt || new Date(),
+  }));
+}
+
+function findSubdocumentIndex(items, targetId) {
+  return (Array.isArray(items) ? items : []).findIndex((item) => String(item?._id || '') === String(targetId || ''));
+}
+
+async function applyVendorRevisionUpdate(Vendor, ownerId, currentVendorRevision, setPayload) {
+  if (typeof Vendor.findOneAndUpdate === 'function') {
+    return Vendor.findOneAndUpdate(
+      {
+        googleId: ownerId,
+        ...buildVendorRevisionFilter(currentVendorRevision),
+      },
+      {
+        $set: setPayload,
+        $inc: { vendorRevision: 1 },
+      },
+      { new: true, runValidators: true }
+    );
+  }
+
+  const vendor = await Vendor.findOne({ googleId: ownerId });
+  if (!vendor) {
+    return null;
+  }
+
+  for (const [key, value] of Object.entries(setPayload || {})) {
+    vendor[key] = value;
+  }
+  vendor.vendorRevision = currentVendorRevision + 1;
+  if (typeof vendor.save === 'function') {
+    await vendor.save();
+  }
+  return vendor;
+}
+
+async function loadVendorSnapshot(Vendor, query) {
+  const result = Vendor.findOne(query);
+  if (result && typeof result.lean === 'function') {
+    return result.lean();
+  }
+  return result;
 }
 
 function normalizeCoverageAreas(value) {
@@ -418,21 +542,31 @@ async function serializeVerificationDocuments(documents, ownerId) {
 async function serializeVendor(vendor) {
   const vendorObject = typeof vendor?.toObject === 'function' ? vendor.toObject() : vendor;
   const normalizedVendor = normalizeMediaForResponse(vendorObject);
-  const verificationDocuments = await serializeVerificationDocuments(normalizedVendor?.verificationDocuments, normalizedVendor?.googleId);
+  const { vendorRevision: _vendorRevision, ...publicVendor } = normalizedVendor || {};
+  const verificationDocuments = await serializeVerificationDocuments(publicVendor?.verificationDocuments, publicVendor?.googleId);
 
   return {
-    ...normalizedVendor,
-    type: normalizeVendorType(normalizedVendor?.type),
-    tier: normalizeVendorTier(normalizedVendor?.tier),
-    bundledServices: Array.isArray(normalizedVendor?.bundledServices) ? normalizedVendor.bundledServices.map(normalizeVendorType) : [],
-    availabilitySettings: normalizeAvailabilitySettings(normalizedVendor?.availabilitySettings),
-    verificationStatus: normalizeVerificationStatus(normalizedVendor?.verificationStatus, {
+    ...publicVendor,
+    type: normalizeVendorType(publicVendor?.type),
+    tier: normalizeVendorTier(publicVendor?.tier),
+    bundledServices: Array.isArray(publicVendor?.bundledServices) ? publicVendor.bundledServices.map(normalizeVendorType) : [],
+    availabilitySettings: normalizeAvailabilitySettings(publicVendor?.availabilitySettings),
+    verificationStatus: normalizeVerificationStatus(publicVendor?.verificationStatus, {
       hasDocuments: verificationDocuments.length > 0,
     }),
-    verificationNotes: sanitizeVerificationNotes(normalizedVendor?.verificationNotes),
-    verificationReviewedAt: normalizedVendor?.verificationReviewedAt || null,
-    verificationReviewedBy: normalizedVendor?.verificationReviewedBy || '',
+    verificationNotes: sanitizeVerificationNotes(publicVendor?.verificationNotes),
+    verificationReviewedAt: publicVendor?.verificationReviewedAt || null,
+    verificationReviewedBy: publicVendor?.verificationReviewedBy || '',
     verificationDocuments,
+  };
+}
+
+async function buildVendorMutationResponse(vendor, mutationMeta = {}) {
+  return {
+    vendor: await serializeVendor(vendor),
+    vendorRevision: Math.max(0, Number(vendor?.vendorRevision) || 0),
+    correlationId: typeof mutationMeta?.correlationId === 'string' ? mutationMeta.correlationId : '',
+    clientSequence: normalizeClientSequence(mutationMeta?.clientSequence),
   };
 }
 
@@ -710,42 +844,55 @@ async function handleVendorList(req, res) {
     return res.status(405).json({ error: 'Method not allowed.' });
   }
 
+  setCacheControl(res, 'vendorDirectory');
+
   try {
-    await connectDb();
-    const Vendor = getVendorModel();
-    const ChoiceProfile = getChoiceProfileModel();
+    return await withRequestMetrics('vendor:list', async () => {
+      const cached = getPublicCache(VENDOR_DIRECTORY_CACHE_KEY);
+      if (cached) {
+        console.info('[cache] hit', { key: VENDOR_DIRECTORY_CACHE_KEY, source: 'memory-snapshot' });
+        return res.status(200).json(cached.value);
+      }
 
-    const raw = await Vendor.find({ isApproved: true })
-      .select('-__v')
-      .lean();
-    const choiceProfiles = await bootstrapChoiceProfiles(ChoiceProfile);
+      await connectDb();
+      const Vendor = getVendorModel();
+      const ChoiceProfile = getChoiceProfileModel();
 
-    const plusVendors = raw
-      .filter(vendor => normalizeVendorTier(vendor?.tier) === 'Plus')
-      .map(buildPublicVendorDirectoryEntry);
-    const freeVendorsByType = raw.reduce((map, vendor) => {
-      const type = normalizeVendorType(vendor?.type);
-      if (!type) {
+      const raw = await Vendor.find({ isApproved: true })
+        .select('-__v')
+        .lean();
+      const choiceProfiles = await bootstrapChoiceProfiles(ChoiceProfile);
+
+      const plusVendors = raw
+        .filter(vendor => normalizeVendorTier(vendor?.tier) === 'Plus')
+        .map(buildPublicVendorDirectoryEntry);
+      const freeVendorsByType = raw.reduce((map, vendor) => {
+        const type = normalizeVendorType(vendor?.type);
+        if (!type) {
+          return map;
+        }
+        if (!map.has(type)) {
+          map.set(type, []);
+        }
+        map.get(type).push(vendor);
         return map;
-      }
-      if (!map.has(type)) {
-        map.set(type, []);
-      }
-      map.get(type).push(vendor);
-      return map;
-    }, new Map());
-    const choiceProfilesByType = new Map(choiceProfiles.map(profile => [normalizeVendorType(profile?.type), profile]));
-    const resolvedChoiceProfiles = DEFAULT_VCA_TYPES
-      .map((type) => {
-        const savedProfile = choiceProfilesByType.get(type);
-        return buildPublicChoiceDirectoryEntry(
-          savedProfile || buildDefaultChoiceProfileSeed(type),
-          freeVendorsByType.get(type) || []
-        );
-      })
-      .filter(Boolean);
+      }, new Map());
+      const choiceProfilesByType = new Map(choiceProfiles.map(profile => [normalizeVendorType(profile?.type), profile]));
+      const resolvedChoiceProfiles = DEFAULT_VCA_TYPES
+        .map((type) => {
+          const savedProfile = choiceProfilesByType.get(type);
+          return buildPublicChoiceDirectoryEntry(
+            savedProfile || buildDefaultChoiceProfileSeed(type),
+            freeVendorsByType.get(type) || []
+          );
+        })
+        .filter(Boolean);
 
-    return res.status(200).json({ vendors: [...resolvedChoiceProfiles, ...plusVendors] });
+      const payload = { vendors: [...resolvedChoiceProfiles, ...plusVendors] };
+      setPublicCache(VENDOR_DIRECTORY_CACHE_KEY, payload, { tags: [VENDOR_DIRECTORY_CACHE_TAG] });
+      console.info('[cache] miss', { key: VENDOR_DIRECTORY_CACHE_KEY, source: 'db' });
+      return res.status(200).json(payload);
+    });
   } catch (error) {
     console.error('Approved vendors fetch failed:', error);
     return res.status(500).json({ error: 'Could not fetch vendors.' });
@@ -757,6 +904,8 @@ async function handleVendorList(req, res) {
  ******************************************************************************/
 
 async function handleVendorMe(req, res) {
+  setCacheControl(res, 'noStore');
+
   if (!['GET', 'POST', 'PATCH'].includes(req.method)) {
     res.setHeader('Allow', 'GET, POST, PATCH, OPTIONS');
     return res.status(405).json({ error: 'Method not allowed.' });
@@ -775,15 +924,17 @@ async function handleVendorMe(req, res) {
     await connectDb();
     const Vendor = getVendorModel();
     const User = getUserModel();
+    const baseRevision = normalizeVendorRevision(req.body?.baseRevision);
+    const correlationId = typeof req.body?.correlationId === 'string' ? req.body.correlationId : '';
+    const clientSequence = normalizeClientSequence(req.body?.clientSequence);
+    const mutationMeta = { correlationId, clientSequence };
 
     if (req.method === 'GET') {
-      const vendor = await Vendor.findOne({ googleId: auth.sub }).lean();
+      const vendor = await loadVendorSnapshot(Vendor, { googleId: auth.sub });
       if (!vendor) {
         return res.status(404).json({ error: 'No vendor profile found.' });
       }
-      return res.status(200).json({
-        vendor: await serializeVendor(vendor),
-      });
+      return res.status(200).json(await buildVendorMutationResponse(vendor));
     }
 
     if (req.method === 'POST') {
@@ -808,7 +959,7 @@ async function handleVendorMe(req, res) {
         return res.status(400).json({ error: 'website and googleMapsLink must start with http:// or https://.' });
       }
 
-      const existing = await Vendor.findOne({ googleId: auth.sub }).lean();
+      const existing = await loadVendorSnapshot(Vendor, { googleId: auth.sub });
       if (existing) {
         return res.status(409).json({ error: 'Vendor profile already exists. Use PATCH to update.' });
       }
@@ -838,25 +989,36 @@ async function handleVendorMe(req, res) {
         website: (website || '').trim(),
         budgetRange: normalizedBudgetRange,
         availabilitySettings: normalizedAvailabilitySettings,
+        vendorRevision: 1,
       });
 
       await User.findOneAndUpdate(
         { googleId: auth.sub },
         { $set: { isVendor: true, vendorId: vendor._id } }
       );
+      invalidatePublicCache(VENDOR_DIRECTORY_CACHE_TAG, { scope: 'tag' });
 
-      return res.status(201).json({
-        vendor: await serializeVendor(vendor),
-      });
+      return res.status(201).json(await buildVendorMutationResponse(vendor, mutationMeta));
     }
 
     if (req.method === 'PATCH') {
       const body = req.body || {};
       const updates = {};
-      const existingVendor = await Vendor.findOne({ googleId: auth.sub }).lean();
+      const existingVendor = await loadVendorSnapshot(Vendor, { googleId: auth.sub });
 
       if (!existingVendor) {
         return res.status(404).json({ error: 'No vendor profile found.' });
+      }
+
+      const currentVendorRevision = Math.max(0, Number(existingVendor?.vendorRevision) || 0);
+      if (baseRevision !== null && baseRevision < currentVendorRevision) {
+        return res.status(409).json(
+          buildVendorConflictPayload({
+            correlationId,
+            clientSequence,
+            vendorRevision: currentVendorRevision,
+          })
+        );
       }
 
       for (const field of ALLOWED_UPDATE_FIELDS) {
@@ -918,13 +1080,27 @@ async function handleVendorMe(req, res) {
       }
 
       const vendor = await Vendor.findOneAndUpdate(
-        { googleId: auth.sub },
-        { $set: updates },
-        { new: true }
+        {
+          googleId: auth.sub,
+          ...buildVendorRevisionFilter(currentVendorRevision),
+        },
+        {
+          $set: updates,
+          $inc: { vendorRevision: 1 },
+        },
+        { new: true, runValidators: true }
       );
-      return res.status(200).json({
-        vendor: await serializeVendor(vendor),
-      });
+      if (!vendor) {
+        return res.status(409).json(
+          buildVendorConflictPayload({
+            correlationId,
+            clientSequence,
+            vendorRevision: currentVendorRevision,
+          })
+        );
+      }
+      invalidatePublicCache(VENDOR_DIRECTORY_CACHE_TAG, { scope: 'tag' });
+      return res.status(200).json(await buildVendorMutationResponse(vendor, mutationMeta));
     }
   } catch (error) {
     console.error('Vendor profile error:', error);
@@ -941,6 +1117,8 @@ async function handleVendorMe(req, res) {
  ******************************************************************************/
 
 async function handleVendorMedia(req, res) {
+  setCacheControl(res, 'noStore');
+
   if (!['POST', 'PUT', 'DELETE'].includes(req.method)) {
     res.setHeader('Allow', 'POST, PUT, DELETE, OPTIONS');
     return res.status(405).json({ error: 'Method not allowed.' });
@@ -958,6 +1136,10 @@ async function handleVendorMedia(req, res) {
   try {
     await connectDb();
     const Vendor = getVendorModel();
+    const baseRevision = normalizeVendorRevision(req.body?.baseRevision);
+    const correlationId = typeof req.body?.correlationId === 'string' ? req.body.correlationId : '';
+    const clientSequence = normalizeClientSequence(req.body?.clientSequence);
+    const mutationMeta = { correlationId, clientSequence };
 
     if (req.method === 'POST') {
       const { key, url, type, sortOrder, filename, size, caption, altText, isVisible } = req.body || {};
@@ -973,14 +1155,26 @@ async function handleVendorMedia(req, res) {
         return res.status(400).json({ error: 'type must be IMAGE or VIDEO.' });
       }
 
-      const vendor = await Vendor.findOne({ googleId: auth.sub });
+      const existingVendor = await loadVendorSnapshot(Vendor, { googleId: auth.sub });
 
-      if (!vendor) {
+      if (!existingVendor) {
         return res.status(404).json({ error: 'No vendor profile found.' });
       }
 
-      const nextSortOrder = Array.isArray(vendor.media)
-        ? vendor.media.reduce((highest, item, index) => {
+      const currentVendorRevision = Math.max(0, Number(existingVendor?.vendorRevision) || 0);
+      if (baseRevision !== null && baseRevision < currentVendorRevision) {
+        return res.status(409).json(
+          buildVendorConflictPayload({
+            correlationId,
+            clientSequence,
+            vendorRevision: currentVendorRevision,
+          })
+        );
+      }
+
+      const nextMedia = cloneVendorMediaItems(existingVendor.media);
+      const nextSortOrder = Array.isArray(nextMedia)
+        ? nextMedia.reduce((highest, item, index) => {
           const current = typeof item?.sortOrder === 'number' ? item.sortOrder : index;
           return Math.max(highest, current);
         }, -1) + 1
@@ -991,7 +1185,8 @@ async function handleVendorMedia(req, res) {
         publicUrl = createPublicObjectUrl(normalizedKey);
       } catch {}
 
-      vendor.media.push({
+      nextMedia.push({
+        _id: createSubdocumentId(),
         key: normalizedKey,
         url: publicUrl,
         type,
@@ -1001,24 +1196,47 @@ async function handleVendorMedia(req, res) {
         caption: sanitizeText(caption, MAX_CAPTION_LENGTH),
         altText: sanitizeText(altText, MAX_ALT_TEXT_LENGTH),
         isVisible: typeof isVisible === 'boolean' ? isVisible : true,
-        isCover: !vendor.media.some(item => item?.isCover),
+        isCover: !nextMedia.some(item => item?.isCover),
       });
 
-      await vendor.save();
-      return res.status(201).json({ vendor: await serializeVendor(vendor) });
+      const vendor = await applyVendorRevisionUpdate(Vendor, auth.sub, currentVendorRevision, { media: nextMedia });
+      if (!vendor) {
+        return res.status(409).json(
+          buildVendorConflictPayload({
+            correlationId,
+            clientSequence,
+            vendorRevision: currentVendorRevision,
+          })
+        );
+      }
+      invalidatePublicCache(VENDOR_DIRECTORY_CACHE_TAG, { scope: 'tag' });
+      return res.status(201).json(await buildVendorMutationResponse(vendor, mutationMeta));
     }
 
     if (req.method === 'PUT') {
       const { mediaId, caption, altText, isVisible, makeCover, mediaIds } = req.body || {};
-      const vendor = await Vendor.findOne({ googleId: auth.sub });
+      const existingVendor = await loadVendorSnapshot(Vendor, { googleId: auth.sub });
 
-      if (!vendor) {
+      if (!existingVendor) {
         return res.status(404).json({ error: 'No vendor profile found.' });
       }
 
+      const currentVendorRevision = Math.max(0, Number(existingVendor?.vendorRevision) || 0);
+      if (baseRevision !== null && baseRevision < currentVendorRevision) {
+        return res.status(409).json(
+          buildVendorConflictPayload({
+            correlationId,
+            clientSequence,
+            vendorRevision: currentVendorRevision,
+          })
+        );
+      }
+
+      const nextMedia = cloneVendorMediaItems(existingVendor.media);
+
       if (Array.isArray(mediaIds)) {
         const normalizedIds = mediaIds.filter(id => typeof id === 'string' && id);
-        if (normalizedIds.length !== vendor.media.length) {
+        if (normalizedIds.length !== nextMedia.length) {
           return res.status(400).json({ error: 'mediaIds must include every portfolio item exactly once.' });
         }
 
@@ -1030,7 +1248,7 @@ async function handleVendorMedia(req, res) {
           seen.add(id);
         }
 
-        const itemsById = new Map(vendor.media.map(item => [String(item._id), item]));
+        const itemsById = new Map(nextMedia.map(item => [String(item._id), item]));
         if (normalizedIds.some(id => !itemsById.has(id))) {
           return res.status(400).json({ error: 'mediaIds includes an unknown portfolio item.' });
         }
@@ -1039,18 +1257,29 @@ async function handleVendorMedia(req, res) {
           itemsById.get(id).sortOrder = index;
         });
 
-        await vendor.save();
-        return res.status(200).json({ vendor: await serializeVendor(vendor) });
+        const vendor = await applyVendorRevisionUpdate(Vendor, auth.sub, currentVendorRevision, { media: nextMedia });
+        if (!vendor) {
+          return res.status(409).json(
+            buildVendorConflictPayload({
+              correlationId,
+              clientSequence,
+              vendorRevision: currentVendorRevision,
+            })
+          );
+        }
+        invalidatePublicCache(VENDOR_DIRECTORY_CACHE_TAG, { scope: 'tag' });
+        return res.status(200).json(await buildVendorMutationResponse(vendor, mutationMeta));
       }
 
       if (!mediaId || typeof mediaId !== 'string') {
         return res.status(400).json({ error: 'mediaId is required.' });
       }
 
-      const target = vendor.media.id(mediaId);
-      if (!target) {
+      const targetIndex = findSubdocumentIndex(nextMedia, mediaId);
+      if (targetIndex < 0) {
         return res.status(404).json({ error: 'Media item not found.' });
       }
+      const target = nextMedia[targetIndex];
 
       if (typeof caption === 'string') {
         target.caption = sanitizeText(caption, MAX_CAPTION_LENGTH);
@@ -1062,13 +1291,23 @@ async function handleVendorMedia(req, res) {
         target.isVisible = isVisible;
       }
       if (makeCover === true) {
-        vendor.media.forEach(item => {
+        nextMedia.forEach(item => {
           item.isCover = String(item._id) === mediaId;
         });
       }
 
-      await vendor.save();
-      return res.status(200).json({ vendor: await serializeVendor(vendor) });
+      const vendor = await applyVendorRevisionUpdate(Vendor, auth.sub, currentVendorRevision, { media: nextMedia });
+      if (!vendor) {
+        return res.status(409).json(
+          buildVendorConflictPayload({
+            correlationId,
+            clientSequence,
+            vendorRevision: currentVendorRevision,
+          })
+        );
+      }
+      invalidatePublicCache(VENDOR_DIRECTORY_CACHE_TAG, { scope: 'tag' });
+      return res.status(200).json(await buildVendorMutationResponse(vendor, mutationMeta));
     }
 
     if (req.method === 'DELETE') {
@@ -1078,28 +1317,40 @@ async function handleVendorMedia(req, res) {
         return res.status(400).json({ error: 'mediaId is required.' });
       }
 
-      const vendor = await Vendor.findOne({ googleId: auth.sub });
+      const existingVendor = await loadVendorSnapshot(Vendor, { googleId: auth.sub });
 
-      if (!vendor) {
+      if (!existingVendor) {
         return res.status(404).json({ error: 'No vendor profile found.' });
       }
 
-      const target = vendor.media.id(mediaId);
-      if (!target) {
+      const currentVendorRevision = Math.max(0, Number(existingVendor?.vendorRevision) || 0);
+      if (baseRevision !== null && baseRevision < currentVendorRevision) {
+        return res.status(409).json(
+          buildVendorConflictPayload({
+            correlationId,
+            clientSequence,
+            vendorRevision: currentVendorRevision,
+          })
+        );
+      }
+
+      const nextMedia = cloneVendorMediaItems(existingVendor.media);
+      const targetIndex = findSubdocumentIndex(nextMedia, mediaId);
+      if (targetIndex < 0) {
         return res.status(404).json({ error: 'Media item not found.' });
       }
 
-      const wasCover = Boolean(target.isCover);
-      target.deleteOne();
+      const [target] = nextMedia.splice(targetIndex, 1);
+      const wasCover = Boolean(target?.isCover);
 
-      const sortedMedia = [...vendor.media].sort((a, b) => {
+      const sortedMedia = [...nextMedia].sort((a, b) => {
         const orderA = typeof a?.sortOrder === 'number' ? a.sortOrder : 0;
         const orderB = typeof b?.sortOrder === 'number' ? b.sortOrder : 0;
         return orderA - orderB;
       });
 
       if (wasCover && sortedMedia.length > 0) {
-        vendor.media.forEach(item => {
+        nextMedia.forEach(item => {
           item.isCover = false;
         });
         sortedMedia[0].isCover = true;
@@ -1109,8 +1360,18 @@ async function handleVendorMedia(req, res) {
         item.sortOrder = index;
       });
 
-      await vendor.save();
-      return res.status(200).json({ vendor: await serializeVendor(vendor) });
+      const vendor = await applyVendorRevisionUpdate(Vendor, auth.sub, currentVendorRevision, { media: sortedMedia });
+      if (!vendor) {
+        return res.status(409).json(
+          buildVendorConflictPayload({
+            correlationId,
+            clientSequence,
+            vendorRevision: currentVendorRevision,
+          })
+        );
+      }
+      invalidatePublicCache(VENDOR_DIRECTORY_CACHE_TAG, { scope: 'tag' });
+      return res.status(200).json(await buildVendorMutationResponse(vendor, mutationMeta));
     }
   } catch (error) {
     console.error('Vendor media error:', error);
@@ -1123,6 +1384,8 @@ async function handleVendorMedia(req, res) {
  ******************************************************************************/
 
 async function handleVendorVerification(req, res) {
+  setCacheControl(res, 'noStore');
+
   if (!['POST', 'DELETE'].includes(req.method)) {
     res.setHeader('Allow', 'POST, DELETE, OPTIONS');
     return res.status(405).json({ error: 'Method not allowed.' });
@@ -1140,10 +1403,25 @@ async function handleVendorVerification(req, res) {
   try {
     await connectDb();
     const Vendor = getVendorModel();
-    const vendor = await Vendor.findOne({ googleId: auth.sub });
+    const baseRevision = normalizeVendorRevision(req.body?.baseRevision);
+    const correlationId = typeof req.body?.correlationId === 'string' ? req.body.correlationId : '';
+    const clientSequence = normalizeClientSequence(req.body?.clientSequence);
+    const mutationMeta = { correlationId, clientSequence };
+    const existingVendor = await loadVendorSnapshot(Vendor, { googleId: auth.sub });
 
-    if (!vendor) {
+    if (!existingVendor) {
       return res.status(404).json({ error: 'No vendor profile found.' });
+    }
+
+    const currentVendorRevision = Math.max(0, Number(existingVendor?.vendorRevision) || 0);
+    if (baseRevision !== null && baseRevision < currentVendorRevision) {
+      return res.status(409).json(
+        buildVendorConflictPayload({
+          correlationId,
+          clientSequence,
+          vendorRevision: currentVendorRevision,
+        })
+      );
     }
 
     if (req.method === 'POST') {
@@ -1160,7 +1438,9 @@ async function handleVendorVerification(req, res) {
         return res.status(400).json({ error: `documentType must be one of: ${ALLOWED_VERIFICATION_DOCUMENT_TYPES.join(', ')}.` });
       }
 
-      vendor.verificationDocuments.push({
+      const nextVerificationDocuments = cloneVerificationDocuments(existingVendor.verificationDocuments);
+      nextVerificationDocuments.push({
+        _id: createSubdocumentId(),
         key: normalizedKey,
         filename: typeof filename === 'string' ? filename.slice(0, 255) : '',
         size: typeof size === 'number' && size >= 0 ? size : 0,
@@ -1168,12 +1448,23 @@ async function handleVendorVerification(req, res) {
         documentType,
         uploadedAt: new Date(),
       });
-      vendor.verificationStatus = 'submitted';
-      vendor.verificationReviewedAt = null;
-      vendor.verificationReviewedBy = '';
-
-      await vendor.save();
-      return res.status(201).json({ vendor: await serializeVendor(vendor) });
+      const vendor = await applyVendorRevisionUpdate(Vendor, auth.sub, currentVendorRevision, {
+        verificationDocuments: nextVerificationDocuments,
+        verificationStatus: 'submitted',
+        verificationReviewedAt: null,
+        verificationReviewedBy: '',
+      });
+      if (!vendor) {
+        return res.status(409).json(
+          buildVendorConflictPayload({
+            correlationId,
+            clientSequence,
+            vendorRevision: currentVendorRevision,
+          })
+        );
+      }
+      invalidatePublicCache(VENDOR_DIRECTORY_CACHE_TAG, { scope: 'tag' });
+      return res.status(201).json(await buildVendorMutationResponse(vendor, mutationMeta));
     }
 
     if (req.method === 'DELETE') {
@@ -1182,23 +1473,42 @@ async function handleVendorVerification(req, res) {
         return res.status(400).json({ error: 'documentId is required.' });
       }
 
-      const target = vendor.verificationDocuments.id(documentId);
-      if (!target) {
+      const nextVerificationDocuments = cloneVerificationDocuments(existingVendor.verificationDocuments);
+      const targetIndex = findSubdocumentIndex(nextVerificationDocuments, documentId);
+      if (targetIndex < 0) {
         return res.status(404).json({ error: 'Verification document not found.' });
       }
 
+      const [target] = nextVerificationDocuments.splice(targetIndex, 1);
       const targetKey = typeof target?.key === 'string' ? target.key.replace(/^\/+/, '') : '';
-      target.deleteOne();
-      if (vendor.verificationDocuments.length === 0) {
-        vendor.verificationStatus = 'not_submitted';
-        vendor.verificationNotes = '';
-        vendor.verificationReviewedAt = null;
-        vendor.verificationReviewedBy = '';
-      } else if (vendor.verificationStatus === 'approved') {
-        vendor.verificationStatus = 'submitted';
-      }
+      const nextVerificationStatus = nextVerificationDocuments.length === 0
+        ? 'not_submitted'
+        : existingVendor.verificationStatus === 'approved'
+          ? 'submitted'
+          : existingVendor.verificationStatus;
+      const nextVerificationNotes = nextVerificationDocuments.length === 0
+        ? ''
+        : sanitizeVerificationNotes(existingVendor.verificationNotes);
+      const nextReviewedAt = nextVerificationDocuments.length === 0 ? null : (existingVendor.verificationReviewedAt || null);
+      const nextReviewedBy = nextVerificationDocuments.length === 0 ? '' : (existingVendor.verificationReviewedBy || '');
 
-      await vendor.save();
+      const vendor = await applyVendorRevisionUpdate(Vendor, auth.sub, currentVendorRevision, {
+        verificationDocuments: nextVerificationDocuments,
+        verificationStatus: nextVerificationStatus,
+        verificationNotes: nextVerificationNotes,
+        verificationReviewedAt: nextReviewedAt,
+        verificationReviewedBy: nextReviewedBy,
+      });
+      if (!vendor) {
+        return res.status(409).json(
+          buildVendorConflictPayload({
+            correlationId,
+            clientSequence,
+            vendorRevision: currentVendorRevision,
+          })
+        );
+      }
+      invalidatePublicCache(VENDOR_DIRECTORY_CACHE_TAG, { scope: 'tag' });
       if (targetKey) {
         try {
           await deleteB2Object(targetKey);
@@ -1206,7 +1516,7 @@ async function handleVendorVerification(req, res) {
           console.error('Vendor verification document delete failed:', error);
         }
       }
-      return res.status(200).json({ vendor: await serializeVendor(vendor) });
+      return res.status(200).json(await buildVendorMutationResponse(vendor, mutationMeta));
     }
   } catch (error) {
     console.error('Vendor verification error:', error);

@@ -35,6 +35,7 @@ describe('api/careers.js', function () {
     assert.equal(Array.isArray(res.body.careers), true);
     assert.equal(res.body.careers.length >= 1, true);
     assert.equal(res.body.limits.resumeMimeType, 'application/pdf');
+    assert.equal(res.headers['Cache-Control'], 'public, s-maxage=300, stale-while-revalidate=3600');
   });
 
   it('uploads a PDF resume, stores the application, and returns the saved record', async function () {

@@ -1,5 +1,5 @@
-const { handlePreflight, requireCsrfProtection, setCorsHeaders } = require('../_lib/core');
-const { requireAdminSession } = require('../_lib/admin');
+const { handlePreflight, requireCsrfProtection, setCorsHeaders } = require('../../api/_lib/core');
+const { requireAdminSession } = require('../../api/_lib/admin');
 const {
   ALLOWED_PUBLIC_IMAGE_TYPES,
   MAX_BLOB_SERVER_UPLOAD_SIZE,
@@ -7,9 +7,12 @@ const {
   normalizeBlobMediaFolder,
   readRequestBodyBuffer,
   uploadPublicBlob,
-} = require('../_lib/blob');
+} = require('../../api/_lib/blob');
 
-module.exports = async function handler(req, res) {
+module.exports = async function handleAppUpload(req, res) {
+  // ---------------------
+  // Request guardrails
+  // ---------------------
   if (handlePreflight(req, res)) { return; }
   setCorsHeaders(req, res);
 
@@ -23,6 +26,9 @@ module.exports = async function handler(req, res) {
   }
 
   try {
+    // ---------------------
+    // Session and input validation
+    // ---------------------
     const session = await requireAdminSession(req, 'editor');
     if (session.error) {
       return res.status(session.status).json({ error: session.error });
@@ -51,6 +57,9 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ error: 'Request body must contain a file.' });
     }
 
+    // ---------------------
+    // Blob upload
+    // ---------------------
     const pathname = buildPublicMediaBlobPath({ folder, filename });
     const blob = await uploadPublicBlob({
       pathname,
@@ -66,6 +75,9 @@ module.exports = async function handler(req, res) {
       blob,
     });
   } catch (error) {
+    // ---------------------
+    // Error handling
+    // ---------------------
     const message = String(error?.message || '');
     if (message.includes('Request body exceeds')) {
       return res.status(400).json({ error: 'File exceeds the 4.5 MB server upload limit for Vercel Blob.' });
@@ -74,10 +86,4 @@ module.exports = async function handler(req, res) {
     console.error('App media Blob upload failed:', error);
     return res.status(500).json({ error: 'Could not upload app media.' });
   }
-};
-
-module.exports.config = {
-  api: {
-    bodyParser: false,
-  },
 };

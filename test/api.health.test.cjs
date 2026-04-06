@@ -2,11 +2,16 @@ const assert = require('node:assert/strict');
 
 const { createRes } = require('./helpers/testUtils.cjs');
 
-const handler = require('../api/health');
+const handler = require('../api/system');
+const healthHandlerPath = require.resolve('../api-handlers/system/health');
 
-describe('api/health.js', function () {
+describe('api/system.js -> health route', function () {
+  afterEach(function () {
+    delete require.cache[healthHandlerPath];
+  });
+
   it('returns ok payload for GET', async function () {
-    const req = { method: 'GET', headers: {} };
+    const req = { method: 'GET', query: { route: 'health' }, headers: {} };
     const res = createRes();
 
     await handler(req, res);
@@ -18,7 +23,7 @@ describe('api/health.js', function () {
   });
 
   it('handles OPTIONS preflight with 204 and no JSON body', async function () {
-    const req = { method: 'OPTIONS', headers: { origin: 'https://example.com' } };
+    const req = { method: 'OPTIONS', query: { route: 'health' }, headers: { origin: 'https://example.com' } };
     const res = createRes();
 
     await handler(req, res);

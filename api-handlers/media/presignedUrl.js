@@ -1,10 +1,15 @@
 const { randomUUID } = require('crypto');
-const { applyRateLimit, connectDb, handlePreflight, requireCsrfProtection, setCorsHeaders, verifySession } = require('../_lib/core');
-const { createPresignedPutUrl, createPublicObjectUrl } = require('../_lib/r2');
+
+const { applyRateLimit, connectDb, handlePreflight, requireCsrfProtection, setCorsHeaders, verifySession } = require('../../api/_lib/core');
+const { createPresignedPutUrl, createPublicObjectUrl } = require('../../api/_lib/r2');
+const { readJsonBody } = require('./readJsonBody');
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
 
-module.exports = async function handler(req, res) {
+module.exports = async function handlePresignedUrl(req, res) {
+  // ---------------------
+  // Request guardrails
+  // ---------------------
   if (handlePreflight(req, res)) { return; }
   setCorsHeaders(req, res);
 
@@ -30,7 +35,17 @@ module.exports = async function handler(req, res) {
     return res.status(status).json({ error: authError });
   }
 
-  const { filename, contentType, size } = req.body || {};
+  // ---------------------
+  // Body parsing and validation
+  // ---------------------
+  let body = {};
+  try {
+    body = await readJsonBody(req, { maxBytes: 256 * 1024 });
+  } catch (error) {
+    return res.status(error.statusCode || 400).json({ error: error.publicMessage || 'Request body must be valid JSON.' });
+  }
+
+  const { filename, contentType, size } = body || {};
   const contentLength = Number(size);
 
   if (!filename || typeof filename !== 'string' || !contentType || typeof contentType !== 'string') {
@@ -49,12 +64,14 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ error: 'File exceeds the 50 MB size limit.' });
   }
 
-  // Sanitize extension: allow only alphanumeric characters
   const rawExt = filename.includes('.') ? filename.split('.').pop() : '';
   const ext = rawExt.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 10);
   const key = `vendors/${auth.sub}/${randomUUID()}${ext ? `.${ext}` : ''}`;
 
   try {
+    // ---------------------
+    // Presigned upload generation
+    // ---------------------
     await connectDb();
     const uploadUrl = await createPresignedPutUrl(key, contentType, {
       contentLength,
@@ -63,6 +80,9 @@ module.exports = async function handler(req, res) {
 
     return res.status(200).json({ uploadUrl, key, publicUrl });
   } catch (error) {
+    // ---------------------
+    // Error handling
+    // ---------------------
     console.error('Presigned URL generation failed:', error);
     return res.status(500).json({ error: 'Could not generate upload URL.' });
   }

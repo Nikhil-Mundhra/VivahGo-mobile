@@ -45,6 +45,28 @@ Shared helpers in api/_lib/*
 - State-changing endpoints generally require CSRF protection.
 - Public endpoints exist for health checks, public wedding pages, vendor discovery, and RSVP flows.
 
+## Client data layer
+
+The frontend now has a mixed local-form plus TanStack Query data model for authenticated product areas:
+
+- Planner and vendor reads use TanStack Query for authoritative server fetches.
+- The planner editor and vendor portal still keep editable local UI state for responsiveness.
+- Mutations carry `correlationId`, `clientSequence`, and base revision metadata so the backend can reject stale writes.
+- Planner and vendor optimistic updates use guarded mutation journals instead of naive whole-query rollback.
+
+The important rule is that TanStack Query should remain the source of server truth, while local component state handles the immediate editing experience.
+
+## TanStack revalidation behavior
+
+Planner and vendor now follow the same revalidation rule:
+
+1. TanStack Query remains the authoritative server source.
+2. Visible editor state is only hydrated from query results when there are no pending optimistic mutations for that surface.
+3. While optimistic mutations are still in flight, background refetches must not overwrite local in-progress UI state.
+4. Once the mutation journal is clear, the next authoritative query result is allowed to reconcile the visible editor again.
+
+This keeps optimistic UI responsive without letting background refetches reintroduce the double-mutation trap.
+
 ## Route dispatch model
 
 Production rewrites are defined in [`vercel.json`](/Users/nikhil/Documents/VivahGo-mobile/vercel.json). The main grouped handlers are:
@@ -97,8 +119,9 @@ Responsibilities:
 Primary files:
 
 - [`api/vendor.js`](/Users/nikhil/Documents/VivahGo-mobile/api/vendor.js)
-- [`api/media/presigned-url.js`](/Users/nikhil/Documents/VivahGo-mobile/api/media/presigned-url.js)
-- [`api/media/verification-presigned-url.js`](/Users/nikhil/Documents/VivahGo-mobile/api/media/verification-presigned-url.js)
+- [`api/media.js`](/Users/nikhil/Documents/VivahGo-mobile/api/media.js)
+- [`api-handlers/media/presignedUrl.js`](/Users/nikhil/Documents/VivahGo-mobile/api-handlers/media/presignedUrl.js)
+- [`api-handlers/media/verificationPresignedUrl.js`](/Users/nikhil/Documents/VivahGo-mobile/api-handlers/media/verificationPresignedUrl.js)
 
 Responsibilities:
 

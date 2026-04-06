@@ -5,7 +5,11 @@ const { createRes } = require('./helpers/testUtils.cjs');
 
 const corePath = require.resolve('../api/_lib/core');
 const b2Path = require.resolve('../api/_lib/b2');
-const handlerPath = require.resolve('../api/media/verification-presigned-url');
+const handlerPath = require.resolve('../api/media');
+const verificationHandlerPath = require.resolve('../api-handlers/media/verificationPresignedUrl');
+const appUploadHandlerPath = require.resolve('../api-handlers/media/appUpload');
+const presignedHandlerPath = require.resolve('../api-handlers/media/presignedUrl');
+const readJsonBodyPath = require.resolve('../api-handlers/media/readJsonBody');
 
 function makeToken(payload = {}) {
   return jwt.sign(
@@ -15,7 +19,7 @@ function makeToken(payload = {}) {
   );
 }
 
-describe('api/media/verification-presigned-url.js', function () {
+describe('api/media.js -> verification-presigned-url route', function () {
   const originalCore = require(corePath);
   const originalB2 = require(b2Path);
 
@@ -23,6 +27,10 @@ describe('api/media/verification-presigned-url.js', function () {
     require.cache[corePath].exports = originalCore;
     require.cache[b2Path].exports = originalB2;
     delete require.cache[handlerPath];
+    delete require.cache[appUploadHandlerPath];
+    delete require.cache[presignedHandlerPath];
+    delete require.cache[verificationHandlerPath];
+    delete require.cache[readJsonBodyPath];
   });
 
   it('returns a private verification upload key', async function () {
@@ -42,6 +50,7 @@ describe('api/media/verification-presigned-url.js', function () {
     const handler = require(handlerPath);
     const req = {
       method: 'POST',
+      query: { route: 'verification-presigned-url' },
       headers: { authorization: `Bearer ${makeToken()}` },
       body: {
         filename: 'pan-card.pdf',

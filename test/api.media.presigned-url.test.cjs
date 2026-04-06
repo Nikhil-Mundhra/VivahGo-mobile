@@ -5,7 +5,11 @@ const { createRes } = require('./helpers/testUtils.cjs');
 
 const corePath = require.resolve('../api/_lib/core');
 const r2Path = require.resolve('../api/_lib/r2');
-const handlerPath = require.resolve('../api/media/presigned-url');
+const handlerPath = require.resolve('../api/media');
+const presignedHandlerPath = require.resolve('../api-handlers/media/presignedUrl');
+const appUploadHandlerPath = require.resolve('../api-handlers/media/appUpload');
+const verificationHandlerPath = require.resolve('../api-handlers/media/verificationPresignedUrl');
+const readJsonBodyPath = require.resolve('../api-handlers/media/readJsonBody');
 
 function makeToken(payload = {}) {
   return jwt.sign(
@@ -15,7 +19,7 @@ function makeToken(payload = {}) {
   );
 }
 
-describe('api/media/presigned-url.js', function () {
+describe('api/media.js -> presigned-url route', function () {
   const originalCore = require(corePath);
   const originalR2 = require(r2Path);
 
@@ -24,6 +28,10 @@ describe('api/media/presigned-url.js', function () {
     require.cache[corePath].exports = originalCore;
     require.cache[r2Path].exports = originalR2;
     delete require.cache[handlerPath];
+    delete require.cache[appUploadHandlerPath];
+    delete require.cache[presignedHandlerPath];
+    delete require.cache[verificationHandlerPath];
+    delete require.cache[readJsonBodyPath];
   });
 
   it('returns a descriptive 500 when R2_PUBLIC_URL is missing', async function () {
@@ -43,6 +51,7 @@ describe('api/media/presigned-url.js', function () {
     const handler = require(handlerPath);
     const req = {
       method: 'POST',
+      query: { route: 'presigned-url' },
       headers: { authorization: `Bearer ${makeToken()}` },
       body: {
         filename: 'photo.jpg',
@@ -78,6 +87,7 @@ describe('api/media/presigned-url.js', function () {
     const handler = require(handlerPath);
     const req = {
       method: 'POST',
+      query: { route: 'presigned-url' },
       headers: { authorization: `Bearer ${makeToken()}` },
       body: {
         filename: 'photo.jpg',

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import "../../styles.css";
 import SplashScreen from "./components/SplashScreen";
 import OnboardingScreen from "./components/OnboardingScreen";
@@ -26,11 +27,14 @@ import {
   fetchPlannerNotificationSettings,
   fetchPlanCollaborators,
   fetchPlanner,
+  plannerAccessQueryKey,
+  plannerNotificationsQueryKey,
+  plannerQueryKey,
   registerPlannerNotificationToken,
   removePlanCollaborator,
   removePlannerNotificationToken,
   savePlannerNotificationSettings,
-  savePlanner,
+  savePlannerMutation,
   updatePlanCollaboratorRole,
 } from "./api.js";
 import { deleteAccount, loginWithClerk, loginWithGoogle, logoutSession } from "../auth/api.js";
@@ -40,6 +44,7 @@ import { useSwipeDown } from "../../shared/hooks/useSwipeDown.js";
 import { buildLoginAuthOptions } from "../../loginAuthOptions.js";
 import { getMarketingUrl } from "../../siteUrls.js";
 import { getBrowserNotificationSupport, removeBrowserPushToken, requestBrowserPushToken, subscribeToForegroundMessages } from "../../firebaseMessaging.js";
+import { ackMutation, createPlannerMutationJournal, enqueueMutation, failMutation, maybeRollback } from "./lib/plannerMutationManager.js";
 
 const DEMO_PLANNER_STORAGE_KEY = "vivahgo.demoPlanner";
 const PRICING_URL = getMarketingUrl("/pricing");
@@ -75,7 +80,16 @@ function parseWeddingLocation(value) {
   return { country, state, city };
 }
 
+function createCorrelationId() {
+  if (globalThis.crypto && typeof globalThis.crypto.randomUUID === "function") {
+    return globalThis.crypto.randomUUID();
+  }
+
+  return `planner_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
 export default function PlannerShell() {
+  const queryClient = useQueryClient();
   const marketingHomeUrl = getMarketingUrl("/");
   const [screen, setScreen] = useState("login");
   const [tab, setTab] = useState("home");
@@ -92,6 +106,7 @@ export default function PlannerShell() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [loginError, setLoginError] = useState("");
   const [saveState, setSaveState] = useState("idle");
+  const [plannerRevision, setPlannerRevision] = useState(0);
   const [showWeddingDetailsEditor, setShowWeddingDetailsEditor] = useState(false);
   const [weddingDetailsForm, setWeddingDetailsForm] = useState({ bride: "", groom: "", date: "", country: "", state: "", city: "", budget: "", guests: "" });
   const [extraLocationDraft, setExtraLocationDraft] = useState({ country: "", state: "", city: "" });
@@ -136,6 +151,10 @@ export default function PlannerShell() {
   const saveTimerRef = useRef(null);
   const contentAreaRef = useRef(null);
   const previousScrollTopRef = useRef(0);
+  const currentPlannerRef = useRef(createBlankPlanner());
+  const lastSyncedPlannerRef = useRef(createBlankPlanner());
+  const lastDispatchedPlannerRef = useRef(createBlankPlanner());
+  const plannerMutationJournalRef = useRef(createPlannerMutationJournal(0));
   const activePlan = marriages.find(m => m.id === activePlanId) || null;
   const extraVenueOptions = Array.isArray(activePlan?.extraLocations) ? activePlan.extraLocations : [];
   const presetVenues = Array.from(new Set([
@@ -295,6 +314,170 @@ export default function PlannerShell() {
     });
   }
 
+  function buildPlannerSnapshotFromState() {
+    return {
+      marriages,
+      activePlanId,
+      customTemplates,
+      wedding,
+      events,
+      expenses,
+      guests,
+      vendors,
+      tasks,
+    };
+  }
+
+  function syncPlannerAuthority(nextPlanner, nextPlannerRevision, options = {}) {
+    const normalizedPlanner = normalizePlanner(nextPlanner);
+    const normalizedRevision = Math.max(0, Number(nextPlannerRevision) || 0);
+
+    lastSyncedPlannerRef.current = normalizedPlanner;
+    setPlannerRevision(normalizedRevision);
+
+    if (options.resetJournal) {
+      plannerMutationJournalRef.current = createPlannerMutationJournal(normalizedRevision);
+      lastDispatchedPlannerRef.current = normalizedPlanner;
+      currentPlannerRef.current = normalizedPlanner;
+      return normalizedPlanner;
+    }
+
+    plannerMutationJournalRef.current.latestAcknowledgedRevision = Math.max(
+      plannerMutationJournalRef.current.latestAcknowledgedRevision,
+      normalizedRevision
+    );
+    if (!plannerMutationJournalRef.current.pendingMutations.size) {
+      lastDispatchedPlannerRef.current = normalizedPlanner;
+    }
+    return normalizedPlanner;
+  }
+
+  function hydratePlannerFromResponse(response, options = {}) {
+    const normalizedPlanner = syncPlannerAuthority(
+      response?.planner,
+      response?.plannerRevision,
+      { resetJournal: options.resetJournal !== false }
+    );
+
+    applyPlanner(normalizedPlanner, response?.access);
+    setRequiresOnboarding(shouldShowOnboarding(normalizedPlanner));
+    setPlannerOwnerId(response?.plannerOwnerId || options.fallbackPlannerOwnerId || "");
+    if (options.nextScreen) {
+      setScreen(options.nextScreen);
+    }
+    return normalizedPlanner;
+  }
+
+  const effectivePlannerOwnerId = plannerOwnerId || user?.id || "";
+  const plannerQueryEnabled = (authMode === "google" || authMode === "clerk") && Boolean(authToken) && Boolean(effectivePlannerOwnerId);
+
+  const plannerQuery = useQuery({
+    queryKey: plannerQueryKey(effectivePlannerOwnerId),
+    queryFn: () => fetchPlanner(authToken, effectivePlannerOwnerId),
+    enabled: plannerQueryEnabled,
+  });
+
+  const accessQuery = useQuery({
+    queryKey: plannerAccessQueryKey(),
+    queryFn: () => fetchAccessiblePlanners(authToken),
+    enabled: (authMode === "google" || authMode === "clerk") && Boolean(authToken),
+  });
+
+  const notificationsQuery = useQuery({
+    queryKey: plannerNotificationsQueryKey(),
+    queryFn: () => fetchPlannerNotificationSettings(authToken),
+    enabled: (authMode === "google" || authMode === "clerk") && Boolean(authToken),
+  });
+
+  const plannerSaveMutation = useMutation({
+    mutationFn: async ({ plannerSnapshot, nextPlannerOwnerId }) => {
+      const mutation = enqueueMutation(plannerMutationJournalRef.current, {
+        correlationId: createCorrelationId(),
+        baseRevision: plannerMutationJournalRef.current.latestAcknowledgedRevision,
+        nextPlanner: plannerSnapshot,
+        previousPlanner: lastDispatchedPlannerRef.current,
+      });
+
+      lastDispatchedPlannerRef.current = normalizePlanner(plannerSnapshot);
+
+      try {
+        const response = await savePlannerMutation(authToken, plannerSnapshot, nextPlannerOwnerId, mutation);
+        return { response, mutation };
+      } catch (error) {
+        error.plannerMutation = mutation;
+        throw error;
+      }
+    },
+    onSuccess: async ({ response, mutation }) => {
+      ackMutation(plannerMutationJournalRef.current, {
+        correlationId: mutation.correlationId,
+        plannerRevision: response?.plannerRevision,
+      });
+
+      const normalizedPlanner = syncPlannerAuthority(response?.planner, response?.plannerRevision);
+      queryClient.setQueryData(plannerQueryKey(response?.plannerOwnerId || effectivePlannerOwnerId), {
+        ...response,
+        planner: normalizedPlanner,
+      });
+
+      if (mutation.clientSequence === plannerMutationJournalRef.current.latestDispatchedSequence) {
+        syncPlanMetadataFromPlanner(normalizedPlanner);
+      }
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: plannerQueryKey(response?.plannerOwnerId || effectivePlannerOwnerId) }),
+        queryClient.invalidateQueries({ queryKey: plannerAccessQueryKey() }),
+      ]);
+
+      setSaveState(plannerMutationJournalRef.current.pendingMutations.size === 0 ? "saved" : "saving");
+    },
+    onError: async (error, { nextPlannerOwnerId }) => {
+      const failedMutation = failMutation(plannerMutationJournalRef.current, {
+        correlationId: error?.plannerMutation?.correlationId,
+      }) || error?.plannerMutation;
+
+      if (error?.code === "PLANNER_CONFLICT") {
+        try {
+          const latest = await queryClient.fetchQuery({
+            queryKey: plannerQueryKey(nextPlannerOwnerId || effectivePlannerOwnerId),
+            queryFn: () => fetchPlanner(authToken, nextPlannerOwnerId || effectivePlannerOwnerId),
+          });
+          hydratePlannerFromResponse(latest, {
+            resetJournal: true,
+            fallbackPlannerOwnerId: nextPlannerOwnerId || effectivePlannerOwnerId,
+            nextScreen: screen === "app" ? "app" : undefined,
+          });
+        } catch (conflictError) {
+          console.error("Failed to refresh planner after conflict:", conflictError);
+        }
+        setSaveState(plannerMutationJournalRef.current.pendingMutations.size === 0 ? "error" : "saving");
+        return;
+      }
+
+      const rollbackDecision = maybeRollback(plannerMutationJournalRef.current, {
+        mutation: failedMutation,
+        currentPlanner: currentPlannerRef.current,
+      });
+
+      if (rollbackDecision.shouldRollback) {
+        const rollbackPlanner = syncPlannerAuthority(
+          rollbackDecision.rollbackPlanner,
+          plannerMutationJournalRef.current.latestAcknowledgedRevision,
+          { resetJournal: false }
+        );
+        lastDispatchedPlannerRef.current = rollbackPlanner;
+        currentPlannerRef.current = rollbackPlanner;
+        applyPlanner(rollbackPlanner, planAccess);
+      } else {
+        try {
+          await queryClient.invalidateQueries({ queryKey: plannerQueryKey(nextPlannerOwnerId || effectivePlannerOwnerId) });
+        } catch {}
+      }
+
+      setSaveState(plannerMutationJournalRef.current.pendingMutations.size === 0 ? "error" : "saving");
+    },
+  });
+
   async function fetchAndApplySubscription(token) {
     if (!token) return;
     try {
@@ -325,7 +508,10 @@ export default function PlannerShell() {
     }
 
     try {
-      const response = await fetchPlannerNotificationSettings(token);
+      const response = await queryClient.fetchQuery({
+        queryKey: plannerNotificationsQueryKey(),
+        queryFn: () => fetchPlannerNotificationSettings(token),
+      });
       setNotificationPreferences({
         ...DEFAULT_NOTIFICATION_PREFERENCES,
         ...(response?.notificationPreferences || {}),
@@ -340,7 +526,7 @@ export default function PlannerShell() {
         setNotificationSupport({ supported: false, configured: false, permission: "default" });
       }
     }
-  }, []);
+  }, [queryClient]);
 
   function persistSession(session) {
     return persistAuthSession(session);
@@ -350,21 +536,88 @@ export default function PlannerShell() {
     clearAuthStorage("planner");
   }
 
-  async function refreshAccessibleWorkspaces(token) {
+  const refreshAccessibleWorkspaces = useCallback(async (token) => {
     if (!token) {
       setAccessibleWorkspaces([]);
       return;
     }
 
     try {
-      const response = await fetchAccessiblePlanners(token);
+      const response = await queryClient.fetchQuery({
+        queryKey: plannerAccessQueryKey(),
+        queryFn: () => fetchAccessiblePlanners(token),
+      });
       const next = Array.isArray(response.planners) ? response.planners : [];
       setAccessibleWorkspaces(next);
     } catch (error) {
       console.error("Failed to load accessible workspaces:", error);
       setAccessibleWorkspaces([]);
     }
-  }
+  }, [queryClient]);
+
+  useEffect(() => {
+    currentPlannerRef.current = normalizePlanner(buildPlannerSnapshotFromState());
+  }, [activePlanId, customTemplates, events, expenses, guests, marriages, tasks, vendors, wedding]);
+
+  useEffect(() => {
+    if (!(authMode === "google" || authMode === "clerk") || !authToken) {
+      setAccessibleWorkspaces([]);
+      return;
+    }
+
+    if (accessQuery.data) {
+      setAccessibleWorkspaces(Array.isArray(accessQuery.data.planners) ? accessQuery.data.planners : []);
+      return;
+    }
+
+    if (accessQuery.isError) {
+      setAccessibleWorkspaces([]);
+    }
+  }, [accessQuery.data, accessQuery.isError, authMode, authToken]);
+
+  useEffect(() => {
+    if (!(authMode === "google" || authMode === "clerk") || !authToken) {
+      setNotificationPreferences(DEFAULT_NOTIFICATION_PREFERENCES);
+      return;
+    }
+
+    if (notificationsQuery.data) {
+      setNotificationPreferences({
+        ...DEFAULT_NOTIFICATION_PREFERENCES,
+        ...(notificationsQuery.data.notificationPreferences || {}),
+      });
+    } else if (notificationsQuery.isError) {
+      setNotificationPreferences(DEFAULT_NOTIFICATION_PREFERENCES);
+    }
+  }, [notificationsQuery.data, notificationsQuery.isError, authMode, authToken]);
+
+  useEffect(() => {
+    if (!notificationsQuery.data && !notificationsQuery.isError) {
+      return;
+    }
+
+    refreshBrowserNotificationState();
+  }, [notificationsQuery.data, notificationsQuery.isError]);
+
+  useEffect(() => {
+    if (!plannerQueryEnabled) {
+      return;
+    }
+
+    if (!plannerQuery.data?.planner) {
+      return;
+    }
+
+    if (plannerMutationJournalRef.current.pendingMutations.size > 0) {
+      return;
+    }
+
+    hydratePlannerFromResponse(plannerQuery.data, {
+      resetJournal: false,
+      fallbackPlannerOwnerId: effectivePlannerOwnerId,
+      nextScreen: screen === "app" ? "app" : undefined,
+    });
+  }, [effectivePlannerOwnerId, plannerQuery.data, plannerQueryEnabled, screen]);
 
   async function handleWorkspaceSwitch(nextOwnerId) {
     if (!nextOwnerId || !authToken || nextOwnerId === plannerOwnerId) {
@@ -373,11 +626,17 @@ export default function PlannerShell() {
 
     try {
       setIsSwitchingWorkspace(true);
-      const { planner, access, plannerOwnerId: resolvedOwnerId } = await fetchPlanner(authToken, nextOwnerId);
-      applyPlanner(planner, access);
-      setPlannerOwnerId(resolvedOwnerId || nextOwnerId);
+      const response = await queryClient.fetchQuery({
+        queryKey: plannerQueryKey(nextOwnerId),
+        queryFn: () => fetchPlanner(authToken, nextOwnerId),
+      });
+      persistSession({ mode: authMode || "google", token: authToken, user, plannerOwnerId: response?.plannerOwnerId || nextOwnerId });
+      queryClient.setQueryData(plannerQueryKey(response?.plannerOwnerId || nextOwnerId), response);
+      hydratePlannerFromResponse(response, {
+        resetJournal: true,
+        fallbackPlannerOwnerId: response?.plannerOwnerId || nextOwnerId,
+      });
       setConfiguringPlanId(null);
-      persistSession({ mode: "google", token: authToken, user, plannerOwnerId: resolvedOwnerId || nextOwnerId });
     } catch (error) {
       console.error("Workspace switch failed:", error);
       setLoginError(error.message || "Could not switch workspace.");
@@ -903,19 +1162,22 @@ export default function PlannerShell() {
         }
 
         if ((session.mode === "google" || session.mode === "clerk") && session.token) {
-          const { planner, access, plannerOwnerId: resolvedOwnerId } = await fetchPlanner(session.token, session.plannerOwnerId);
-          const nextRequiresOnboarding = shouldShowOnboarding(planner);
+          const cachedPlanner = await queryClient.fetchQuery({
+            queryKey: plannerQueryKey(session.plannerOwnerId || session.user?.id || ""),
+            queryFn: () => fetchPlanner(session.token, session.plannerOwnerId || session.user?.id || ""),
+          });
           if (!cancelled) {
             setAuthMode(session.mode);
             setAuthToken(session.token);
             setUser(session.user || null);
-            applyPlanner(planner, access);
-            setRequiresOnboarding(nextRequiresOnboarding);
-            setPlannerOwnerId(resolvedOwnerId || session.plannerOwnerId || session.user?.id || "");
+            hydratePlannerFromResponse(cachedPlanner, {
+              resetJournal: true,
+              fallbackPlannerOwnerId: session.plannerOwnerId || session.user?.id || "",
+            });
             await refreshAccessibleWorkspaces(session.token);
             await fetchAndApplySubscription(session.token);
             await fetchAndApplyNotificationSettings(session.token);
-            setScreen(nextRequiresOnboarding ? "splash" : "app");
+            setScreen(shouldShowOnboarding(cachedPlanner?.planner) ? "splash" : "app");
           }
           return;
         }
@@ -937,7 +1199,7 @@ export default function PlannerShell() {
     return () => {
       cancelled = true;
     };
-  }, [applyPlanner, fetchAndApplyNotificationSettings]);
+  }, [applyPlanner, fetchAndApplyNotificationSettings, queryClient, refreshAccessibleWorkspaces]);
 
   useEffect(() => {
     let unsubscribe = () => {};
@@ -995,21 +1257,19 @@ export default function PlannerShell() {
     saveTimerRef.current = setTimeout(async () => {
       try {
         setSaveState("saving");
-        const response = await savePlanner(authToken, planner, plannerOwnerId);
-        if (response?.planner) {
-          syncPlanMetadataFromPlanner(response.planner);
-        }
-        setSaveState("saved");
+        await plannerSaveMutation.mutateAsync({
+          plannerSnapshot: planner,
+          nextPlannerOwnerId: plannerOwnerId,
+        });
       } catch (error) {
         console.error("Auto-save failed:", error);
-        setSaveState("error");
       }
     }, 500);
 
     return () => {
       clearTimeout(saveTimerRef.current);
     };
-  }, [authMode, authToken, customTemplates, expenses, events, guests, isBootstrapping, tasks, vendors, wedding, marriages, activePlanId, planAccess.canEdit, plannerOwnerId]);
+  }, [authMode, authToken, customTemplates, expenses, events, guests, isBootstrapping, tasks, vendors, wedding, marriages, activePlanId, planAccess.canEdit, plannerOwnerId, plannerSaveMutation.mutateAsync]);
 
   function handleDemoLogin() {
     const demoUser = {
@@ -1024,6 +1284,7 @@ export default function PlannerShell() {
     setAuthToken("");
     setUser(demoUser);
     applyPlanner(demoPlanner);
+    syncPlannerAuthority(demoPlanner, 0, { resetJournal: true });
     setPlannerOwnerId(demoUser.id);
     setAccessibleWorkspaces([]);
     setPlanAccess({ role: "owner", canEdit: true, canManageSharing: true });
@@ -1044,19 +1305,27 @@ export default function PlannerShell() {
     try {
       setIsLoggingIn(true);
       setLoginError("");
-      const { user: authenticatedUser, planner, access, plannerOwnerId: resolvedOwnerId } = await loginWithClerk(
+      const { user: authenticatedUser, planner, access, plannerOwnerId: resolvedOwnerId, plannerRevision: nextPlannerRevision } = await loginWithClerk(
         clerkBackendToken || clerkUser?.id || '',
         clerkUser || {}
       );
+      const loginResponse = {
+        planner,
+        access,
+        plannerRevision: nextPlannerRevision,
+        plannerOwnerId: resolvedOwnerId || authenticatedUser.id || "",
+      };
       const nextRequiresOnboarding = shouldShowOnboarding(planner);
-      const nextSession = persistSession({ mode: "clerk", user: authenticatedUser, plannerOwnerId: resolvedOwnerId || authenticatedUser.id || "" });
+      const nextSession = persistSession({ mode: "clerk", user: authenticatedUser, plannerOwnerId: loginResponse.plannerOwnerId });
+      queryClient.setQueryData(plannerQueryKey(loginResponse.plannerOwnerId), loginResponse);
 
       setAuthMode("clerk");
       setAuthToken(nextSession?.token || "");
       setUser(authenticatedUser);
-      applyPlanner(planner, access);
-      setRequiresOnboarding(nextRequiresOnboarding);
-      setPlannerOwnerId(resolvedOwnerId || authenticatedUser.id || "");
+      hydratePlannerFromResponse(loginResponse, {
+        resetJournal: true,
+        fallbackPlannerOwnerId: loginResponse.plannerOwnerId,
+      });
       await refreshAccessibleWorkspaces(nextSession?.token);
       await fetchAndApplySubscription(nextSession?.token);
       await fetchAndApplyNotificationSettings(nextSession?.token);
@@ -1075,16 +1344,24 @@ export default function PlannerShell() {
     try {
       setIsLoggingIn(true);
       setLoginError("");
-      const { user: authenticatedUser, planner, access, plannerOwnerId: resolvedOwnerId } = await loginWithGoogle(credentialResponse.credential);
+      const { user: authenticatedUser, planner, access, plannerOwnerId: resolvedOwnerId, plannerRevision: nextPlannerRevision } = await loginWithGoogle(credentialResponse.credential);
+      const loginResponse = {
+        planner,
+        access,
+        plannerRevision: nextPlannerRevision,
+        plannerOwnerId: resolvedOwnerId || authenticatedUser.id || "",
+      };
       const nextRequiresOnboarding = shouldShowOnboarding(planner);
-      const nextSession = persistSession({ mode: "google", user: authenticatedUser, plannerOwnerId: resolvedOwnerId || authenticatedUser.id || "" });
+      const nextSession = persistSession({ mode: "google", user: authenticatedUser, plannerOwnerId: loginResponse.plannerOwnerId });
+      queryClient.setQueryData(plannerQueryKey(loginResponse.plannerOwnerId), loginResponse);
 
       setAuthMode("google");
       setAuthToken(nextSession?.token || "");
       setUser(authenticatedUser);
-      applyPlanner(planner, access);
-      setRequiresOnboarding(nextRequiresOnboarding);
-      setPlannerOwnerId(resolvedOwnerId || authenticatedUser.id || "");
+      hydratePlannerFromResponse(loginResponse, {
+        resetJournal: true,
+        fallbackPlannerOwnerId: loginResponse.plannerOwnerId,
+      });
       await refreshAccessibleWorkspaces(nextSession?.token);
       await fetchAndApplySubscription(nextSession?.token);
       await fetchAndApplyNotificationSettings(nextSession?.token);
@@ -1121,6 +1398,7 @@ export default function PlannerShell() {
     setAccessibleWorkspaces([]);
     setNotificationPreferences(DEFAULT_NOTIFICATION_PREFERENCES);
     applyPlanner(createBlankPlanner());
+    syncPlannerAuthority(createBlankPlanner(), 0, { resetJournal: true });
     setRequiresOnboarding(false);
     setTab("home");
     setSaveState("idle");
@@ -1141,6 +1419,7 @@ export default function PlannerShell() {
     setAccessibleWorkspaces([]);
     setNotificationPreferences(DEFAULT_NOTIFICATION_PREFERENCES);
     applyPlanner(createBlankPlanner());
+    syncPlannerAuthority(createBlankPlanner(), 0, { resetJournal: true });
     setRequiresOnboarding(false);
     setTab("home");
     setSaveState("idle");

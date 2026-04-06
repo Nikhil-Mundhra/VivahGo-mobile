@@ -1,6 +1,8 @@
 const { randomUUID } = require('crypto');
-const { applyRateLimit, connectDb, handlePreflight, requireCsrfProtection, setCorsHeaders, verifySession } = require('../_lib/core');
-const { createB2PresignedPutUrl } = require('../_lib/b2');
+
+const { applyRateLimit, connectDb, handlePreflight, requireCsrfProtection, setCorsHeaders, verifySession } = require('../../api/_lib/core');
+const { createB2PresignedPutUrl } = require('../../api/_lib/b2');
+const { readJsonBody } = require('./readJsonBody');
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 const ALLOWED_CONTENT_TYPES = new Set([
@@ -10,7 +12,10 @@ const ALLOWED_CONTENT_TYPES = new Set([
   'image/webp',
 ]);
 
-module.exports = async function handler(req, res) {
+module.exports = async function handleVerificationPresignedUrl(req, res) {
+  // ---------------------
+  // Request guardrails
+  // ---------------------
   if (handlePreflight(req, res)) { return; }
   setCorsHeaders(req, res);
 
@@ -36,7 +41,17 @@ module.exports = async function handler(req, res) {
     return res.status(status).json({ error: authError });
   }
 
-  const { filename, contentType, size } = req.body || {};
+  // ---------------------
+  // Body parsing and validation
+  // ---------------------
+  let body = {};
+  try {
+    body = await readJsonBody(req, { maxBytes: 256 * 1024 });
+  } catch (error) {
+    return res.status(error.statusCode || 400).json({ error: error.publicMessage || 'Request body must be valid JSON.' });
+  }
+
+  const { filename, contentType, size } = body || {};
   const contentLength = Number(size);
 
   if (!filename || typeof filename !== 'string' || !contentType || typeof contentType !== 'string') {
@@ -60,6 +75,9 @@ module.exports = async function handler(req, res) {
   const key = `vendor-verification/${auth.sub}/${randomUUID()}${ext ? `.${ext}` : ''}`;
 
   try {
+    // ---------------------
+    // Presigned upload generation
+    // ---------------------
     await connectDb();
     const uploadUrl = await createB2PresignedPutUrl(key, contentType, {
       contentLength,
@@ -67,6 +85,9 @@ module.exports = async function handler(req, res) {
 
     return res.status(200).json({ uploadUrl, key });
   } catch (error) {
+    // ---------------------
+    // Error handling
+    // ---------------------
     console.error('Verification presigned URL generation failed:', error);
     return res.status(500).json({ error: 'Could not generate verification upload URL.' });
   }

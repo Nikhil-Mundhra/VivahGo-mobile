@@ -17,8 +17,10 @@ function makeToken(payload = {}) {
 
 function makePlannerDoc(overrides = {}) {
   return {
+    plannerRevision: overrides.plannerRevision ?? 0,
     toObject: () => ({
       googleId: 'g-456',
+      plannerRevision: overrides.plannerRevision ?? 0,
       wedding: {},
       events: [],
       expenses: [],
@@ -135,6 +137,7 @@ describe('api/planner.js -> me route', function () {
       assert.equal(res.statusCode, 200);
       assert.ok(res.body.planner);
       assert.equal(res.body.planner.wedding.bride, 'Aarohi');
+      assert.equal(res.body.plannerRevision, 0);
     });
 
     it('PUT returns 200 with updated planner for valid session', async function () {
@@ -147,9 +150,18 @@ describe('api/planner.js -> me route', function () {
         tasks: [],
       };
 
-      Planner.findOneAndUpdate = async () => ({
-        toObject: () => ({ googleId: 'g-456', ...updatedPlanner }),
-      });
+      let callCount = 0;
+      Planner.findOneAndUpdate = async () => {
+        callCount += 1;
+        if (callCount === 1) {
+          return makePlannerDoc({ plannerRevision: 0 });
+        }
+
+        return {
+          plannerRevision: 1,
+          toObject: () => ({ googleId: 'g-456', plannerRevision: 1, ...updatedPlanner }),
+        };
+      };
 
       const req = {
         method: 'PUT',
@@ -162,6 +174,46 @@ describe('api/planner.js -> me route', function () {
 
       assert.equal(res.statusCode, 200);
       assert.equal(res.body.planner.wedding.bride, 'Priya');
+      assert.equal(res.body.plannerRevision, 1);
+    });
+
+    it('returns 409 when a stale baseRevision is submitted', async function () {
+      let callCount = 0;
+      Planner.findOneAndUpdate = async () => {
+        callCount += 1;
+        if (callCount === 1) {
+          return makePlannerDoc({ plannerRevision: 3, wedding: { bride: 'Aarohi' } });
+        }
+
+        return null;
+      };
+
+      const req = {
+        method: 'PUT',
+        headers: { authorization: `Bearer ${makeToken()}` },
+        body: {
+          planner: {
+            wedding: { bride: 'Priya', groom: 'Kabir', date: '', venue: '', guests: '', budget: '' },
+            events: [],
+            expenses: [],
+            guests: [],
+            vendors: [],
+            tasks: [],
+          },
+          baseRevision: 1,
+          correlationId: 'mutation-1',
+          clientSequence: 2,
+        },
+      };
+      const res = createRes();
+
+      await handler(req, res);
+
+      assert.equal(res.statusCode, 409);
+      assert.equal(res.body.code, 'PLANNER_CONFLICT');
+      assert.equal(res.body.plannerRevision, 3);
+      assert.equal(res.body.correlationId, 'mutation-1');
+      assert.equal(res.body.clientSequence, 2);
     });
 
     it('returns 500 when DB operation throws', async function () {

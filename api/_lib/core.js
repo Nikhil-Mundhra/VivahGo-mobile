@@ -2,6 +2,21 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 
+const PROCESS_BOOTED_AT = Date.now();
+const PUBLIC_CACHE_POLICIES = Object.freeze({
+  noStore: 'no-store',
+  vendorDirectory: 'public, s-maxage=300, stale-while-revalidate=3600',
+  plannerPublic: 'public, s-maxage=60, stale-while-revalidate=600',
+  careersCatalog: 'public, s-maxage=300, stale-while-revalidate=3600',
+});
+
+const sharedPublicCacheState = globalThis.__vivahgoPublicCacheState || {
+  entries: new Map(),
+  tags: new Map(),
+  versions: new Map(),
+};
+globalThis.__vivahgoPublicCacheState = sharedPublicCacheState;
+
 const emptyWedding = {
   bride: '',
   groom: '',
@@ -49,6 +64,7 @@ const STAFF_ROLE_LEVEL = {
 };
 
 let cachedConnection = null;
+let cachedConnectionReadyState = 'cold';
 const rateLimitBuckets = new Map();
 let lastRateLimitSweepAt = 0;
 const SESSION_COOKIE_NAME = 'vivahgo_session';
@@ -361,8 +377,176 @@ async function connectDb() {
     throw new Error('MONGODB_URI is required.');
   }
 
-  cachedConnection = mongoose.connect(mongoUri);
+  const startedAt = Date.now();
+  cachedConnectionReadyState = 'connecting';
+  cachedConnection = mongoose.connect(mongoUri, {
+    serverSelectionTimeoutMS: 5000,
+    maxIdleTimeMS: 60000,
+  })
+    .then((connection) => {
+      cachedConnectionReadyState = 'connected';
+      console.info('[perf] connectDb ready', {
+        coldStart: process.uptime() < 15,
+        durationMs: Date.now() - startedAt,
+        processUptimeMs: Math.round(process.uptime() * 1000),
+        processBootAgeMs: Date.now() - PROCESS_BOOTED_AT,
+      });
+      return connection;
+    })
+    .catch((error) => {
+      cachedConnection = null;
+      cachedConnectionReadyState = 'cold';
+      console.error('[perf] connectDb failed', {
+        durationMs: Date.now() - startedAt,
+        message: error?.message || 'Unknown Mongo error',
+      });
+      throw error;
+    });
   return cachedConnection;
+}
+
+function getCacheControlPolicy(policyName) {
+  return PUBLIC_CACHE_POLICIES[policyName] || PUBLIC_CACHE_POLICIES.noStore;
+}
+
+function setCacheControl(res, policyName) {
+  const value = getCacheControlPolicy(policyName);
+  if (value && typeof res?.setHeader === 'function') {
+    res.setHeader('Cache-Control', value);
+  }
+  return value;
+}
+
+function getPublicCacheVersion(key) {
+  return sharedPublicCacheState.versions.get(String(key || '')) || 0;
+}
+
+function getPublicCache(cacheKey) {
+  const normalizedKey = String(cacheKey || '').trim();
+  if (!normalizedKey) {
+    return null;
+  }
+
+  const entry = sharedPublicCacheState.entries.get(normalizedKey);
+  if (!entry) {
+    return null;
+  }
+
+  if (entry.version !== getPublicCacheVersion(normalizedKey)) {
+    sharedPublicCacheState.entries.delete(normalizedKey);
+    return null;
+  }
+
+  return entry;
+}
+
+function setPublicCache(cacheKey, value, options = {}) {
+  const normalizedKey = String(cacheKey || '').trim();
+  if (!normalizedKey) {
+    return null;
+  }
+
+  const tags = Array.isArray(options.tags)
+    ? options.tags.map(tag => String(tag || '').trim()).filter(Boolean)
+    : [];
+
+  const existing = sharedPublicCacheState.entries.get(normalizedKey);
+  if (existing && Array.isArray(existing.tags)) {
+    for (const oldTag of existing.tags) {
+      const tagSet = sharedPublicCacheState.tags.get(oldTag);
+      if (tagSet) {
+        tagSet.delete(normalizedKey);
+        if (tagSet.size === 0) {
+          sharedPublicCacheState.tags.delete(oldTag);
+        }
+      }
+    }
+  }
+
+  const entry = {
+    key: normalizedKey,
+    value,
+    tags,
+    updatedAt: Date.now(),
+    version: getPublicCacheVersion(normalizedKey),
+  };
+
+  sharedPublicCacheState.entries.set(normalizedKey, entry);
+  for (const tag of tags) {
+    if (!sharedPublicCacheState.tags.has(tag)) {
+      sharedPublicCacheState.tags.set(tag, new Set());
+    }
+    sharedPublicCacheState.tags.get(tag).add(normalizedKey);
+  }
+
+  return entry;
+}
+
+function invalidatePublicCache(target, options = {}) {
+  const normalizedTarget = String(target || '').trim();
+  if (!normalizedTarget) {
+    return [];
+  }
+
+  const keys = new Set();
+  if (options.scope === 'tag') {
+    const taggedKeys = sharedPublicCacheState.tags.get(normalizedTarget);
+    if (taggedKeys) {
+      for (const key of taggedKeys) {
+        keys.add(key);
+      }
+    }
+    sharedPublicCacheState.tags.delete(normalizedTarget);
+  } else {
+    keys.add(normalizedTarget);
+  }
+
+  for (const key of keys) {
+    const entry = sharedPublicCacheState.entries.get(key);
+    if (entry && Array.isArray(entry.tags)) {
+      for (const tag of entry.tags) {
+        const tagSet = sharedPublicCacheState.tags.get(tag);
+        if (tagSet) {
+          tagSet.delete(key);
+          if (tagSet.size === 0) {
+            sharedPublicCacheState.tags.delete(tag);
+          }
+        }
+      }
+    }
+    sharedPublicCacheState.entries.delete(key);
+    sharedPublicCacheState.versions.set(key, getPublicCacheVersion(key) + 1);
+  }
+
+  return [...keys];
+}
+
+function resetPublicCache() {
+  sharedPublicCacheState.entries.clear();
+  sharedPublicCacheState.tags.clear();
+  sharedPublicCacheState.versions.clear();
+}
+
+async function withRequestMetrics(name, operation) {
+  const startedAt = Date.now();
+  try {
+    const result = await operation();
+    console.info('[perf] request', {
+      handler: name,
+      durationMs: Date.now() - startedAt,
+      dbState: cachedConnectionReadyState,
+      processUptimeMs: Math.round(process.uptime() * 1000),
+    });
+    return result;
+  } catch (error) {
+    console.error('[perf] request failed', {
+      handler: name,
+      durationMs: Date.now() - startedAt,
+      dbState: cachedConnectionReadyState,
+      message: error?.message || 'Unknown request error',
+    });
+    throw error;
+  }
 }
 
 function getClientIp(req) {
@@ -558,6 +742,7 @@ function getVendorModel() {
         enum: ['Free', 'Plus'],
         default: 'Free',
       },
+      vendorRevision: { type: Number, default: 0, min: 0 },
       media: { type: [mediaSchema], default: [] },
       verificationStatus: {
         type: String,
@@ -721,6 +906,11 @@ function getPlannerModel() {
       activePlanId: {
         type: String,
         default: null,
+      },
+      plannerRevision: {
+        type: Number,
+        default: 0,
+        min: 0,
       },
       customTemplates: {
         type: [mongoose.Schema.Types.Mixed],
@@ -1516,6 +1706,7 @@ module.exports = {
   createSessionToken,
   ensureCsrfToken,
   generateCsrfToken,
+  getCacheControlPolicy,
   getBillingReceiptModel,
   getCareerEmailTemplateModel,
   getChoiceProfileModel,
@@ -1528,7 +1719,9 @@ module.exports = {
   getSubscriptionTier,
   getUserModel,
   getVendorModel,
+  getPublicCache,
   getReminderJobModel,
+  invalidatePublicCache,
   handlePreflight,
   hasPlanRole,
   hasStaffRole,
@@ -1539,15 +1732,19 @@ module.exports = {
   readCsrfHeaderToken,
   resetRateLimitBuckets,
   requireCsrfProtection,
+  resetPublicCache,
   resolveStaffRole,
   sanitizeNotificationPreferences,
   sanitizePlanner,
   sanitizeReminderSettings,
   SESSION_COOKIE_NAME,
+  setCacheControl,
   setSecurityHeaders,
   setCorsHeaders,
   setCsrfCookie,
   setSessionCookie,
+  setPublicCache,
   verifyGuestRsvpToken,
   verifySession,
+  withRequestMetrics,
 };

@@ -3,7 +3,9 @@ const mongoose = require('mongoose');
 
 const { createRes } = require('./helpers/testUtils.cjs');
 
-const { handlePlannerPublic: handler } = require('../api/planner');
+const plannerModule = require('../api/planner');
+const { handlePlannerPublic: handler, refreshPlannerPublicSnapshots } = plannerModule;
+const { resetPublicCache, getPublicCache } = require('../api/_lib/core');
 
 describe('api/planner.js -> public route', function () {
   let originalMongooseConnect;
@@ -17,6 +19,10 @@ describe('api/planner.js -> public route', function () {
   after(function () {
     mongoose.connect = originalMongooseConnect;
     delete process.env.MONGODB_URI;
+  });
+
+  afterEach(function () {
+    resetPublicCache();
   });
 
   it('returns 405 for unsupported methods', async function () {
@@ -73,6 +79,7 @@ describe('api/planner.js -> public route', function () {
       await handler(req, res);
 
       assert.equal(res.statusCode, 200);
+      assert.equal(res.headers['Cache-Control'], 'public, s-maxage=60, stale-while-revalidate=600');
       assert.equal(res.body.plan.websiteSlug, 'asha-rohan-1');
       assert.equal(res.body.plan.websiteSettings.isActive, true);
       assert.equal(res.body.plan.websiteSettings.showCountdown, false);
@@ -117,5 +124,75 @@ describe('api/planner.js -> public route', function () {
     } finally {
       Planner.findOne = originalFindOne;
     }
+  });
+
+  it('serves a cached public wedding payload on a repeated request', async function () {
+    const { getPlannerModel } = require('../api/_lib/core');
+    const Planner = getPlannerModel();
+    const originalFindOne = Planner.findOne;
+    let reads = 0;
+
+    Planner.findOne = async () => {
+      reads += 1;
+      return {
+        googleId: 'owner-1',
+        toObject: () => ({
+          googleId: 'owner-1',
+          activePlanId: 'plan_1',
+          wedding: {},
+          marriages: [
+            { id: 'plan_1', bride: 'Asha', groom: 'Rohan', websiteSlug: 'asha-rohan-1', websiteSettings: { isActive: true } },
+          ],
+          events: [],
+          expenses: [],
+          guests: [],
+          vendors: [],
+          tasks: [],
+        }),
+      };
+    };
+
+    try {
+      const req = { method: 'GET', headers: {}, query: { slug: 'asha-rohan-1' } };
+      const firstRes = createRes();
+      const secondRes = createRes();
+
+      await handler(req, firstRes);
+      assert.deepEqual(getPublicCache('planner-public:asha-rohan-1')?.value, firstRes.body);
+
+      Planner.findOne = async () => {
+        throw new Error('should have used cached public planner payload');
+      };
+
+      await handler(req, secondRes);
+
+      assert.equal(secondRes.statusCode, 200);
+      assert.deepEqual(secondRes.body, firstRes.body);
+      assert.equal(reads, 1);
+    } finally {
+      Planner.findOne = originalFindOne;
+    }
+  });
+
+  it('refreshes public planner snapshots when wedding website slugs change', function () {
+    refreshPlannerPublicSnapshots(
+      {
+        wedding: {},
+        events: [],
+        marriages: [
+          { id: 'plan_2', bride: 'Maya', groom: 'Arjun', websiteSlug: 'maya-arjun-1', websiteSettings: { isActive: true } },
+        ],
+      },
+      {
+        wedding: {},
+        events: [],
+        marriages: [
+          { id: 'plan_1', bride: 'Asha', groom: 'Rohan', websiteSlug: 'asha-rohan-1', websiteSettings: { isActive: true } },
+        ],
+      }
+    );
+
+    assert.equal(getPublicCache('planner-public:asha-rohan-1'), null);
+    assert.equal(getPublicCache('planner-public:maya-arjun-1')?.value.plan.websiteSlug, 'maya-arjun-1');
   });
 });
