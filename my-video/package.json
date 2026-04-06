@@ -23,7 +23,7 @@
     "@elevenlabs/elevenlabs-js": "^2.20.0",
     "@remotion/eslint-config-flat": "^4.0.445",
     "@types/prompts": "^2.4.9",
-    "@types/react": "19.2.7",
+    "@types/react": "19.2.14",
     "@types/uuid": "^11.0.0",
     "@types/web": "0.0.345",
     "@types/yargs": "^17.0.33",
