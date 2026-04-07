@@ -21,6 +21,20 @@ import BillingReceipt from './models/BillingReceipt.js';
 import b2Helpers from '../../api/_lib/b2.js';
 import careersAdminHelpers from '../../api/_lib/careers-admin.js';
 import r2Helpers from '../../api/_lib/r2.js';
+import {
+  captureServerException,
+  createFinalErrorMiddleware,
+  flushServerSentry,
+  sentryRequestContextMiddleware,
+  setSentryRequestUser,
+  setupSentryErrorHandlers,
+} from './sentry.js';
+import {
+  flushServerLogger,
+  logServerError,
+  logServerInfo,
+  requestLoggingMiddleware,
+} from './logger.js';
 
 const require = createRequire(import.meta.url);
 const adminHandler = require('../../api/admin.js');
@@ -121,6 +135,15 @@ const MAX_VERIFICATION_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_VERIFICATION_CONTENT_TYPES = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp']);
 const ALLOWED_VERIFICATION_DOCUMENT_TYPES = ['AADHAAR', 'PAN', 'PASSPORT', 'DRIVING_LICENSE', 'OTHER'];
 const CAREER_REJECTION_TEMPLATE_KEY = 'career-application-rejection';
+
+function isProductionAppEnvironment() {
+  return String(process.env.APP_ENV || process.env.NODE_ENV || 'development').trim().toLowerCase() === 'production';
+}
+
+function isObservabilitySmokeTestEnabled() {
+  return String(process.env.ENABLE_OBSERVABILITY_SMOKE_TESTS || '').trim().toLowerCase() === 'true'
+    || !isProductionAppEnvironment();
+}
 
 function resolveSubscriptionAmount(plan, billingCycle) {
   const cycle = billingCycle === 'yearly' ? 'yearly' : 'monthly';
@@ -1227,6 +1250,7 @@ export function authMiddleware(req, res, next, secret = jwtSecret) {
 
   try {
     req.auth = jwt.verify(token, secret);
+    setSentryRequestUser(req.auth);
     return next();
   } catch {
     return res.status(401).json({ error: 'Session expired. Please sign in again.' });
@@ -1243,7 +1267,12 @@ function hasBearerToken(req) {
 }
 
 export function csrfProtectionMiddleware(req, res, next) {
-  if (isSafeMethod(req.method) || req.path === '/api/subscription/webhook' || hasBearerToken(req)) {
+  if (
+    isSafeMethod(req.method)
+    || req.path === '/api/subscription/webhook'
+    || (req.path === '/api/observability/smoke-error' && isObservabilitySmokeTestEnabled())
+    || hasBearerToken(req)
+  ) {
     return next();
   }
 
@@ -1794,10 +1823,63 @@ export function createApp(options = {}) {
     })
   );
   app.use(express.json({ limit: '5mb' }));
+  app.use(requestLoggingMiddleware);
+  app.use(sentryRequestContextMiddleware);
   app.use(csrfProtectionMiddleware);
 
   app.get('/api/health', (_req, res) => {
     res.json({ ok: true });
+  });
+
+  app.post('/api/observability/smoke-error', (req, res) => {
+    if (!isObservabilitySmokeTestEnabled()) {
+      return res.status(404).json({ error: 'Not found.' });
+    }
+
+    const source = sanitizeText(req.body?.source, 120) || 'unknown';
+    const routePath = sanitizeText(req.body?.routePath, 300);
+    const bodyRoute = sanitizeText(req.body?.bodyRoute, 40);
+    const error = new Error(`Observability smoke test triggered (${source}).`);
+
+    error.name = 'ObservabilitySmokeTestError';
+
+    const eventId = captureServerException(error, {
+      tags: {
+        smoke_test: 'true',
+        'smoke_test.target': 'backend',
+        'smoke_test.source': source,
+      },
+      extra: {
+        source,
+        routePath,
+        bodyRoute,
+        requestId: req.requestId || '',
+      },
+    });
+
+    logServerError('Observability smoke test triggered', {
+      error,
+      req,
+      fields: {
+        smoke_test: true,
+        smoke_test_source: source,
+        smoke_test_route_path: routePath || undefined,
+        smoke_test_body_route: bodyRoute || undefined,
+        sentry_event_id: eventId || undefined,
+      },
+      root: {
+        smoke_test: true,
+        smoke_test_source: source,
+      },
+    });
+
+    res.set('Cache-Control', 'no-store');
+    return res.status(500).json({
+      error: 'Observability smoke test triggered.',
+      code: 'OBSERVABILITY_SMOKE_TEST',
+      eventId: eventId || '',
+      requestId: req.requestId || '',
+    });
   });
 
   app.get('/api/auth/csrf', (req, res) => {
@@ -1891,7 +1973,8 @@ export function createApp(options = {}) {
         application: serializeCareerApplication(created),
       });
     } catch (error) {
-      console.error('POST /api/careers error:', error);
+      logServerError('POST /api/careers failed', { error, req });
+      captureServerException(error, { tags: { route: 'POST /api/careers' } });
       return res.status(500).json({ error: error.message || 'Could not submit application.' });
     }
   });
@@ -1976,7 +2059,8 @@ export function createApp(options = {}) {
         plannerOwnerId: user.googleId,
       });
     } catch (error) {
-      console.error('Google auth failed:', error);
+      logServerError('Google auth failed', { error, req });
+      captureServerException(error, { tags: { route: 'POST /api/auth/google' } });
       return res.status(401).json({ error: 'Google sign-in could not be verified.' });
     }
   });
@@ -2059,7 +2143,8 @@ export function createApp(options = {}) {
         plannerOwnerId: user.googleId,
       });
     } catch (error) {
-      console.error('Clerk auth failed:', error);
+      logServerError('Clerk auth failed', { error, req });
+      captureServerException(error, { tags: { route: 'POST /api/auth/clerk' } });
       return res.status(401).json({ error: 'Clerk sign-in could not be verified.' });
     }
   });
@@ -2110,7 +2195,8 @@ export function createApp(options = {}) {
       clearSessionCookie(req, res);
       return res.json({ ok: true });
     } catch (err) {
-      console.error('DELETE /api/auth/me error:', err);
+      logServerError('DELETE /api/auth/me failed', { error: err, req });
+      captureServerException(err, { tags: { route: 'DELETE /api/auth/me' } });
       return res.status(500).json({ error: 'Failed to delete account. Please try again.' });
     }
   });
@@ -2123,7 +2209,8 @@ export function createApp(options = {}) {
       }
       return res.json({ vendor: await serializeVendorWithVerification(vendor) });
     } catch (error) {
-      console.error('Failed to load vendor profile:', error);
+      logServerError('Failed to load vendor profile', { error, req });
+      captureServerException(error, { tags: { route: 'GET /api/vendor/me' } });
       return res.status(500).json({ error: 'An unexpected error occurred.' });
     }
   });
@@ -2196,7 +2283,8 @@ export function createApp(options = {}) {
 
       return res.status(201).json({ vendor: await serializeVendorWithVerification(vendor) });
     } catch (error) {
-      console.error('Vendor registration failed:', error);
+      logServerError('Vendor registration failed', { error, req });
+      captureServerException(error, { tags: { route: 'POST /api/vendor/me' } });
       return res.status(500).json({ error: 'An unexpected error occurred.' });
     }
   });
@@ -2270,7 +2358,8 @@ export function createApp(options = {}) {
 
       return res.json({ vendor: await serializeVendorWithVerification(vendor) });
     } catch (error) {
-      console.error('Vendor profile update failed:', error);
+      logServerError('Vendor profile update failed', { error, req });
+      captureServerException(error, { tags: { route: 'PATCH /api/vendor/me' } });
       return res.status(500).json({ error: 'An unexpected error occurred.' });
     }
   });
@@ -2302,7 +2391,8 @@ export function createApp(options = {}) {
 
       return res.json({ uploadUrl, key });
     } catch (error) {
-      console.error('Verification presigned URL generation failed:', error);
+      logServerError('Verification presigned URL generation failed', { error, req });
+      captureServerException(error, { tags: { route: 'POST /api/media/verification-presigned-url' } });
       return res.status(500).json({ error: 'Could not generate verification upload URL.' });
     }
   });
@@ -2342,7 +2432,8 @@ export function createApp(options = {}) {
       await vendor.save();
       return res.status(201).json({ vendor: await serializeVendorWithVerification(vendor) });
     } catch (error) {
-      console.error('Vendor verification upload failed:', error);
+      logServerError('Vendor verification upload failed', { error, req });
+      captureServerException(error, { tags: { route: 'POST /api/vendor/verification' } });
       return res.status(500).json({ error: 'An unexpected error occurred.' });
     }
   });
@@ -2380,12 +2471,14 @@ export function createApp(options = {}) {
         try {
           await deleteB2Object(targetKey);
         } catch (error) {
-          console.error('Vendor verification document delete failed:', error);
+          logServerError('Vendor verification document delete failed', { error, req });
+          captureServerException(error, { tags: { route: 'DELETE /api/vendor/verification.document' } });
         }
       }
       return res.json({ vendor: await serializeVendorWithVerification(vendor) });
     } catch (error) {
-      console.error('Vendor verification delete failed:', error);
+      logServerError('Vendor verification delete failed', { error, req });
+      captureServerException(error, { tags: { route: 'DELETE /api/vendor/verification' } });
       return res.status(500).json({ error: 'An unexpected error occurred.' });
     }
   });
@@ -2406,7 +2499,8 @@ export function createApp(options = {}) {
         access: session.access,
       });
     } catch (error) {
-      console.error('Admin session lookup failed:', error);
+      logServerError('Admin session lookup failed', { error, req });
+      captureServerException(error, { tags: { route: 'GET /api/admin/me' } });
       return res.status(500).json({ error: 'Could not load admin access.' });
     }
   });
@@ -2427,18 +2521,23 @@ export function createApp(options = {}) {
         try {
           return await serializeAdminVendorRecord(vendor);
         } catch (error) {
-          console.error('Admin vendor serialization failed:', {
-            vendorId: String(vendor?._id || ''),
-            vendorGoogleId: vendor?.googleId || '',
+          logServerError('Admin vendor serialization failed', {
             error,
+            req,
+            fields: {
+              vendorId: String(vendor?._id || ''),
+              vendorGoogleId: vendor?.googleId || '',
+            },
           });
+          captureServerException(error, { tags: { route: 'GET /api/admin/vendors.serialize' } });
           return buildFallbackAdminVendorRecord(vendor);
         }
       }));
 
       return res.json({ vendors: serializedVendors });
     } catch (error) {
-      console.error('Admin vendor management failed:', error);
+      logServerError('Admin vendor management failed', { error, req });
+      captureServerException(error, { tags: { route: 'GET /api/admin/vendors' } });
       return res.status(500).json({ error: 'Could not manage vendors.' });
     }
   });
@@ -2512,7 +2611,8 @@ export function createApp(options = {}) {
         vendor: await serializeAdminVendorRecord(vendor),
       });
     } catch (error) {
-      console.error('Admin vendor management failed:', error);
+      logServerError('Admin vendor management failed', { error, req });
+      captureServerException(error, { tags: { route: 'PATCH /api/admin/vendors' } });
       return res.status(500).json({ error: 'Could not manage vendors.' });
     }
   });
@@ -2543,7 +2643,8 @@ export function createApp(options = {}) {
 
       return res.json({ staff: staff.map(sanitizeStaffUser) });
     } catch (error) {
-      console.error('Admin staff fetch failed:', error);
+      logServerError('Admin staff fetch failed', { error, req });
+      captureServerException(error, { tags: { route: 'GET /api/admin/staff' } });
       return res.status(500).json({ error: 'Could not manage staff.' });
     }
   });
@@ -2587,7 +2688,8 @@ export function createApp(options = {}) {
 
       return res.json({ staffUser: sanitizeStaffUser(updated.toObject ? updated.toObject() : updated) });
     } catch (error) {
-      console.error('Admin staff grant failed:', error);
+      logServerError('Admin staff grant failed', { error, req });
+      captureServerException(error, { tags: { route: 'POST /api/admin/staff' } });
       return res.status(500).json({ error: 'Could not manage staff.' });
     }
   });
@@ -2630,7 +2732,8 @@ export function createApp(options = {}) {
 
       return res.json({ staffUser: sanitizeStaffUser(updated.toObject ? updated.toObject() : updated) });
     } catch (error) {
-      console.error('Admin staff update failed:', error);
+      logServerError('Admin staff update failed', { error, req });
+      captureServerException(error, { tags: { route: 'PUT /api/admin/staff' } });
       return res.status(500).json({ error: 'Could not manage staff.' });
     }
   });
@@ -2668,7 +2771,8 @@ export function createApp(options = {}) {
 
       return res.json({ ok: true });
     } catch (error) {
-      console.error('Admin staff revoke failed:', error);
+      logServerError('Admin staff revoke failed', { error, req });
+      captureServerException(error, { tags: { route: 'DELETE /api/admin/staff' } });
       return res.status(500).json({ error: 'Could not manage staff.' });
     }
   });
@@ -2693,7 +2797,8 @@ export function createApp(options = {}) {
         rejectionEmailTemplate,
       });
     } catch (error) {
-      console.error('Admin applications fetch failed:', error);
+      logServerError('Admin applications fetch failed', { error, req });
+      captureServerException(error, { tags: { route: 'GET /api/admin/applications' } });
       return res.status(500).json({ error: 'Could not load applications.' });
     }
   });
@@ -2784,7 +2889,8 @@ export function createApp(options = {}) {
 
       return res.status(400).json({ error: 'Unsupported application action.' });
     } catch (error) {
-      console.error('Admin application management failed:', error);
+      logServerError('Admin application management failed', { error, req });
+      captureServerException(error, { tags: { route: 'PATCH /api/admin/applications' } });
       return res.status(500).json({ error: 'Could not manage applications.' });
     }
   });
@@ -2824,7 +2930,8 @@ export function createApp(options = {}) {
 
       return res.redirect(302, url);
     } catch (error) {
-      console.error('Admin resume download failed:', error);
+      logServerError('Admin resume download failed', { error, req });
+      captureServerException(error, { tags: { route: 'GET /api/admin/resume-download' } });
       return res.status(500).json({ error: 'Could not generate download link.' });
     }
   });
@@ -2853,7 +2960,8 @@ export function createApp(options = {}) {
           .sort({ issuedAt: -1, createdAt: -1 })
           .lean();
       } catch (error) {
-        console.error('Admin receipt lookup failed:', error);
+        logServerError('Admin receipt lookup failed', { error, req });
+        captureServerException(error, { tags: { route: 'GET /api/admin/subscribers.receiptLookup' } });
         receipts = [];
       }
 
@@ -2880,7 +2988,8 @@ export function createApp(options = {}) {
         })),
       });
     } catch (error) {
-      console.error('Admin subscribers fetch failed:', error);
+      logServerError('Admin subscribers fetch failed', { error, req });
+      captureServerException(error, { tags: { route: 'GET /api/admin/subscribers' } });
       return res.status(500).json({ error: 'Could not load subscribers.' });
     }
   });
@@ -2912,7 +3021,8 @@ export function createApp(options = {}) {
 
       return res.json(getPublicWeddingData(planner, publicPlan));
     } catch (error) {
-      console.error('Failed to load public planner website:', error);
+      logServerError('Failed to load public planner website', { error, req });
+      captureServerException(error, { tags: { route: 'GET /api/planner/public' } });
       return res.status(500).json({ error: 'Failed to load wedding website.' });
     }
   });
@@ -2958,7 +3068,8 @@ export function createApp(options = {}) {
         rsvpUrl: buildGuestRsvpLink(req, token),
       });
     } catch (error) {
-      console.error('Failed to create RSVP link:', error);
+      logServerError('Failed to create RSVP link', { error, req });
+      captureServerException(error, { tags: { route: 'POST /api/planner/me/rsvp-link' } });
       return res.status(500).json({ error: 'Failed to create RSVP link.' });
     }
   });
@@ -3015,7 +3126,8 @@ export function createApp(options = {}) {
         },
       });
     } catch (error) {
-      console.error('Failed to load RSVP page:', error);
+      logServerError('Failed to load RSVP page', { error, req });
+      captureServerException(error, { tags: { route: 'GET /api/planner/rsvp' } });
       return res.status(500).json({ error: 'Failed to load RSVP.' });
     }
   });
@@ -3093,7 +3205,8 @@ export function createApp(options = {}) {
         },
       });
     } catch (error) {
-      console.error('Failed to save RSVP:', error);
+      logServerError('Failed to save RSVP', { error, req });
+      captureServerException(error, { tags: { route: 'POST /api/planner/rsvp' } });
       return res.status(500).json({ error: 'Failed to process RSVP.' });
     }
   });
@@ -3103,7 +3216,8 @@ export function createApp(options = {}) {
       const planners = await listAccessiblePlanners(PlannerModel, req.auth);
       return res.json({ planners });
     } catch (error) {
-      console.error('Failed to list accessible planners:', error);
+      logServerError('Failed to list accessible planners', { error, req });
+      captureServerException(error, { tags: { route: 'GET /api/planner/access' } });
       return res.status(500).json({ error: 'Failed to load accessible planners.' });
     }
   });
@@ -3130,7 +3244,8 @@ export function createApp(options = {}) {
 
       return res.json({ collaborators: plan.collaborators || [], plannerOwnerId: ownerId });
     } catch (error) {
-      console.error('Failed to load collaborators:', error);
+      logServerError('Failed to load collaborators', { error, req });
+      captureServerException(error, { tags: { route: 'GET /api/planner/me/collaborators' } });
       return res.status(500).json({ error: 'Failed to load sharing settings.' });
     }
   });
@@ -3200,7 +3315,8 @@ export function createApp(options = {}) {
       const updatedPlan = getPlanFromPlanner(updatedPlanner, plan.id);
       return res.json({ collaborators: updatedPlan?.collaborators || [], plannerOwnerId: ownerId });
     } catch (error) {
-      console.error('Failed to add collaborator:', error);
+      logServerError('Failed to add collaborator', { error, req });
+      captureServerException(error, { tags: { route: 'POST /api/planner/me/collaborators' } });
       return res.status(500).json({ error: 'Failed to update sharing settings.' });
     }
   });
@@ -3267,7 +3383,8 @@ export function createApp(options = {}) {
       const updatedPlan = getPlanFromPlanner(updatedPlanner, plan.id);
       return res.json({ collaborators: updatedPlan?.collaborators || [], plannerOwnerId: ownerId });
     } catch (error) {
-      console.error('Failed to change collaborator role:', error);
+      logServerError('Failed to change collaborator role', { error, req });
+      captureServerException(error, { tags: { route: 'PUT /api/planner/me/collaborators' } });
       return res.status(500).json({ error: 'Failed to update sharing settings.' });
     }
   });
@@ -3330,7 +3447,8 @@ export function createApp(options = {}) {
       const updatedPlan = getPlanFromPlanner(updatedPlanner, plan.id);
       return res.json({ collaborators: updatedPlan?.collaborators || [], plannerOwnerId: ownerId });
     } catch (error) {
-      console.error('Failed to remove collaborator:', error);
+      logServerError('Failed to remove collaborator', { error, req });
+      captureServerException(error, { tags: { route: 'DELETE /api/planner/me/collaborators' } });
       return res.status(500).json({ error: 'Failed to update sharing settings.' });
     }
   });
@@ -3359,7 +3477,8 @@ export function createApp(options = {}) {
         currentPeriodEnd: user.subscriptionCurrentPeriodEnd || null,
       });
     } catch (error) {
-      console.error('Subscription status failed:', error);
+      logServerError('Subscription status failed', { error, req });
+      captureServerException(error, { tags: { route: 'GET /api/subscription/status' } });
       return res.status(500).json({ error: 'Failed to load subscription status.' });
     }
   });
@@ -3466,7 +3585,8 @@ export function createApp(options = {}) {
         checkoutMode: 'razorpay',
       });
     } catch (error) {
-      console.error('Razorpay order creation failed:', error);
+      logServerError('Razorpay order creation failed', { error, req });
+      captureServerException(error, { tags: { route: 'POST /api/subscription/checkout' } });
       const statusCode = /coupon/i.test(error?.message || '') ? 400 : 500;
       return res.status(statusCode).json({ error: error?.message || 'Failed to create checkout order.' });
     }
@@ -3524,7 +3644,8 @@ export function createApp(options = {}) {
 
       return res.json({ success: true, receipt: result.receipt, checkoutMode: amount === 0 ? 'internal_free' : 'razorpay' });
     } catch (error) {
-      console.error('Razorpay payment confirmation failed:', error);
+      logServerError('Razorpay payment confirmation failed', { error, req });
+      captureServerException(error, { tags: { route: 'POST /api/subscription/confirm' } });
       return res.status(500).json({ error: 'Failed to confirm payment.' });
     }
   });
@@ -3571,10 +3692,14 @@ export function createApp(options = {}) {
 
       return res.json({ received: true });
     } catch (error) {
-      console.error('Razorpay webhook handler failed:', error);
+      logServerError('Razorpay webhook handler failed', { error, req });
+      captureServerException(error, { tags: { route: 'POST /api/subscription/webhook' } });
       return res.status(500).json({ error: 'Webhook processing failed.' });
     }
   });
+
+  setupSentryErrorHandlers(app);
+  app.use(createFinalErrorMiddleware());
 
   return app;
 }
@@ -3777,15 +3902,35 @@ export async function start() {
 
   await mongoose.connect(mongoUri);
   app.listen(port, '0.0.0.0', () => {
-    console.log(`VivahGo API listening on http://localhost:${port}`);
+    logServerInfo('VivahGo API listening', {
+      fields: {
+        host: '0.0.0.0',
+        port,
+        local_url: `http://localhost:${port}`,
+      },
+      root: {
+        host: '0.0.0.0',
+        port,
+      },
+    });
   });
 }
 
 const isDirectRun = process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
 
 if (isDirectRun) {
-  start().catch(error => {
-    console.error('Failed to start server:', error);
+  start().catch(async (error) => {
+    logServerError('Failed to start server', {
+      error,
+      fields: {
+        origin: 'server.start',
+      },
+      root: {
+        origin: 'server.start',
+      },
+    });
+    captureServerException(error, { tags: { origin: 'server.start' } });
+    await Promise.allSettled([flushServerLogger(), flushServerSentry(2000)]);
     process.exit(1);
   });
 }
