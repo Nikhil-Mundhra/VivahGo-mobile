@@ -1,9 +1,16 @@
-import { act, render, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 let currentRoutePath = "/planner";
 const routeListeners = new Set();
 const capturePostHogEvent = vi.fn();
+const captureException = vi.fn(() => "frontend_smoke_event_123");
+const getObservabilityHeaders = vi.fn(() => ({
+  "X-Axiom-Trace-Id": "axiom_trace_123",
+  "X-PostHog-Distinct-Id": "ph_user_123",
+}));
+const resolveApiBaseUrl = vi.fn(() => "http://127.0.0.1:4000/api");
 const setClarityRouteContext = vi.fn();
 const setPostHogRouteContext = vi.fn((path, options = {}) => ({
   route: path,
@@ -47,7 +54,16 @@ vi.mock("../shared/posthog.js", () => ({
 }));
 
 vi.mock("../shared/sentry.js", () => ({
+  captureException,
   setSentryRoute,
+}));
+
+vi.mock("../shared/observability.js", () => ({
+  getObservabilityHeaders,
+}));
+
+vi.mock("../shared/api/request.js", () => ({
+  resolveApiBaseUrl,
 }));
 
 vi.mock("../siteUrls.js", async (importOriginal) => {
@@ -79,11 +95,15 @@ describe("App route analytics", () => {
     currentRoutePath = "/planner";
     routeListeners.clear();
     capturePostHogEvent.mockClear();
+    captureException.mockClear();
+    getObservabilityHeaders.mockClear();
+    resolveApiBaseUrl.mockClear();
     setClarityRouteContext.mockClear();
     setPostHogRouteContext.mockClear();
     setSentryRoute.mockClear();
     window.history.replaceState({}, "", "/planner");
     delete document.body.dataset.route;
+    global.fetch = vi.fn();
   });
 
   it("captures a pageview on initial render and on route changes", async () => {
@@ -120,5 +140,53 @@ describe("App route analytics", () => {
     });
     expect(setSentryRoute).toHaveBeenLastCalledWith("/vendor", { bodyRoute: "vendor" });
     expect(document.body.dataset.route).toBe("vendor");
+  });
+
+  it("shows the smoke panel from the app route and triggers both smoke actions", async () => {
+    currentRoutePath = "/planner?observability-smoke=1";
+    window.history.replaceState({}, "", "/planner?observability-smoke=1");
+    global.fetch.mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: async () => ({
+        code: "OBSERVABILITY_SMOKE_TEST",
+        eventId: "backend_event_123",
+        requestId: "req_123",
+      }),
+    });
+
+    const user = userEvent.setup();
+    const { default: App } = await import("./App.jsx");
+
+    render(<App />);
+
+    expect(await screen.findByTestId("observability-smoke-panel")).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: "Trigger frontend smoke error" }));
+    expect(captureException).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({
+        tags: expect.objectContaining({
+          smoke_test: "true",
+          "smoke_test.target": "frontend",
+        }),
+      })
+    );
+
+    await user.click(screen.getByRole("button", { name: "Trigger backend smoke error" }));
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        "http://127.0.0.1:4000/api/observability/smoke-error",
+        expect.objectContaining({
+          method: "POST",
+          headers: expect.objectContaining({
+            "Content-Type": "application/json",
+            "X-Axiom-Trace-Id": "axiom_trace_123",
+            "X-PostHog-Distinct-Id": "ph_user_123",
+          }),
+        })
+      );
+    });
   });
 });

@@ -49,6 +49,7 @@ describe("shared clarity helper", () => {
   });
 
   it("no-ops cleanly when the Clarity project ID is missing", async () => {
+    vi.stubEnv("VITE_CLARITY_PROJECT_ID", "");
     const { clearClarityUser, initClarity, setClarityRouteContext, syncClaritySession } = await loadModule();
 
     expect(initClarity()).toBe(false);

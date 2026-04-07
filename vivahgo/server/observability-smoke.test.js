@@ -2,6 +2,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const captureServerException = vi.fn(() => "backend_event_123");
 const logServerError = vi.fn();
+const requestLoggingMiddleware = vi.fn((req, _res, next) => {
+  req.requestId = "req_test_123";
+  next();
+});
+const sentryRequestContextMiddleware = vi.fn((req, _res, next) => {
+  req.sentryContextCaptured = {
+    posthogDistinctId: req.headers["x-posthog-distinct-id"] || "",
+    axiomTraceId: req.headers["x-axiom-trace-id"] || "",
+    claritySessionId: req.headers["x-clarity-session-id"] || "",
+    clarityPageId: req.headers["x-clarity-page-id"] || "",
+  };
+  next();
+});
 
 vi.mock("./sentry.js", () => ({
   captureServerException,
@@ -11,7 +24,7 @@ vi.mock("./sentry.js", () => ({
     return res.status(500).json({ error: "Unhandled server error." });
   },
   flushServerSentry: vi.fn(),
-  sentryRequestContextMiddleware: (_req, _res, next) => next(),
+  sentryRequestContextMiddleware,
   setSentryRequestUser: vi.fn(),
   setupSentryErrorHandlers: vi.fn(),
 }));
@@ -20,10 +33,7 @@ vi.mock("./logger.js", () => ({
   flushServerLogger: vi.fn(),
   logServerError,
   logServerInfo: vi.fn(),
-  requestLoggingMiddleware: (req, _res, next) => {
-    req.requestId = "req_test_123";
-    next();
-  },
+  requestLoggingMiddleware,
 }));
 
 async function loadApp() {
@@ -34,35 +44,42 @@ async function loadApp() {
   });
 }
 
-function findRouteHandler(app, path, method) {
-  const stack = app.router?.stack || app._router?.stack || [];
-  const layer = stack.find((entry) => entry.route?.path === path && entry.route?.methods?.[method]);
-  return layer?.route?.stack?.at(-1)?.handle || null;
-}
-
-async function invokeRoute(app, path, method, { body = {} } = {}) {
-  const handler = findRouteHandler(app, path, method);
-  if (typeof handler !== "function") {
-    throw new Error(`Missing ${method.toUpperCase()} route handler for ${path}`);
-  }
-
+async function invokeRoute(app, path, method, { body = {}, headers = {}, query = {} } = {}) {
   const req = {
     body,
+    query,
     method: method.toUpperCase(),
     path,
-    headers: {},
+    headers,
     requestId: "req_test_123",
   };
+  let finishHandler = null;
   const res = {
     body: null,
     headers: {},
+    headersSent: false,
     statusCode: 200,
+    getHeader(name) {
+      return this.headers[String(name).toLowerCase()];
+    },
+    on: vi.fn((event, callback) => {
+      if (event === "finish") {
+        finishHandler = callback;
+      }
+    }),
+    removeHeader(name) {
+      delete this.headers[String(name).toLowerCase()];
+    },
+    setHeader(name, value) {
+      this.headers[String(name).toLowerCase()] = value;
+    },
     json: vi.fn(function json(payload) {
       this.body = payload;
+      this.headersSent = true;
       return this;
     }),
     set: vi.fn(function set(header, value) {
-      this.headers[header] = value;
+      this.headers[String(header).toLowerCase()] = value;
       return this;
     }),
     status: vi.fn(function status(code) {
@@ -71,7 +88,66 @@ async function invokeRoute(app, path, method, { body = {} } = {}) {
     }),
   };
 
-  await handler(req, res);
+  const stack = app.router?.stack || app._router?.stack || [];
+  const middlewareLayers = [];
+  let routeHandler = null;
+
+  for (const layer of stack) {
+    if (!layer.route) {
+      middlewareLayers.push(layer.handle);
+      continue;
+    }
+
+    if (layer.route?.path === path && layer.route?.methods?.[method]) {
+      routeHandler = layer.route?.stack?.at(-1)?.handle || null;
+      break;
+    }
+  }
+
+  if (typeof routeHandler !== "function") {
+    throw new Error(`Missing ${method.toUpperCase()} route handler for ${path}`);
+  }
+
+  let responseHandled = false;
+  for (const middleware of middlewareLayers) {
+    await new Promise((resolve, reject) => {
+      let settled = false;
+      const complete = () => {
+        if (!settled) {
+          settled = true;
+          resolve();
+        }
+      };
+
+      try {
+        middleware(req, res, (error) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+          complete();
+        });
+
+        if (res.headersSent || res.body !== null || res.statusCode !== 200) {
+          responseHandled = true;
+          complete();
+        }
+      } catch (error) {
+        reject(error);
+      }
+    });
+
+    if (responseHandled) {
+      break;
+    }
+  }
+
+  if (!responseHandled) {
+    await routeHandler(req, res);
+  }
+  if (typeof finishHandler === "function" && !responseHandled) {
+    finishHandler();
+  }
   return { req, res };
 }
 
@@ -136,7 +212,7 @@ describe("observability smoke route", () => {
     );
   });
 
-  it("returns 404 in production unless smoke tests are explicitly enabled", async () => {
+  it("is blocked by csrf before reaching the disabled smoke route in production", async () => {
     process.env.APP_ENV = "production";
 
     const app = await loadApp();
@@ -144,8 +220,51 @@ describe("observability smoke route", () => {
       body: { source: "observability-smoke-panel" },
     });
 
-    expect(res.statusCode).toBe(404);
+    expect(res.statusCode).toBe(403);
+    expect(res.body).toEqual({
+      error: "CSRF token required.",
+      code: "CSRF_REQUIRED",
+    });
     expect(captureServerException).not.toHaveBeenCalled();
     expect(logServerError).not.toHaveBeenCalled();
+  });
+
+  it("runs the request logging and sentry request middleware with shared observability headers", async () => {
+    const app = await loadApp();
+    const headers = {
+      "x-posthog-distinct-id": "ph_user_123",
+      "x-axiom-trace-id": "axiom_trace_123",
+      "x-clarity-session-id": "clarity_session_123",
+      "x-clarity-page-id": "planner:/planner",
+    };
+
+    const { req, res } = await invokeRoute(app, "/api/observability/smoke-error", "post", {
+      headers,
+      body: {
+        source: "observability-smoke-panel",
+        routePath: "/planner?observability-smoke=1",
+        bodyRoute: "app",
+      },
+    });
+
+    expect(res.statusCode).toBe(500);
+    expect(requestLoggingMiddleware).toHaveBeenCalledTimes(1);
+    expect(sentryRequestContextMiddleware).toHaveBeenCalledTimes(1);
+    expect(req.requestId).toBe("req_test_123");
+    expect(req.sentryContextCaptured).toEqual({
+      posthogDistinctId: "ph_user_123",
+      axiomTraceId: "axiom_trace_123",
+      claritySessionId: "clarity_session_123",
+      clarityPageId: "planner:/planner",
+    });
+    expect(logServerError).toHaveBeenCalledWith(
+      "Observability smoke test triggered",
+      expect.objectContaining({
+        req: expect.objectContaining({
+          headers: expect.objectContaining(headers),
+          requestId: "req_test_123",
+        }),
+      })
+    );
   });
 });
