@@ -1,4 +1,6 @@
 import { authStorageKeys } from "../../authStorage.js";
+import { getObservabilityHeaders } from "../observability.js";
+import { captureException } from "../sentry.js";
 
 const CSRF_COOKIE_NAME = "vivahgo_csrf";
 const SAFE_HTTP_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
@@ -197,6 +199,7 @@ async function performRequest(path, requestOptions = {}, options = {}, hasRetrie
           "Content-Type": "application/json",
           ...(shouldSendBearerToken ? { Authorization: `Bearer ${token}` } : {}),
           ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
+          ...getObservabilityHeaders(),
         },
         ...(body ? { body: JSON.stringify(body) } : {}),
       });
@@ -250,5 +253,24 @@ async function performRequest(path, requestOptions = {}, options = {}, hasRetrie
 }
 
 export async function request(path, requestOptions = {}, options = {}) {
-  return performRequest(path, requestOptions, options);
+  try {
+    return await performRequest(path, requestOptions, options);
+  } catch (error) {
+    const status = Number(error?.status);
+    if (!Number.isFinite(status) || status >= 500) {
+      captureException(error, {
+        tags: {
+          "request.path": path,
+          "request.method": String(requestOptions?.method || "GET").toUpperCase(),
+        },
+        extra: {
+          status: Number.isFinite(status) ? status : undefined,
+          code: typeof error?.code === "string" ? error.code : "",
+          baseUrl: options?.baseUrl || API_BASE_URL,
+        },
+      });
+    }
+
+    throw error;
+  }
 }

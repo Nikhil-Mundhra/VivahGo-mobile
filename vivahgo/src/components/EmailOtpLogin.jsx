@@ -57,6 +57,7 @@ function EmailOtpLogin({ onLoginSuccess, onLoginError }) {
   /** 'sign-in' | 'sign-up' — which Clerk flow will verify the OTP */
   const authFlowRef = useRef('sign-in');
   const onLoginSuccessRef = useRef(onLoginSuccess);
+  const isClerkReady = Boolean(clerk.loaded && signIn && signUp);
 
   useEffect(() => {
     onLoginSuccessRef.current = onLoginSuccess;
@@ -176,6 +177,15 @@ function EmailOtpLogin({ onLoginSuccess, onLoginError }) {
   }, [clerk.loaded, signIn, signUp, completeWithActiveClerkSession]);
 
   const handleGetCode = useCallback(async () => {
+    if (!isClerkReady) {
+      if (loadTimedOut && typeof window !== 'undefined' && typeof window.location?.reload === 'function') {
+        window.location.reload();
+      } else {
+        setError('Email login is not ready yet. Please wait a moment and try again.');
+      }
+      return;
+    }
+
     if (!signIn || !signUp) {
       setError('Email login is not ready yet. Please refresh and try again.');
       return;
@@ -269,7 +279,7 @@ function EmailOtpLogin({ onLoginSuccess, onLoginError }) {
     } finally {
       setLoading(false);
     }
-  }, [email, signIn, signUp, onLoginError, getClerkErrorMessage, completeWithActiveClerkSession]);
+  }, [email, signIn, signUp, onLoginError, getClerkErrorMessage, completeWithActiveClerkSession, isClerkReady, loadTimedOut]);
 
   const handleVerifyCode = useCallback(async () => {
     if (!signIn || !signUp) {
@@ -360,8 +370,6 @@ function EmailOtpLogin({ onLoginSuccess, onLoginError }) {
     }
   }, [code, email, signIn, signUp, onLoginSuccess, onLoginError, getClerkErrorMessage, completeWithActiveClerkSession, finalizeClerkFlow]);
 
-  const isClerkReady = Boolean(clerk.loaded && signIn && signUp);
-
   if (!clerkPublishableKey) {
     return null;
   }
@@ -383,7 +391,7 @@ function EmailOtpLogin({ onLoginSuccess, onLoginError }) {
             className="email-otp-btn"
             type="button"
             onClick={handleGetCode}
-            disabled={loading || !email.trim() || !isClerkReady}
+            disabled={loading || (!isClerkReady ? !loadTimedOut : !email.trim())}
           >
             {!isClerkReady ? (loadTimedOut ? 'Retry' : 'Loading...') : loading ? 'Sending...' : 'Get code'}
           </button>
