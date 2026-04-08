@@ -8,9 +8,10 @@ import { getVendorAvailabilityMatch } from "../../../vendorAvailability";
 import { FallbackImage, FallbackVideo } from "../../../components/MediaWithFallback.jsx";
 
 const VENDOR_FILTERS_SESSION_KEY = "vivahgo.vendorFilters";
+const PRIVATE_VENDOR_TYPES = VENDOR_TYPES.filter((type) => type !== "All");
 const PRIVATE_VENDOR_INITIAL_FORM = {
   name: "",
-  type: VENDOR_TYPES[0] || "Venue",
+  type: PRIVATE_VENDOR_TYPES[0] || "Venue",
   subType: "",
   phone: "",
   city: "",
