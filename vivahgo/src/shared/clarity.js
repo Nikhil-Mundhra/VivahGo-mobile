@@ -71,12 +71,36 @@ function isAuthenticatedSession(session) {
   return session?.mode === "google" || session?.mode === "clerk";
 }
 
+function secureRandomIdFallback() {
+  try {
+    // Prefer Web Crypto API if available (browsers, modern Node via globalThis.crypto)
+    if (globalThis.crypto && typeof globalThis.crypto.getRandomValues === "function") {
+      const bytes = new Uint8Array(16);
+      globalThis.crypto.getRandomValues(bytes);
+      return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+    }
+  } catch {
+    // ignore and fall back to Node.js crypto if present
+  }
+
+  try {
+    // Fallback for Node.js environments without Web Crypto on globalThis
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const nodeCrypto = require("crypto");
+    return nodeCrypto.randomBytes(16).toString("hex");
+  } catch {
+    // As a last resort, still avoid Math.random by returning a timestamp-only value
+    // (better than Math.random, but this path should be extremely rare)
+    return Date.now().toString(16);
+  }
+}
+
 function generateClaritySessionId() {
   if (globalThis.crypto && typeof globalThis.crypto.randomUUID === "function") {
     return `clarity_${globalThis.crypto.randomUUID()}`;
   }
 
-  return `clarity_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  return `clarity_${secureRandomIdFallback()}`;
 }
 
 function getSessionStorageRef(storageRef) {
