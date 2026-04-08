@@ -55,6 +55,11 @@ const https = ensureLocalHttpsConfig()
 export default defineConfig({
   envPrefix: ['VITE_', 'NEXT_PUBLIC_'],
   plugins: [react()],
+  test: {
+    environment: "jsdom",
+    globals: true,
+    setupFiles: "./test/setup.js",
+  },
   server: {
     host: 'localhost',
     port: 5173,

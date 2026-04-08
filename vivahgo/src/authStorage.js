@@ -1,5 +1,9 @@
+import { clearClarityUser, syncClaritySession } from "./shared/clarity.js";
 import { resetRequestCache } from "./shared/api/request.js";
+import { rotateAxiomTraceId } from "./shared/observability.js";
+import { capturePostHogEvent, identifyPostHogUser, resetPostHogUser } from "./shared/posthog.js";
 import { clearAppQueryState } from "./shared/queryClient.js";
+import { clearSentryUser, setSentryUser } from "./shared/sentry.js";
 
 const SESSION_STORAGE_KEY = 'vivahgo.session';
 const DEMO_PLANNER_STORAGE_KEY = 'vivahgo.demoPlanner';
@@ -59,10 +63,62 @@ export function persistAuthSession(session, options = {}) {
     return hydrateSession(session);
   }
 
+  const previousSession = readAuthSession({ localStorageRef });
   const { token: _token, ...persistableSession } = session;
+  const previousUserId = typeof previousSession?.user?.id === 'string' ? previousSession.user.id : '';
+  const nextUserId = typeof persistableSession?.user?.id === 'string' ? persistableSession.user.id : '';
+  const previousWasAuthenticated = previousSession?.mode === 'google' || previousSession?.mode === 'clerk';
+  const nextIsAuthenticated = persistableSession?.mode === 'google' || persistableSession?.mode === 'clerk';
+  const shouldResetTrackedIdentity = previousWasAuthenticated
+    && nextIsAuthenticated
+    && previousUserId
+    && nextUserId
+    && previousUserId !== nextUserId;
   resetRequestCache();
   clearAppQueryState();
   localStorageRef.setItem(SESSION_STORAGE_KEY, JSON.stringify(persistableSession));
+
+  if ((persistableSession.mode === 'google' || persistableSession.mode === 'clerk') && persistableSession.user) {
+    if (shouldResetTrackedIdentity) {
+      resetPostHogUser();
+    }
+
+    setSentryUser(persistableSession.user, {
+      authMode: persistableSession.mode,
+      plannerOwnerId: persistableSession.plannerOwnerId || persistableSession.user.id || '',
+    });
+    syncClaritySession(persistableSession);
+    identifyPostHogUser(persistableSession.user, {
+      authMode: persistableSession.mode,
+      plannerOwnerId: persistableSession.plannerOwnerId || persistableSession.user.id || '',
+    });
+
+    const shouldCaptureLogin = nextUserId && (
+      previousSession?.mode !== persistableSession.mode
+      || previousUserId !== nextUserId
+      || !(previousSession?.mode === 'google' || previousSession?.mode === 'clerk')
+    );
+
+    if (shouldCaptureLogin) {
+      capturePostHogEvent('auth_login_succeeded', {
+        auth_mode: persistableSession.mode,
+        planner_owner_id: persistableSession.plannerOwnerId || persistableSession.user.id || '',
+        user_id: nextUserId,
+      });
+    }
+  } else {
+    clearSentryUser({
+      authMode: persistableSession.mode || 'anonymous',
+      plannerOwnerId: persistableSession.plannerOwnerId || '',
+    });
+    clearClarityUser({
+      authMode: persistableSession.mode || 'anonymous',
+      plannerOwnerId: persistableSession.plannerOwnerId || '',
+      sessionStorageRef: options.sessionStorageRef,
+    });
+    resetPostHogUser();
+  }
+
   return hydrateSession(persistableSession);
 }
 
@@ -70,12 +126,30 @@ export function clearAuthStorage(scope, options = {}) {
   const localStorageRef = options.localStorageRef ?? (typeof window !== 'undefined' ? window.localStorage : null);
   const sessionStorageRef = options.sessionStorageRef ?? (typeof window !== 'undefined' ? window.sessionStorage : null);
   const googleRef = options.googleRef ?? (typeof window !== 'undefined' ? window.google : null);
+  const currentSession = readAuthSession({ localStorageRef });
+
+  if ((currentSession?.mode === 'google' || currentSession?.mode === 'clerk') && currentSession.user) {
+    capturePostHogEvent('auth_logout', {
+      auth_mode: currentSession.mode,
+      planner_owner_id: currentSession.plannerOwnerId || currentSession.user.id || '',
+      reason: typeof options.reason === 'string' && options.reason ? options.reason : 'session_cleared',
+      scope: typeof scope === 'string' ? scope : 'app',
+      user_id: currentSession.user.id || '',
+    });
+  }
 
   clearKey(localStorageRef, SESSION_STORAGE_KEY);
   clearKey(localStorageRef, LEGACY_GOOGLE_USER_KEY);
   clearKey(localStorageRef, LEGACY_GOOGLE_LOGIN_FLAG_KEY);
   resetRequestCache();
   clearAppQueryState();
+  clearSentryUser({ authMode: 'anonymous' });
+  rotateAxiomTraceId(sessionStorageRef);
+  clearClarityUser({
+    authMode: 'anonymous',
+    sessionStorageRef,
+  });
+  resetPostHogUser();
 
   if (scope === 'planner') {
     clearKey(localStorageRef, DEMO_PLANNER_STORAGE_KEY);

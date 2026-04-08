@@ -1,10 +1,19 @@
-import { Suspense, lazy, useEffect } from "react";
+import { Suspense, lazy, useEffect, useRef, useSyncExternalStore } from "react";
 import { getRouteInfo } from "./routes/appRoutes.js";
 import { shouldShowChatbaseForRoute } from "../chatbase.js";
 import ChatbaseChatbot from "../components/ChatbaseChatbot.jsx";
+import ObservabilitySmokePanel from "../components/ObservabilitySmokePanel.jsx";
 import { usePageSeo } from "../seo.js";
 import { getMarketingUrl, getPlannerUrl } from "../siteUrls.js";
 import queryPages from "../shared/content/query-pages.json";
+import { setClarityRouteContext } from "../shared/clarity.js";
+import {
+  capturePostHogEvent,
+  getCurrentPostHogRoutePath,
+  setPostHogRouteContext,
+  subscribeToPostHogRouteChanges,
+} from "../shared/posthog.js";
+import { setSentryRoute } from "../shared/sentry.js";
 
 const PlannerPage = lazy(() => import("../pages/PlannerPage.jsx"));
 const MarketingHomePage = lazy(() => import("../features/marketing/pages/MarketingHomePage.jsx"));
@@ -44,9 +53,15 @@ function PageFallback() {
 }
 
 export default function App() {
-  const pathname = typeof window !== "undefined" ? window.location.pathname : "/";
+  const routePath = useSyncExternalStore(
+    subscribeToPostHogRouteChanges,
+    getCurrentPostHogRoutePath,
+    () => "/"
+  );
+  const pathname = routePath.split("?")[0] || "/";
   const hostname = typeof window !== "undefined" ? window.location.hostname : "";
   const routeInfo = getRouteInfo(pathname, { hostname });
+  const lastTrackedRouteRef = useRef("");
   const shouldShowChatbase = shouldShowChatbaseForRoute(routeInfo);
   const queryPage = routeInfo.queryPageSlug ? QUERY_PAGE_BY_SLUG[routeInfo.queryPageSlug] : null;
   const fallbackSeo = routeInfo.isMarketingHomeRoute
@@ -158,6 +173,19 @@ export default function App() {
     }
   }, [routeInfo.bodyRoute]);
 
+  useEffect(() => {
+    setClarityRouteContext(routePath, { bodyRoute: routeInfo.bodyRoute });
+    const routeProperties = setPostHogRouteContext(routePath, { bodyRoute: routeInfo.bodyRoute });
+    setSentryRoute(routePath, { bodyRoute: routeInfo.bodyRoute });
+
+    if (lastTrackedRouteRef.current === routePath) {
+      return;
+    }
+
+    lastTrackedRouteRef.current = routePath;
+    capturePostHogEvent("$pageview", routeProperties);
+  }, [routeInfo.bodyRoute, routePath]);
+
   usePageSeo(fallbackSeo);
 
   const matchedRoute = ROUTE_COMPONENTS.find((entry) => entry.when(routeInfo));
@@ -167,6 +195,7 @@ export default function App() {
     <>
       <ChatbaseChatbot enabled={shouldShowChatbase} />
       <Suspense fallback={<PageFallback />}>{page}</Suspense>
+      <ObservabilitySmokePanel routePath={routePath} bodyRoute={routeInfo.bodyRoute} />
     </>
   );
 }
