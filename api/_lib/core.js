@@ -550,15 +550,17 @@ async function withRequestMetrics(name, operation) {
 }
 
 function getClientIp(req) {
-  const forwardedFor = typeof req?.headers?.['x-forwarded-for'] === 'string'
-    ? req.headers['x-forwarded-for'].split(',')[0].trim()
+  const vercelForwardedFor = typeof req?.headers?.['x-vercel-forwarded-for'] === 'string'
+    ? req.headers['x-vercel-forwarded-for'].split(',')[0].trim()
     : '';
   const realIp = typeof req?.headers?.['x-real-ip'] === 'string'
     ? req.headers['x-real-ip'].trim()
     : '';
   const socketIp = req?.socket?.remoteAddress || req?.connection?.remoteAddress || '';
 
-  return forwardedFor || realIp || socketIp || 'unknown';
+  // Only trust proxy-populated headers that our runtime is expected to set.
+  // A raw x-forwarded-for header is client-spoofable and should not drive throttling.
+  return vercelForwardedFor || realIp || socketIp || 'unknown';
 }
 
 function sweepRateLimitBuckets(now = Date.now()) {
@@ -848,12 +850,25 @@ function getChoiceProfileModel() {
         min: { type: Number, default: null },
         max: { type: Number, default: null },
       },
+      budgetRangeMode: {
+        type: String,
+        enum: ['merged', 'custom', 'hidden'],
+        default: 'custom',
+      },
       phone: { type: String, default: '', trim: true },
       website: { type: String, default: '', trim: true },
       availabilitySettings: { type: availabilitySettingsSchema, default: () => ({}) },
       sourceVendorIds: { type: [String], default: [] },
       selectedVendorMedia: { type: [selectedVendorMediaSchema], default: [] },
       media: { type: [mediaSchema], default: [] },
+      seedOverrides: {
+        subType: { type: Boolean, default: false },
+        description: { type: Boolean, default: false },
+        services: { type: Boolean, default: false },
+        bundledServices: { type: Boolean, default: false },
+        city: { type: Boolean, default: false },
+        coverageAreas: { type: Boolean, default: false },
+      },
       isApproved: { type: Boolean, default: true },
       tier: {
         type: String,

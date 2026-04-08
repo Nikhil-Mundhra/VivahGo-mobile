@@ -16,7 +16,12 @@ const {
 const { createPublicObjectUrl, extractObjectKeyFromUrl, normalizeMediaList, objectKeyMatchesScope } = require('./_lib/r2');
 const { createB2PresignedGetUrl, deleteB2Object } = require('./_lib/b2');
 const { buildAggregatedBudgetRange, buildAggregatedServices, buildChoiceProfileName, normalizeVendorTier, normalizeWhatsappNumber, sortChoiceMedia } = require('./_lib/vendor-choice');
-const { DEFAULT_VCA_TYPES, buildChoiceProfileId, buildDefaultChoiceProfileSeed } = require('./_lib/vca');
+const {
+  DEFAULT_VCA_TYPES,
+  buildChoiceProfileId,
+  buildDefaultChoiceProfileSeed,
+  inferChoiceBudgetRangeMode,
+} = require('./_lib/vca');
 
 const VENDOR_TYPES = ['Venue', 'Photography', 'Catering', 'Wedding Invitations', 'Wedding Gifts', 'Music', 'Wedding Transportation', 'Tent House', 'Wedding Entertainment', 'Florists', 'Wedding Planners', 'Wedding Videography', 'Honeymoon', 'Wedding Decorators', 'Wedding Cakes', 'Wedding DJ', 'Pandit', 'Photobooth', 'Astrologers', 'Party Places', 'Choreographer', 'Bridal & Pre-Bridal', 'Groom Services'];
 const BUNDLED_SERVICE_OPTIONS = VENDOR_TYPES.filter(type => type !== 'Honeymoon');
@@ -113,6 +118,94 @@ function normalizeVendorSubtype(type, subType) {
 function normalizeVendorRevision(value) {
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
+}
+
+function hasNonEmptyString(value) {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+function normalizeChoiceSeedCoverageAreas(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .filter(item => item && typeof item === 'object')
+    .map(item => ({
+      country: typeof item.country === 'string' ? item.country.trim() : '',
+      state: typeof item.state === 'string' ? item.state.trim() : '',
+      city: typeof item.city === 'string' ? item.city.trim() : '',
+    }))
+    .filter(item => item.country || item.state || item.city);
+}
+
+function normalizeChoiceSeedServices(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return Array.from(new Set(
+    value
+      .filter(item => typeof item === 'string')
+      .map(item => item.trim())
+      .filter(Boolean)
+  ));
+}
+
+function normalizeChoiceSeedBudgetRange(value) {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+
+  const min = Number(value.min);
+  const max = Number(value.max);
+  if (!Number.isFinite(min) || !Number.isFinite(max) || min <= 0 || max <= 0) {
+    return null;
+  }
+
+  return {
+    min: Math.round(Math.min(min, max)),
+    max: Math.round(Math.max(min, max)),
+  };
+}
+
+function buildSeededChoiceProfileDocument(seedProfile, existingProfile) {
+  const existingServices = normalizeChoiceSeedServices(existingProfile?.services);
+  const existingBundledServices = normalizeChoiceSeedServices(existingProfile?.bundledServices);
+  const existingCoverageAreas = normalizeChoiceSeedCoverageAreas(existingProfile?.coverageAreas);
+
+  return {
+    type: seedProfile.type,
+    businessName: hasNonEmptyString(existingProfile?.businessName)
+      ? existingProfile.businessName.trim()
+      : hasNonEmptyString(existingProfile?.name)
+        ? existingProfile.name.trim()
+        : seedProfile.businessName,
+    name: hasNonEmptyString(existingProfile?.name)
+      ? existingProfile.name.trim()
+      : hasNonEmptyString(existingProfile?.businessName)
+        ? existingProfile.businessName.trim()
+        : seedProfile.name,
+    subType: hasNonEmptyString(existingProfile?.subType) ? existingProfile.subType.trim() : (seedProfile.subType || ''),
+    description: hasNonEmptyString(existingProfile?.description) ? existingProfile.description.trim() : (seedProfile.description || ''),
+    services: existingServices.length > 0 ? existingServices : normalizeChoiceSeedServices(seedProfile.services),
+    bundledServices: existingBundledServices.length > 0 ? existingBundledServices : normalizeChoiceSeedServices(seedProfile.bundledServices),
+    country: hasNonEmptyString(existingProfile?.country) ? existingProfile.country.trim() : (seedProfile.country || ''),
+    state: hasNonEmptyString(existingProfile?.state) ? existingProfile.state.trim() : (seedProfile.state || ''),
+    city: hasNonEmptyString(existingProfile?.city) ? existingProfile.city.trim() : (seedProfile.city || ''),
+    googleMapsLink: hasNonEmptyString(existingProfile?.googleMapsLink) ? existingProfile.googleMapsLink.trim() : (seedProfile.googleMapsLink || ''),
+    coverageAreas: existingCoverageAreas.length > 0 ? existingCoverageAreas : normalizeChoiceSeedCoverageAreas(seedProfile.coverageAreas),
+    budgetRange: normalizeChoiceSeedBudgetRange(existingProfile?.budgetRange) || normalizeChoiceSeedBudgetRange(seedProfile?.budgetRange),
+    phone: hasNonEmptyString(existingProfile?.phone) ? existingProfile.phone.trim() : (seedProfile.phone || ''),
+    website: hasNonEmptyString(existingProfile?.website) ? existingProfile.website.trim() : (seedProfile.website || ''),
+    availabilitySettings: existingProfile?.availabilitySettings || seedProfile.availabilitySettings,
+    sourceVendorIds: Array.isArray(existingProfile?.sourceVendorIds) ? existingProfile.sourceVendorIds : seedProfile.sourceVendorIds,
+    selectedVendorMedia: Array.isArray(existingProfile?.selectedVendorMedia) ? existingProfile.selectedVendorMedia : seedProfile.selectedVendorMedia,
+    media: Array.isArray(existingProfile?.media) ? existingProfile.media : seedProfile.media,
+    isApproved: true,
+    tier: 'Plus',
+    isActive: existingProfile?.isActive !== false,
+  };
 }
 
 function normalizeClientSequence(value) {
@@ -597,6 +690,8 @@ function buildPublicVendorDirectoryEntry(vendor) {
     budgetRange: vendor.budgetRange || null,
     locations: buildDirectoryLocations(vendor),
     media,
+    coverMediaUrl: coverMedia?.url || '',
+    coverMediaType: coverMedia?.type || '',
     coverImageUrl: coverMedia?.type === 'IMAGE' ? coverMedia.url : '',
     tier: normalizeVendorTier(vendor.tier),
     isChoiceProfile: false,
@@ -707,47 +802,19 @@ function resolveChoiceMedia(choiceProfile, vendorsForType) {
 }
 
 async function bootstrapChoiceProfiles(ChoiceProfile) {
-  let existingProfiles = [];
-  if (typeof ChoiceProfile.find === 'function') {
-    const query = ChoiceProfile.find({ type: { $in: DEFAULT_VCA_TYPES } });
-    if (query && typeof query.select === 'function') {
-      existingProfiles = await (typeof query.lean === 'function'
-        ? query.select('-__v').lean()
-        : query.select('-__v'));
-    } else {
-      existingProfiles = await query;
-    }
+  if (!ChoiceProfile || typeof ChoiceProfile.find !== 'function') {
+    return [];
   }
 
-  const existingByType = new Map((Array.isArray(existingProfiles) ? existingProfiles : []).map(profile => [String(profile?.type || '').trim(), profile]));
-  const bootstrapped = [];
-
-  for (const type of DEFAULT_VCA_TYPES) {
-    const seedProfile = buildDefaultChoiceProfileSeed(type);
-    const existingProfile = existingByType.get(type) || null;
-    if (typeof ChoiceProfile.findOneAndUpdate === 'function') {
-      const upserted = await ChoiceProfile.findOneAndUpdate(
-        { _id: buildChoiceProfileId(type) },
-        {
-          $setOnInsert: seedProfile,
-          $set: {
-            type,
-            businessName: existingProfile?.businessName || existingProfile?.name || seedProfile.businessName,
-            name: existingProfile?.name || existingProfile?.businessName || seedProfile.name,
-            isApproved: true,
-            tier: 'Plus',
-            isActive: existingProfile?.isActive !== false,
-          },
-        },
-        { new: true, upsert: true, setDefaultsOnInsert: true }
-      );
-      bootstrapped.push(upserted);
-    } else {
-      bootstrapped.push({ ...seedProfile, ...(existingProfile || {}) });
-    }
+  const query = ChoiceProfile.find({ type: { $in: DEFAULT_VCA_TYPES } });
+  if (query && typeof query.select === 'function') {
+    const selectedQuery = query.select('-__v');
+    return typeof selectedQuery?.lean === 'function'
+      ? selectedQuery.lean()
+      : selectedQuery;
   }
 
-  return bootstrapped;
+  return query;
 }
 
 function resolveChoiceProfile(choiceProfile, vendorsForType) {
@@ -756,6 +823,11 @@ function resolveChoiceProfile(choiceProfile, vendorsForType) {
   const derivedBudgetRange = buildAggregatedBudgetRange(sourceVendors);
   const derivedServices = buildAggregatedServices(sourceVendors);
   const derivedAvailabilitySettings = buildAggregatedAvailabilitySettings(sourceVendors);
+  const seedProfile = buildDefaultChoiceProfileSeed(choiceProfile?.type);
+  const budgetRangeMode = inferChoiceBudgetRangeMode(choiceProfile, {
+    aggregatedBudgetRange: derivedBudgetRange,
+    seedProfile,
+  });
   const normalizedServices = Array.isArray(choiceProfile?.services)
     ? choiceProfile.services.filter(item => typeof item === 'string').map(item => item.trim()).filter(Boolean)
     : [];
@@ -779,7 +851,11 @@ function resolveChoiceProfile(choiceProfile, vendorsForType) {
     phone: choiceProfile?.phone || '',
     website: choiceProfile?.website || '',
     whatsappNumber: normalizeWhatsappNumber(choiceProfile?.phone),
-    budgetRange: choiceProfile?.budgetRange?.min && choiceProfile?.budgetRange?.max ? choiceProfile.budgetRange : derivedBudgetRange,
+    budgetRange: budgetRangeMode === 'hidden'
+      ? null
+      : budgetRangeMode === 'merged'
+        ? derivedBudgetRange
+        : (choiceProfile?.budgetRange?.min && choiceProfile?.budgetRange?.max ? choiceProfile.budgetRange : null),
     availabilitySettings: normalizeAvailabilitySettings(choiceProfile?.availabilitySettings || derivedAvailabilitySettings),
     coverageAreas: Array.isArray(choiceProfile?.coverageAreas) ? choiceProfile.coverageAreas : [],
     sourceVendorIds: sourceVendors.map(vendor => String(vendor._id || '')),
@@ -795,7 +871,7 @@ function buildPublicChoiceDirectoryEntry(choiceProfile, vendorsForType) {
   const visibleMedia = sortChoiceMedia(resolved.media).filter(item => item?.isVisible !== false);
   const coverMedia = visibleMedia.find(item => item?.isCover) || visibleMedia[0] || null;
 
-  if (!resolved.type || (resolved.sourceVendorCount === 0 && visibleMedia.length === 0 && !resolved.phone && !resolved.description)) {
+  if (!resolved.type || choiceProfile?.isActive === false) {
     return null;
   }
 
@@ -806,7 +882,7 @@ function buildPublicChoiceDirectoryEntry(choiceProfile, vendorsForType) {
     subType: resolved.subType,
     bundledServices: resolved.bundledServices,
     services: resolved.services,
-    description: resolved.description,
+    description: resolved.description || `Curated by VivahGo for ${String(resolved.type || 'wedding vendors').toLowerCase()}.`,
     country: resolved.country,
     state: resolved.state,
     city: resolved.city,
@@ -823,6 +899,8 @@ function buildPublicChoiceDirectoryEntry(choiceProfile, vendorsForType) {
     budgetRange: resolved.budgetRange,
     locations: buildDirectoryLocations(resolved),
     media: visibleMedia,
+    coverMediaUrl: coverMedia?.url || '',
+    coverMediaType: coverMedia?.type || '',
     coverImageUrl: coverMedia?.type === 'IMAGE' ? coverMedia.url : '',
     tier: 'Choice',
     featuredLabel: "VivahGo's Choice",
@@ -881,9 +959,17 @@ async function handleVendorList(req, res) {
       const resolvedChoiceProfiles = DEFAULT_VCA_TYPES
         .map((type) => {
           const savedProfile = choiceProfilesByType.get(type);
+          const vendorsForType = freeVendorsByType.get(type) || [];
+          if (!savedProfile && vendorsForType.length === 0) {
+            return null;
+          }
+          const publicChoiceProfile = savedProfile || {
+            ...buildDefaultChoiceProfileSeed(type),
+            budgetRangeMode: 'merged',
+          };
           return buildPublicChoiceDirectoryEntry(
-            savedProfile || buildDefaultChoiceProfileSeed(type),
-            freeVendorsByType.get(type) || []
+            publicChoiceProfile,
+            vendorsForType
           );
         })
         .filter(Boolean);

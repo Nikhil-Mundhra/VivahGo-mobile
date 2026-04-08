@@ -490,7 +490,7 @@ describe('core helpers', function () {
   describe('applyRateLimit', function () {
     it('blocks requests that exceed the configured threshold and sets retry headers', function () {
       const req = {
-        headers: { 'x-forwarded-for': '203.0.113.10' },
+        headers: { 'x-real-ip': '203.0.113.10' },
       };
       const firstRes = {
         headers: {},
@@ -533,6 +533,56 @@ describe('core helpers', function () {
       assert.equal(secondRes.statusCode, 429);
       assert.equal(secondRes.headers['Retry-After'], '60');
       assert.deepEqual(secondRes.body, { error: 'Too many requests. Please try again shortly.' });
+    });
+
+    it('ignores a spoofed x-forwarded-for header when deriving the rate-limit bucket', function () {
+      const firstReq = {
+        headers: { 'x-forwarded-for': '198.51.100.20' },
+        socket: { remoteAddress: '203.0.113.10' },
+      };
+      const secondReq = {
+        headers: { 'x-forwarded-for': '198.51.100.21' },
+        socket: { remoteAddress: '203.0.113.10' },
+      };
+      const firstRes = {
+        headers: {},
+        statusCode: null,
+        body: null,
+        setHeader(name, value) {
+          this.headers[name] = value;
+        },
+        status(code) {
+          this.statusCode = code;
+          return this;
+        },
+        json(payload) {
+          this.body = payload;
+          return this;
+        },
+      };
+      const secondRes = {
+        headers: {},
+        statusCode: null,
+        body: null,
+        setHeader(name, value) {
+          this.headers[name] = value;
+        },
+        status(code) {
+          this.statusCode = code;
+          return this;
+        },
+        json(payload) {
+          this.body = payload;
+          return this;
+        },
+      };
+
+      const firstLimited = applyRateLimit(firstReq, firstRes, 'test:route', { windowMs: 60_000, max: 1 });
+      const secondLimited = applyRateLimit(secondReq, secondRes, 'test:route', { windowMs: 60_000, max: 1 });
+
+      assert.equal(firstLimited, false);
+      assert.equal(secondLimited, true);
+      assert.equal(secondRes.statusCode, 429);
     });
   });
 

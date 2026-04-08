@@ -47,6 +47,7 @@ import { getBrowserNotificationSupport, removeBrowserPushToken, requestBrowserPu
 import { ackMutation, createPlannerMutationJournal, enqueueMutation, failMutation, maybeRollback } from "./lib/plannerMutationManager.js";
 
 const DEMO_PLANNER_STORAGE_KEY = "vivahgo.demoPlanner";
+const VENDORS_VIEW_SESSION_KEY = "vivahgo.vendorsView";
 const PRICING_URL = getMarketingUrl("/pricing");
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const YEARS = Array.from({ length: 8 }, (_, i) => 2025 + i);
@@ -93,6 +94,14 @@ export default function PlannerShell() {
   const marketingHomeUrl = getMarketingUrl("/");
   const [screen, setScreen] = useState("login");
   const [tab, setTab] = useState("home");
+  const [vendorsView, setVendorsView] = useState(() => {
+    if (typeof window === "undefined") {
+      return "directory";
+    }
+
+    const storedView = window.sessionStorage.getItem(VENDORS_VIEW_SESSION_KEY);
+    return storedView === "my-vendors" ? "my-vendors" : "directory";
+  });
   const [user, setUser] = useState(null);
   const [authMode, setAuthMode] = useState(null);
   const [authToken, setAuthToken] = useState("");
@@ -242,7 +251,22 @@ export default function PlannerShell() {
   const setActiveEvents = createPlanScopedSetter(setEvents, activePlanId);
   const setActiveExpenses = createPlanScopedSetter(setExpenses, activePlanId);
   const setActiveGuests = createPlanScopedSetter(setGuests, activePlanId);
+  const setActiveVendors = createPlanScopedSetter(setVendors, activePlanId);
   const setActiveTasks = createPlanScopedSetter(setTasks, activePlanId);
+
+  function handlePlannerTabChange(nextTab) {
+    if (nextTab === "vendors") {
+      if (tab === "vendors") {
+        setVendorsView(current => current === "directory" ? "my-vendors" : "directory");
+        return;
+      }
+
+      setTab("vendors");
+      return;
+    }
+
+    setTab(nextTab);
+  }
 
   function shouldShowOnboarding(nextPlanner) {
     return !hasWeddingProfile(normalizePlanner(nextPlanner).wedding);
@@ -564,6 +588,14 @@ export default function PlannerShell() {
   useEffect(() => {
     currentPlannerRef.current = normalizePlanner(buildPlannerSnapshotFromState());
   }, [buildPlannerSnapshotFromState]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.sessionStorage.setItem(VENDORS_VIEW_SESSION_KEY, vendorsView);
+  }, [vendorsView]);
 
   useEffect(() => {
     if (!(authMode === "google" || authMode === "clerk") || !authToken) {
@@ -1742,18 +1774,22 @@ export default function PlannerShell() {
 
           {/* Content */}
           <div className={`content-area ${!planAccess.canEdit ? "content-area-readonly" : ""}`} ref={contentAreaRef}>
-            {tab==="home" && <Dashboard wedding={wedding} events={activeEvents} expenses={activeExpenses} guests={activeGuests} budget={wedding.budget} onTabChange={setTab} onEditEvent={openEventEditorFromCalendar}/>}
+            {tab==="home" && <Dashboard wedding={wedding} events={activeEvents} expenses={activeExpenses} guests={activeGuests} budget={wedding.budget} onTabChange={handlePlannerTabChange} onEditEvent={openEventEditorFromCalendar}/>}
             {tab==="events" && <EventsScreen events={activeEvents} setEvents={setActiveEvents} expenses={activeExpenses} setExpenses={setActiveExpenses} planId={activePlanId} websitePath={activeWeddingWebsitePath} websiteSettings={activeMarriage?.websiteSettings || DEFAULT_WEBSITE_SETTINGS} subscriptionTier={subscription.tier} onSaveWebsiteSettings={updateActiveMarriageWebsiteSettings} onOpenBudget={() => setTab("budget")} initialEditingEventId={eventToEditId} defaultVenue={wedding.venue || ""} presetVenues={presetVenues}/>}
             {tab==="budget" && <BudgetScreen expenses={activeExpenses} setExpenses={setActiveExpenses} wedding={wedding} events={activeEvents} planId={activePlanId}/>} 
             {tab==="guests" && <GuestsScreen guests={activeGuests} setGuests={setActiveGuests} planId={activePlanId} authToken={authToken} plannerOwnerId={plannerOwnerId} />} 
-            {tab==="vendors" && <VendorsScreen vendors={activeVendors}/>} 
+            {tab==="vendors" && <VendorsScreen vendors={activeVendors} setVendors={setActiveVendors} view={vendorsView} onBackToDirectory={() => setVendorsView("directory")} />} 
             {tab==="tasks" && <TasksScreen tasks={activeTasks} setTasks={setActiveTasks} events={activeEvents} planId={activePlanId}/>} 
           </div>
 
           {/* Bottom Nav */}
           <div className="bottom-nav">
             {NAV_ITEMS.map(n=>(
-              <div key={n.id} className={`nav-item${tab===n.id?" active":""}`} onClick={()=>setTab(n.id)}>
+              <div
+                key={n.id}
+                className={`nav-item${tab===n.id?" active":""}${n.id === "vendors" && tab === "vendors" && vendorsView === "my-vendors" ? " nav-item-vendors-alt" : ""}`}
+                onClick={()=>handlePlannerTabChange(n.id)}
+              >
                 <div className="nav-icon"><NavIcon name={n.icon} /></div>
                 <div className="nav-label">{n.label}</div>
                 {tab===n.id && <div className="nav-active-dot"/>}

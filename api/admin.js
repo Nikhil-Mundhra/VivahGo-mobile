@@ -2,6 +2,7 @@ const { randomUUID } = require('crypto');
 const mongoose = require('mongoose');
 
 const {
+  applyRateLimit,
   getBillingReceiptModel,
   getCareerApplicationModel,
   getCareerEmailTemplateModel,
@@ -21,7 +22,15 @@ const { createB2PresignedGetUrl, deleteB2Object } = require('./_lib/b2');
 const { getDefaultCareerRejectionTemplate, sanitizeCareerRejectionTemplate, sendCareerRejectionEmail } = require('./_lib/careers-admin');
 const { serializeApplication } = require('./careers');
 const { buildAggregatedBudgetRange, buildAggregatedServices, buildChoiceProfileName, normalizeVendorTier, sortChoiceMedia } = require('./_lib/vendor-choice');
-const { DEFAULT_VCA_TYPES, buildChoiceProfileId, buildDefaultChoiceProfileSeed } = require('./_lib/vca');
+const {
+  DEFAULT_VCA_TYPES,
+  buildChoiceProfileId,
+  buildChoiceProfileSeedOverrides,
+  buildDefaultChoiceProfileSeed,
+  inferChoiceBudgetRangeMode,
+  normalizeChoiceBudgetRangeMode,
+  normalizeChoiceProfileSeedOverrides,
+} = require('./_lib/vca');
 
 const CAREER_REJECTION_TEMPLATE_KEY = 'career-application-rejection';
 const VENDOR_DIRECTORY_CACHE_TAG = 'vendors';
@@ -249,7 +258,15 @@ function normalizeChoiceCoverageAreas(value) {
       state: typeof item.state === 'string' ? item.state.trim() : '',
       city: typeof item.city === 'string' ? item.city.trim() : '',
     }))
-    .filter(item => item.country && item.state && item.city);
+    .filter(item => item.country || item.state || item.city);
+}
+
+function hasOwnPayloadField(payload, fieldName) {
+  return Boolean(payload) && Object.prototype.hasOwnProperty.call(payload, fieldName);
+}
+
+function normalizeChoiceTextField(value) {
+  return typeof value === 'string' ? value.trim() : '';
 }
 
 function normalizeChoiceServices(value) {
@@ -280,6 +297,18 @@ function normalizeChoiceBudgetRange(value, fallback = null) {
     min: Math.round(Math.min(min, max)),
     max: Math.round(Math.max(min, max)),
   };
+}
+
+function resolveChoiceBudgetRangeForMode(mode, customBudgetRange, aggregatedBudgetRange) {
+  if (mode === 'hidden') {
+    return null;
+  }
+
+  if (mode === 'merged') {
+    return normalizeChoiceBudgetRange(aggregatedBudgetRange, null);
+  }
+
+  return normalizeChoiceBudgetRange(customBudgetRange, null);
 }
 
 function isValidAvailabilityDateKey(value) {
@@ -635,8 +664,63 @@ function resolveAdminChoiceMedia(choiceProfile, vendorsForType) {
 }
 
 function buildChoiceProfileUpdateDocument(seedProfile, existingProfile, payload) {
+  const existingServices = normalizeChoiceServices(existingProfile?.services);
+  const existingBundledServices = normalizeChoiceServices(existingProfile?.bundledServices);
+  const existingCoverageAreas = normalizeChoiceCoverageAreas(existingProfile?.coverageAreas);
+  const existingSeedOverrides = normalizeChoiceProfileSeedOverrides(existingProfile?.seedOverrides);
+  const resolvedSubType = hasOwnPayloadField(payload, 'subType')
+    ? normalizeChoiceTextField(payload?.subType)
+    : (existingSeedOverrides.subType
+      ? normalizeChoiceTextField(existingProfile?.subType)
+      : (normalizeChoiceTextField(existingProfile?.subType) || normalizeChoiceTextField(seedProfile?.subType)));
+  const resolvedDescription = hasOwnPayloadField(payload, 'description')
+    ? normalizeChoiceTextField(payload?.description)
+    : (existingSeedOverrides.description
+      ? normalizeChoiceTextField(existingProfile?.description)
+      : (normalizeChoiceTextField(existingProfile?.description) || normalizeChoiceTextField(seedProfile?.description)));
+  const resolvedServices = hasOwnPayloadField(payload, 'services')
+    ? normalizeChoiceServices(payload?.services)
+    : (existingSeedOverrides.services
+      ? existingServices
+      : (existingServices.length > 0 ? existingServices : normalizeChoiceServices(seedProfile?.services)));
+  const resolvedBundledServices = hasOwnPayloadField(payload, 'bundledServices')
+    ? normalizeChoiceServices(payload?.bundledServices)
+    : (existingSeedOverrides.bundledServices
+      ? existingBundledServices
+      : (existingBundledServices.length > 0 ? existingBundledServices : normalizeChoiceServices(seedProfile?.bundledServices)));
+  const resolvedCity = hasOwnPayloadField(payload, 'city')
+    ? normalizeChoiceTextField(payload?.city)
+    : (existingSeedOverrides.city
+      ? normalizeChoiceTextField(existingProfile?.city)
+      : (normalizeChoiceTextField(existingProfile?.city) || normalizeChoiceTextField(seedProfile?.city)));
+  const resolvedCoverageAreas = hasOwnPayloadField(payload, 'coverageAreas')
+    ? normalizeChoiceCoverageAreas(payload?.coverageAreas)
+    : (existingSeedOverrides.coverageAreas
+      ? existingCoverageAreas
+      : (existingCoverageAreas.length > 0 ? existingCoverageAreas : normalizeChoiceCoverageAreas(seedProfile?.coverageAreas)));
+  const resolvedSeedOverrides = buildChoiceProfileSeedOverrides(seedProfile, {
+    subType: resolvedSubType,
+    description: resolvedDescription,
+    services: resolvedServices,
+    bundledServices: resolvedBundledServices,
+    city: resolvedCity,
+    coverageAreas: resolvedCoverageAreas,
+  });
+
+  const resolvedBudgetRangeMode = normalizeChoiceBudgetRangeMode(
+    payload?.budgetRangeMode,
+    inferChoiceBudgetRangeMode(existingProfile, {
+      aggregatedBudgetRange: payload?.aggregatedBudgetRange || null,
+      seedProfile,
+    })
+  );
+  const resolvedBudgetRange = resolveChoiceBudgetRangeForMode(
+    resolvedBudgetRangeMode,
+    payload?.budgetRange !== undefined ? payload.budgetRange : existingProfile?.budgetRange,
+    payload?.aggregatedBudgetRange || null
+  );
+
   return {
-    _id: seedProfile._id,
     type: seedProfile.type,
     businessName: typeof payload?.businessName === 'string' && payload.businessName.trim()
       ? payload.businessName.trim()
@@ -648,22 +732,24 @@ function buildChoiceProfileUpdateDocument(seedProfile, existingProfile, payload)
       : typeof payload?.businessName === 'string' && payload.businessName.trim()
         ? payload.businessName.trim()
         : existingProfile?.name || existingProfile?.businessName || seedProfile.name,
-    subType: typeof payload?.subType === 'string' ? payload.subType.trim() : (existingProfile?.subType || ''),
-    description: typeof payload?.description === 'string' ? payload.description.trim() : (existingProfile?.description || ''),
-    services: payload?.services !== undefined ? normalizeChoiceServices(payload.services) : normalizeChoiceServices(existingProfile?.services),
-    bundledServices: payload?.bundledServices !== undefined ? normalizeChoiceServices(payload.bundledServices) : normalizeChoiceServices(existingProfile?.bundledServices),
+    subType: resolvedSubType,
+    description: resolvedDescription,
+    services: resolvedServices,
+    bundledServices: resolvedBundledServices,
     country: typeof payload?.country === 'string' ? payload.country.trim() : (existingProfile?.country || ''),
     state: typeof payload?.state === 'string' ? payload.state.trim() : (existingProfile?.state || ''),
-    city: typeof payload?.city === 'string' ? payload.city.trim() : (existingProfile?.city || ''),
+    city: resolvedCity,
     googleMapsLink: typeof payload?.googleMapsLink === 'string' ? payload.googleMapsLink.trim() : (existingProfile?.googleMapsLink || ''),
-    coverageAreas: payload?.coverageAreas !== undefined ? normalizeChoiceCoverageAreas(payload.coverageAreas) : normalizeChoiceCoverageAreas(existingProfile?.coverageAreas),
-    budgetRange: payload?.budgetRange !== undefined ? payload.budgetRange : normalizeChoiceBudgetRange(existingProfile?.budgetRange, seedProfile.budgetRange),
+    coverageAreas: resolvedCoverageAreas,
+    budgetRangeMode: resolvedBudgetRangeMode,
+    budgetRange: resolvedBudgetRange,
     phone: typeof payload?.phone === 'string' ? payload.phone.trim() : (existingProfile?.phone || ''),
     website: typeof payload?.website === 'string' ? payload.website.trim() : (existingProfile?.website || ''),
     availabilitySettings: payload?.availabilitySettings,
     sourceVendorIds: Array.isArray(payload?.sourceVendorIds) ? payload.sourceVendorIds : (Array.isArray(existingProfile?.sourceVendorIds) ? existingProfile.sourceVendorIds : seedProfile.sourceVendorIds),
     selectedVendorMedia: Array.isArray(payload?.selectedVendorMedia) ? payload.selectedVendorMedia : (Array.isArray(existingProfile?.selectedVendorMedia) ? existingProfile.selectedVendorMedia : seedProfile.selectedVendorMedia),
     media: Array.isArray(payload?.media) ? payload.media : (Array.isArray(existingProfile?.media) ? existingProfile.media : seedProfile.media),
+    seedOverrides: resolvedSeedOverrides,
     isApproved: true,
     tier: 'Plus',
     isActive: payload?.isActive !== undefined ? payload.isActive !== false : existingProfile?.isActive !== false,
@@ -671,61 +757,16 @@ function buildChoiceProfileUpdateDocument(seedProfile, existingProfile, payload)
 }
 
 async function bootstrapChoiceProfiles(ChoiceProfile) {
-  let existingProfiles = [];
-  if (typeof ChoiceProfile.find === 'function') {
-    const query = ChoiceProfile.find({ type: { $in: DEFAULT_VCA_TYPES } });
-    if (query && typeof query.select === 'function') {
-      existingProfiles = await resolveLean(query.select('-__v'));
-    } else {
-      existingProfiles = await resolveLean(query);
-    }
-  }
-  const existingByType = new Map((Array.isArray(existingProfiles) ? existingProfiles : []).map(profile => [String(profile?.type || '').trim(), profile]));
-  const bootstrapped = [];
-
-  for (const type of DEFAULT_VCA_TYPES) {
-    const seedProfile = buildDefaultChoiceProfileSeed(type);
-    let existingProfile = existingByType.get(type) || null;
-
-    if (
-      existingProfile
-      && String(existingProfile?._id || '') !== seedProfile._id
-      && typeof ChoiceProfile.deleteOne === 'function'
-    ) {
-      // Choice profiles are keyed by static IDs so the admin UI can safely address them by type.
-      await ChoiceProfile.deleteOne({ _id: existingProfile._id });
-      existingProfile = {
-        ...existingProfile,
-        _id: seedProfile._id,
-      };
-    }
-
-    const upserted = await resolveLean(ChoiceProfile.findOneAndUpdate(
-      { _id: seedProfile._id },
-      {
-        $set: buildChoiceProfileUpdateDocument(
-          seedProfile,
-          existingProfile,
-          {
-            budgetRange: normalizeChoiceBudgetRange(existingProfile?.budgetRange, seedProfile.budgetRange),
-            availabilitySettings: normalizeChoiceAvailabilitySettings(existingProfile?.availabilitySettings, seedProfile.availabilitySettings),
-          }
-        ),
-        $setOnInsert: { _id: seedProfile._id },
-      },
-      { new: true, upsert: true, setDefaultsOnInsert: true }
-    ));
-
-    bootstrapped.push(upserted || {
-      ...seedProfile,
-      ...(existingProfile || {}),
-      _id: seedProfile._id,
-      isApproved: true,
-      tier: 'Plus',
-    });
+  if (!ChoiceProfile || typeof ChoiceProfile.find !== 'function') {
+    return [];
   }
 
-  return bootstrapped;
+  const query = ChoiceProfile.find({ type: { $in: DEFAULT_VCA_TYPES } });
+  if (query && typeof query.select === 'function') {
+    return resolveLean(query.select('-__v'));
+  }
+
+  return resolveLean(query);
 }
 
 function serializeAdminChoiceProfile(choiceProfile, vendorsForType = []) {
@@ -733,6 +774,7 @@ function serializeAdminChoiceProfile(choiceProfile, vendorsForType = []) {
   const aggregatedBudgetRange = buildAggregatedBudgetRange(sourceVendors);
   const aggregatedServices = buildAggregatedServices(sourceVendors);
   const aggregatedAvailabilitySettings = buildAggregatedAvailabilitySettings(sourceVendors);
+  const seedProfile = buildDefaultChoiceProfileSeed(choiceProfile?.type);
   const selectedMedia = resolveAdminChoiceMedia(choiceProfile, vendorsForType);
   const selectedVendorMedia = selectedMedia.filter(item => item.sourceType === 'vendor').map((item) => ({
     vendorId: item.vendorId,
@@ -779,7 +821,8 @@ function serializeAdminChoiceProfile(choiceProfile, vendorsForType = []) {
     coverageAreas: Array.isArray(choiceProfile?.coverageAreas) ? choiceProfile.coverageAreas : [],
     phone: choiceProfile?.phone || '',
     website: choiceProfile?.website || '',
-    budgetRange: normalizeChoiceBudgetRange(choiceProfile?.budgetRange, aggregatedBudgetRange),
+    budgetRangeMode: inferChoiceBudgetRangeMode(choiceProfile, { aggregatedBudgetRange, seedProfile }),
+    budgetRange: normalizeChoiceBudgetRange(choiceProfile?.budgetRange, null),
     aggregatedBudgetRange,
     availabilitySettings: normalizeChoiceAvailabilitySettings(choiceProfile?.availabilitySettings, aggregatedAvailabilitySettings),
     aggregatedAvailabilitySettings,
@@ -1014,7 +1057,7 @@ async function handleAdminChoice(req, res) {
         return map;
       }, new Map());
       const docsByType = new Map((Array.isArray(choiceProfileDocs) ? choiceProfileDocs : []).map(profile => [String(profile?.type || '').trim(), profile]));
-      const profileTypes = DEFAULT_VCA_TYPES.filter(type => docsByType.has(type) || vendorsByType.has(type));
+      const profileTypes = DEFAULT_VCA_TYPES;
 
       return res.status(200).json({
         choiceProfiles: profileTypes.map(type => (
@@ -1027,6 +1070,14 @@ async function handleAdminChoice(req, res) {
     }
 
     if (req.method === 'PATCH') {
+      if (applyRateLimit(req, res, 'admin:choice:patch', {
+        windowMs: 10 * 60 * 1000,
+        max: 60,
+        message: 'Too many Choice profile updates. Please try again shortly.',
+      })) {
+        return;
+      }
+
       const session = await requireAdminSession(req, 'editor');
       if (session.error) {
         return res.status(session.status).json({ error: session.error });
@@ -1042,8 +1093,13 @@ async function handleAdminChoice(req, res) {
 
       const Vendor = getVendorModel();
       const ChoiceProfile = getChoiceProfileModel();
-      const existingProfile = await resolveLean(ChoiceProfile.findOne({ _id: choiceProfileId }));
-      const effectiveType = type || String(existingProfile?.type || '').trim();
+      const effectiveType = type;
+      const existingProfile = await resolveLean(ChoiceProfile.findOne({
+        $or: [
+          { _id: choiceProfileId },
+          { type: effectiveType },
+        ],
+      }));
       if (!effectiveType) {
         return res.status(400).json({ error: 'type is required.' });
       }
@@ -1084,13 +1140,15 @@ async function handleAdminChoice(req, res) {
       const aggregatedAvailabilitySettings = buildAggregatedAvailabilitySettings(sourceVendors);
       const seedProfile = buildDefaultChoiceProfileSeed(effectiveType);
       const updatedProfile = await resolveLean(ChoiceProfile.findOneAndUpdate(
-        { _id: choiceProfileId },
+        { _id: existingProfile?._id || choiceProfileId },
         {
           $set: {
             ...buildChoiceProfileUpdateDocument(seedProfile, existingProfile, {
               ...req.body,
               businessName: req.body?.businessName || req.body?.name,
               budgetRange: normalizeChoiceBudgetRange(req.body?.budgetRange, aggregatedBudgetRange),
+              aggregatedBudgetRange,
+              budgetRangeMode: normalizeChoiceBudgetRangeMode(req.body?.budgetRangeMode, 'custom'),
               availabilitySettings: normalizeChoiceAvailabilitySettings(req.body?.availabilitySettings, aggregatedAvailabilitySettings),
               sourceVendorIds,
               selectedVendorMedia,
@@ -1128,6 +1186,14 @@ async function handleAdminChoiceMediaUpload(req, res) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST, OPTIONS');
     return res.status(405).json({ error: 'Method not allowed.' });
+  }
+
+  if (applyRateLimit(req, res, 'admin:choice:media-upload', {
+    windowMs: 10 * 60 * 1000,
+    max: 30,
+    message: 'Too many Choice media upload requests. Please try again shortly.',
+  })) {
+    return;
   }
 
   try {

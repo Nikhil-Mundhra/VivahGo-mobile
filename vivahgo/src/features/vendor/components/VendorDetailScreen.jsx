@@ -20,6 +20,8 @@ function VendorDetailScreen({ vendor, availabilityRange, onBack, onToggleWishlis
   const media = Array.isArray(vendor.media) ? vendor.media : [];
   const canReviewVendor = Boolean(vendor.booked);
   const coverItem = media.find(item => item?.isCover) || media[0] || null;
+  const heroMediaUrl = String(vendor?.coverMediaUrl || vendor?.coverImageUrl || coverItem?.url || "").trim();
+  const heroMediaType = String(vendor?.coverMediaType || (vendor?.coverImageUrl ? "IMAGE" : (coverItem?.type || ""))).trim().toUpperCase();
   const testimonials = useMemo(() => {
     const seeded = Array.isArray(vendor.testimonials) ? vendor.testimonials : [];
     const reviews = Array.isArray(vendor.reviews) ? vendor.reviews : [];
@@ -94,12 +96,24 @@ function VendorDetailScreen({ vendor, availabilityRange, onBack, onToggleWishlis
 
       {/* Hero Card */}
       <div className="vendor-detail-hero">
-        {vendor.coverImageUrl ? (
-          <img
-            src={vendor.coverImageUrl}
-            alt={vendor.name}
-            style={{ width: 82, height: 82, borderRadius: 22, objectFit: "cover", flexShrink: 0 }}
-          />
+        {heroMediaUrl ? (
+          heroMediaType === "VIDEO" ? (
+            <FallbackVideo
+              src={heroMediaUrl}
+              muted
+              autoPlay
+              loop
+              playsInline
+              preload="metadata"
+              style={{ width: 82, height: 82, borderRadius: 22, objectFit: "cover", flexShrink: 0 }}
+            />
+          ) : (
+            <FallbackImage
+              src={heroMediaUrl}
+              alt={vendor.name}
+              style={{ width: 82, height: 82, borderRadius: 22, objectFit: "cover", flexShrink: 0 }}
+            />
+          )
         ) : (
           <div className="vendor-detail-hero-icon">{vendor.emoji}</div>
         )}

@@ -1,13 +1,28 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { fetchAdminChoiceMediaPresignedUrl, fetchAdminChoiceProfiles, updateAdminChoiceProfile } from '../api.js';
-import { DEFAULT_VENDORS } from '../../../data';
 import { buildAvailabilityState, dateKeyFromDate, getDayAvailability, getDayStatus, parseDateKey } from '../../../vendorAvailability';
 import { FallbackImage, FallbackVideo } from '../../../components/MediaWithFallback';
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
 const MAX_CAPACITY = 99;
-const DEFAULT_CHOICE_NAME_PREFIX = "VivahGo's Choice";
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const CHOICE_BUDGET_MODE_OPTIONS = [
+  {
+    value: 'merged',
+    label: 'Use merged',
+    description: 'Show the live range from selected source vendors.',
+  },
+  {
+    value: 'custom',
+    label: 'Custom',
+    description: 'Show the custom budget range entered below.',
+  },
+  {
+    value: 'hidden',
+    label: 'Hide',
+    description: 'Hide budget and show price on request.',
+  },
+];
 const MONTH_FORMATTER = new Intl.DateTimeFormat('en-IN', { month: 'long', year: 'numeric' });
 const DATE_FORMATTER = new Intl.DateTimeFormat('en-IN', {
   weekday: 'short',
@@ -25,11 +40,6 @@ function getChoiceAccountKey(profile) {
   const type = String(profile?.type || '').trim();
   const name = String(profile?.name || '').trim();
   return `${type}::${name || 'draft'}`;
-}
-
-function buildChoiceProfileName(type) {
-  const trimmedType = String(type || '').trim();
-  return trimmedType ? `${DEFAULT_CHOICE_NAME_PREFIX} ${trimmedType}` : DEFAULT_CHOICE_NAME_PREFIX;
 }
 
 function buildDraft(profile) {
@@ -90,7 +100,9 @@ function buildDraft(profile) {
     phone: profile?.phone || '',
     website: profile?.website || '',
     budgetRange: profile?.budgetRange || null,
+    budgetRangeMode: profile?.budgetRangeMode || 'custom',
     availabilitySettings: buildAvailabilityState(profile),
+    isActive: profile?.isActive !== false,
     sourceVendorIds: Array.isArray(profile?.sourceVendorIds) ? profile.sourceVendorIds : [],
     selectedVendorMedia,
     media: ownedMedia,
@@ -164,6 +176,18 @@ function formatBudgetRange(range) {
     return 'Not enough source pricing yet';
   }
   return `₹${min.toLocaleString('en-IN')} - ₹${max.toLocaleString('en-IN')}`;
+}
+
+function resolveBudgetRangePreview(mode, customBudgetRange, aggregatedBudgetRange) {
+  if (mode === 'hidden') {
+    return 'Price on request';
+  }
+
+  if (mode === 'merged') {
+    return formatBudgetRange(aggregatedBudgetRange);
+  }
+
+  return formatBudgetRange(customBudgetRange);
 }
 
 function startOfMonth(date) {
@@ -287,97 +311,6 @@ function getStatusClasses(status, isCurrentMonth) {
   return palette[status];
 }
 
-function buildFallbackChoiceProfile(type, vendorsForType) {
-  const normalizedVendors = Array.isArray(vendorsForType) ? vendorsForType : [];
-  const defaultSourceVendors = normalizedVendors.filter(vendor => vendor?.tier !== 'Plus');
-  const aggregatedAvailabilitySettings = buildAvailabilityState({
-    availabilitySettings: {
-      hasDefaultCapacity: defaultSourceVendors.length > 0,
-      defaultMaxCapacity: Math.min(MAX_CAPACITY, defaultSourceVendors.reduce((sum, vendor) => {
-        const availability = buildAvailabilityState(vendor);
-        return sum + (availability.hasDefaultCapacity ? availability.defaultMaxCapacity : 0);
-      }, 0)),
-      dateOverrides: Array.from(new Set(
-        defaultSourceVendors.flatMap(vendor => buildAvailabilityState(vendor).dateOverrides.map(item => item.date))
-      )).sort((a, b) => a.localeCompare(b)).map(date => {
-        const totals = defaultSourceVendors.reduce((accumulator, vendor) => {
-          const day = getDayAvailability(buildAvailabilityState(vendor), date);
-          return {
-            maxCapacity: Math.min(MAX_CAPACITY, accumulator.maxCapacity + day.maxCapacity),
-            bookingsCount: Math.min(MAX_CAPACITY, accumulator.bookingsCount + day.bookingsCount),
-          };
-        }, { maxCapacity: 0, bookingsCount: 0 });
-
-        return {
-          date,
-          maxCapacity: totals.maxCapacity,
-          bookingsCount: Math.min(totals.bookingsCount, totals.maxCapacity),
-        };
-      }),
-    },
-  });
-
-  return {
-    id: `fallback:${type}`,
-    type,
-    name: buildChoiceProfileName(type),
-    subType: '',
-    description: '',
-    services: [],
-    bundledServices: [],
-    country: '',
-    state: '',
-    city: '',
-    googleMapsLink: '',
-    phone: '',
-    website: '',
-    budgetRange: computeAggregatedBudgetRange(defaultSourceVendors),
-    aggregatedBudgetRange: computeAggregatedBudgetRange(defaultSourceVendors),
-    availabilitySettings: aggregatedAvailabilitySettings,
-    aggregatedAvailabilitySettings,
-    aggregatedServices: computeAggregatedServices(defaultSourceVendors),
-    sourceVendorIds: defaultSourceVendors.map(vendor => vendor.id).filter(Boolean),
-    sourceVendorCount: defaultSourceVendors.length,
-    selectedMedia: [],
-    mediaCount: 0,
-    isActive: true,
-    createdAt: null,
-    updatedAt: null,
-  };
-}
-
-function buildSeededChoiceProfile(seedVendor) {
-  const type = String(seedVendor?.type || '').trim();
-
-  return {
-    id: `seed:${type}`,
-    type,
-    name: String(seedVendor?.name || '').trim() || buildChoiceProfileName(type),
-    subType: String(seedVendor?.subType || '').trim(),
-    description: String(seedVendor?.description || '').trim(),
-    services: Array.isArray(seedVendor?.services) ? seedVendor.services : [],
-    bundledServices: Array.isArray(seedVendor?.bundledServices) ? seedVendor.bundledServices : [],
-    country: String(seedVendor?.country || '').trim(),
-    state: String(seedVendor?.state || '').trim(),
-    city: String(seedVendor?.city || '').trim(),
-    googleMapsLink: String(seedVendor?.googleMapsLink || '').trim(),
-    phone: String(seedVendor?.phone || '').trim(),
-    website: String(seedVendor?.website || '').trim(),
-    budgetRange: seedVendor?.budgetRange || null,
-    aggregatedBudgetRange: seedVendor?.budgetRange || null,
-    availabilitySettings: buildAvailabilityState(seedVendor),
-    aggregatedAvailabilitySettings: buildAvailabilityState(seedVendor),
-    aggregatedServices: Array.isArray(seedVendor?.services) ? seedVendor.services : [],
-    sourceVendorIds: [],
-    sourceVendorCount: 0,
-    selectedMedia: [],
-    mediaCount: 0,
-    isActive: true,
-    createdAt: null,
-    updatedAt: null,
-  };
-}
-
 function MediaTile({ item, removable = false, onRemove }) {
   return (
     <div className="rounded-2xl border border-stone-200 overflow-hidden bg-stone-50">
@@ -421,43 +354,6 @@ export default function AdminChoiceProfilesPanel({ token, access, vendors }) {
     () => (Array.isArray(vendors) ? vendors : []).filter(vendor => vendor?.isApproved),
     [vendors]
   );
-  const fallbackChoiceProfiles = useMemo(() => {
-    const seededProfilesByType = new Map(
-      (Array.isArray(DEFAULT_VENDORS) ? DEFAULT_VENDORS : [])
-        .map(vendor => buildSeededChoiceProfile(vendor))
-        .filter(profile => profile.type)
-        .map(profile => [profile.type, profile])
-    );
-    const vendorsByType = approvedVendors.reduce((map, vendor) => {
-      const type = String(vendor?.type || '').trim();
-      if (!type) {
-        return map;
-      }
-      if (!map.has(type)) {
-        map.set(type, []);
-      }
-      map.get(type).push(vendor);
-      return map;
-    }, new Map());
-
-    vendorsByType.forEach((vendorsForType, type) => {
-      const approvedFallback = buildFallbackChoiceProfile(type, vendorsForType);
-      const seededProfile = seededProfilesByType.get(type);
-      seededProfilesByType.set(type, seededProfile
-        ? {
-          ...seededProfile,
-          budgetRange: approvedFallback.budgetRange || seededProfile.budgetRange,
-          aggregatedBudgetRange: approvedFallback.aggregatedBudgetRange || seededProfile.aggregatedBudgetRange,
-          aggregatedServices: approvedFallback.aggregatedServices.length > 0 ? approvedFallback.aggregatedServices : seededProfile.aggregatedServices,
-          sourceVendorIds: approvedFallback.sourceVendorIds,
-          sourceVendorCount: approvedFallback.sourceVendorCount,
-        }
-        : approvedFallback);
-    });
-
-    return Array.from(seededProfilesByType.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [approvedVendors]);
-
   useEffect(() => {
     if (!token) {
       setChoiceProfiles([]);
@@ -504,15 +400,10 @@ export default function AdminChoiceProfilesPanel({ token, access, vendors }) {
     };
   }, [token]);
 
-  const effectiveChoiceProfiles = useMemo(() => {
-    const mergedByType = new Map(fallbackChoiceProfiles.map(profile => [profile.type, profile]));
-    choiceProfiles.forEach(profile => {
-      if (profile?.type) {
-        mergedByType.set(profile.type, profile);
-      }
-    });
-    return Array.from(mergedByType.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [choiceProfiles, fallbackChoiceProfiles]);
+  const effectiveChoiceProfiles = useMemo(
+    () => [...choiceProfiles].sort((a, b) => a.name.localeCompare(b.name)),
+    [choiceProfiles]
+  );
 
   useEffect(() => {
     if (effectiveChoiceProfiles.length === 0) {
@@ -587,6 +478,10 @@ export default function AdminChoiceProfilesPanel({ token, access, vendors }) {
   const aggregatedServices = useMemo(
     () => computeAggregatedServices(selectedSourceVendors),
     [selectedSourceVendors]
+  );
+  const budgetRangePreview = useMemo(
+    () => resolveBudgetRangePreview(currentDraft?.budgetRangeMode || 'custom', currentDraft?.budgetRange, aggregatedBudgetRange),
+    [aggregatedBudgetRange, currentDraft?.budgetRange, currentDraft?.budgetRangeMode]
   );
   const aggregatedAvailabilitySettings = useMemo(() => {
     if (selectedSourceVendors.length === 0) {
@@ -890,9 +785,11 @@ export default function AdminChoiceProfilesPanel({ token, access, vendors }) {
         city: currentDraft.city,
         googleMapsLink: currentDraft.googleMapsLink,
         availabilitySettings: currentDraft.availabilitySettings,
+        isActive: currentDraft.isActive !== false,
         phone: currentDraft.phone,
         website: currentDraft.website,
-        budgetRange: serializeBudgetRange(currentDraft.budgetRange) || aggregatedBudgetRange,
+        budgetRangeMode: currentDraft.budgetRangeMode || 'custom',
+        budgetRange: serializeBudgetRange(currentDraft.budgetRange),
         sourceVendorIds: currentDraft.sourceVendorIds,
         selectedVendorMedia: currentDraft.selectedMedia
           .filter(item => item.sourceType === 'vendor')
@@ -1014,6 +911,9 @@ export default function AdminChoiceProfilesPanel({ token, access, vendors }) {
           <div className="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-600">
             <div className="font-medium text-stone-800">{currentAccount?.label || displayDraft.name || 'Selected VCA'}</div>
             <div>{displayDraft.type || 'Unassigned category'}</div>
+            <div className={displayDraft.isActive ? 'text-emerald-700' : 'text-stone-500'}>
+              {displayDraft.isActive ? 'Active in Vendor Directory' : 'Hidden from Vendor Directory'}
+            </div>
           </div>
           <div className="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-600">
             <div>{vendorsForType.length} approved vendors</div>
@@ -1174,7 +1074,7 @@ export default function AdminChoiceProfilesPanel({ token, access, vendors }) {
             <p className="text-sm text-stone-500">Start with the merged values from the selected resource pool, then edit them into the public-facing Choice profile.</p>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
             <div className="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3">
               <p className="text-xs uppercase tracking-[0.18em] text-stone-400">Merged Price Range</p>
               <p className="mt-2 text-sm font-semibold text-stone-900">{formatBudgetRange(aggregatedBudgetRange)}</p>
@@ -1190,6 +1090,10 @@ export default function AdminChoiceProfilesPanel({ token, access, vendors }) {
             <div className="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3">
               <p className="text-xs uppercase tracking-[0.18em] text-stone-400">Public Assets</p>
               <p className="mt-2 text-sm font-semibold text-stone-900">{currentDraft.selectedMedia.length}</p>
+            </div>
+            <div className="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3">
+              <p className="text-xs uppercase tracking-[0.18em] text-stone-400">Directory Budget</p>
+              <p className="mt-2 text-sm font-semibold text-stone-900">{budgetRangePreview}</p>
             </div>
           </div>
 
@@ -1214,6 +1118,15 @@ export default function AdminChoiceProfilesPanel({ token, access, vendors }) {
               />
             </label>
           </div>
+
+          <label className="inline-flex items-center gap-3 rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm text-stone-700">
+            <input
+              type="checkbox"
+              checked={currentDraft.isActive !== false}
+              onChange={event => updateDraft({ isActive: event.target.checked })}
+            />
+            <span>Show this VCA in Vendor Directory</span>
+          </label>
 
           <label className="block">
             <span className="mb-1 block text-xs font-medium uppercase tracking-[0.18em] text-stone-400">Description</span>
@@ -1248,20 +1161,50 @@ export default function AdminChoiceProfilesPanel({ token, access, vendors }) {
             </label>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
-            <label className="block">
+          <div className="space-y-4 rounded-3xl border border-stone-200 bg-stone-50/60 p-4">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-[0.18em] text-stone-400">Budget visibility</p>
+              <p className="mt-1 text-sm text-stone-500">Choose exactly how this VCA should present pricing in the public directory.</p>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-3">
+              {CHOICE_BUDGET_MODE_OPTIONS.map((option) => {
+                const isSelected = (currentDraft.budgetRangeMode || 'custom') === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={`rounded-2xl border px-4 py-4 text-left transition ${isSelected ? 'border-rose-300 bg-rose-50 ring-2 ring-rose-100' : 'border-stone-200 bg-white hover:border-rose-200 hover:bg-rose-50/40'}`}
+                    onClick={() => updateDraft({ budgetRangeMode: option.value })}
+                    aria-pressed={isSelected}
+                  >
+                    <p className="text-sm font-semibold text-stone-900">{option.label}</p>
+                    <p className="mt-1 text-sm text-stone-500">{option.description}</p>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm text-stone-600">
+              <span className="font-medium text-stone-900">Current public result:</span> {budgetRangePreview}
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="block">
               <span className="mb-1 block text-xs font-medium uppercase tracking-[0.18em] text-stone-400">Budget min</span>
               <input
                 type="number"
                 min="0"
                 value={currentDraft.budgetRange?.min || ''}
                 onChange={event => updateDraft({
+                  budgetRangeMode: 'custom',
                   budgetRange: {
                     min: event.target.value,
                     max: currentDraft.budgetRange?.max || '',
                   },
                 })}
-                className="w-full rounded-2xl border border-stone-200 px-4 py-3 text-sm text-stone-900 outline-none focus:border-rose-300"
+                disabled={currentDraft.budgetRangeMode !== 'custom'}
+                className={`w-full rounded-2xl border px-4 py-3 text-sm outline-none ${currentDraft.budgetRangeMode === 'custom' ? 'border-stone-200 text-stone-900 focus:border-rose-300' : 'border-stone-200 bg-stone-100 text-stone-400'}`}
               />
             </label>
             <label className="block">
@@ -1271,22 +1214,17 @@ export default function AdminChoiceProfilesPanel({ token, access, vendors }) {
                 min="0"
                 value={currentDraft.budgetRange?.max || ''}
                 onChange={event => updateDraft({
+                  budgetRangeMode: 'custom',
                   budgetRange: {
                     min: currentDraft.budgetRange?.min || '',
                     max: event.target.value,
                   },
                 })}
-                className="w-full rounded-2xl border border-stone-200 px-4 py-3 text-sm text-stone-900 outline-none focus:border-rose-300"
+                disabled={currentDraft.budgetRangeMode !== 'custom'}
+                className={`w-full rounded-2xl border px-4 py-3 text-sm outline-none ${currentDraft.budgetRangeMode === 'custom' ? 'border-stone-200 text-stone-900 focus:border-rose-300' : 'border-stone-200 bg-stone-100 text-stone-400'}`}
               />
             </label>
-            <button
-              type="button"
-              className="login-secondary-btn"
-              onClick={() => updateDraft({ budgetRange: aggregatedBudgetRange })}
-              disabled={!aggregatedBudgetRange}
-            >
-              Use merged range
-            </button>
+            </div>
           </div>
 
           <div className="rounded-3xl border border-stone-200 bg-stone-50/60 p-5 space-y-4">
