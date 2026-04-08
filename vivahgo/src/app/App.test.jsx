@@ -10,7 +10,7 @@ const getObservabilityHeaders = vi.fn(() => ({
   "X-Axiom-Trace-Id": "axiom_trace_123",
   "X-PostHog-Distinct-Id": "ph_user_123",
 }));
-const resolveApiBaseUrl = vi.fn(() => "http://127.0.0.1:4000/api");
+const request = vi.fn();
 const setClarityRouteContext = vi.fn();
 const setPostHogRouteContext = vi.fn((path, options = {}) => ({
   route: path,
@@ -63,7 +63,7 @@ vi.mock("../shared/observability.js", () => ({
 }));
 
 vi.mock("../shared/api/request.js", () => ({
-  resolveApiBaseUrl,
+  request,
 }));
 
 vi.mock("../siteUrls.js", async (importOriginal) => {
@@ -97,13 +97,12 @@ describe("App route analytics", () => {
     capturePostHogEvent.mockClear();
     captureException.mockClear();
     getObservabilityHeaders.mockClear();
-    resolveApiBaseUrl.mockClear();
+    request.mockClear();
     setClarityRouteContext.mockClear();
     setPostHogRouteContext.mockClear();
     setSentryRoute.mockClear();
     window.history.replaceState({}, "", "/planner");
     delete document.body.dataset.route;
-    global.fetch = vi.fn();
   });
 
   it("captures a pageview on initial render and on route changes", async () => {
@@ -145,15 +144,14 @@ describe("App route analytics", () => {
   it("shows the smoke panel from the app route and triggers both smoke actions", async () => {
     currentRoutePath = "/planner?observability-smoke=1";
     window.history.replaceState({}, "", "/planner?observability-smoke=1");
-    global.fetch.mockResolvedValue({
-      ok: false,
-      status: 500,
-      json: async () => ({
-        code: "OBSERVABILITY_SMOKE_TEST",
-        eventId: "backend_event_123",
-        requestId: "req_123",
-      }),
-    });
+    const backendError = new Error("Request failed (500).");
+    backendError.status = 500;
+    backendError.responseData = {
+      code: "OBSERVABILITY_SMOKE_TEST",
+      eventId: "backend_event_123",
+      requestId: "req_123",
+    };
+    request.mockRejectedValue(backendError);
 
     const user = userEvent.setup();
     const { default: App } = await import("./App.jsx");
@@ -176,14 +174,12 @@ describe("App route analytics", () => {
     await user.click(screen.getByRole("button", { name: "Trigger backend smoke error" }));
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(
-        "http://127.0.0.1:4000/api/observability/smoke-error",
+      expect(request).toHaveBeenCalledWith(
+        "/observability/smoke-error",
         expect.objectContaining({
           method: "POST",
-          headers: expect.objectContaining({
-            "Content-Type": "application/json",
-            "X-Axiom-Trace-Id": "axiom_trace_123",
-            "X-PostHog-Distinct-Id": "ph_user_123",
+          body: expect.objectContaining({
+            source: "observability-smoke-panel",
           }),
         })
       );

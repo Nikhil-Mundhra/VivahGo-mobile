@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { resolveApiBaseUrl } from "../shared/api/request.js";
-import { getObservabilityHeaders } from "../shared/observability.js";
+import { request } from "../shared/api/request.js";
 import { captureException } from "../shared/sentry.js";
 
 function getRuntimeEnv() {
@@ -60,31 +59,25 @@ export default function ObservabilitySmokePanel({ routePath = "/", bodyRoute = "
     setBackendStatus("");
 
     try {
-      const response = await fetch(`${resolveApiBaseUrl()}/observability/smoke-error`, {
+      await request("/observability/smoke-error", {
         method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-          ...getObservabilityHeaders(),
-        },
-        body: JSON.stringify({
+        body: {
           source: "observability-smoke-panel",
           routePath,
           bodyRoute,
-        }),
+        },
       });
 
-      const data = await response.json().catch(() => ({}));
-      if (response.ok) {
-        setBackendStatus("Backend smoke route returned 200 unexpectedly.");
-        return;
-      }
-
-      const requestId = typeof data.requestId === "string" && data.requestId ? ` Request ID: ${data.requestId}.` : "";
-      const eventId = typeof data.eventId === "string" && data.eventId ? ` Event ID: ${data.eventId}.` : "";
-      setBackendStatus(`Backend smoke error returned ${response.status}.${requestId}${eventId}`);
+      setBackendStatus("Backend smoke route returned 200 unexpectedly.");
     } catch (error) {
-      setBackendStatus(error instanceof Error ? error.message : "Backend smoke request failed.");
+      if (error instanceof Error && Number.isFinite(error.status)) {
+        const data = error.responseData || {};
+        const requestId = typeof data.requestId === "string" && data.requestId ? ` Request ID: ${data.requestId}.` : "";
+        const eventId = typeof data.eventId === "string" && data.eventId ? ` Event ID: ${data.eventId}.` : "";
+        setBackendStatus(`Backend smoke error returned ${error.status}.${requestId}${eventId}`);
+      } else {
+        setBackendStatus(error instanceof Error ? error.message : "Backend smoke request failed.");
+      }
     } finally {
       setBackendPending(false);
     }

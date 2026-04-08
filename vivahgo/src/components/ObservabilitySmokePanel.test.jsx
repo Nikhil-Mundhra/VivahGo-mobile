@@ -3,29 +3,20 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const captureException = vi.fn(() => "frontend_event_123");
-const getObservabilityHeaders = vi.fn(() => ({
-  "X-Axiom-Trace-Id": "axiom_trace_123",
-  "X-PostHog-Distinct-Id": "ph_user_123",
-}));
-const resolveApiBaseUrl = vi.fn(() => "http://127.0.0.1:4000/api");
+const request = vi.fn();
 
 vi.mock("../shared/sentry.js", () => ({
   captureException,
 }));
 
-vi.mock("../shared/observability.js", () => ({
-  getObservabilityHeaders,
-}));
-
 vi.mock("../shared/api/request.js", () => ({
-  resolveApiBaseUrl,
+  request,
 }));
 
 describe("ObservabilitySmokePanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     window.history.replaceState({}, "", "/planner");
-    global.fetch = vi.fn();
   });
 
   it("stays hidden until the smoke-test query param is present", async () => {
@@ -36,17 +27,16 @@ describe("ObservabilitySmokePanel", () => {
     expect(screen.queryByTestId("observability-smoke-panel")).toBeNull();
   });
 
-  it("captures a frontend smoke error and calls the backend smoke endpoint with observability headers", async () => {
+  it("captures a frontend smoke error and calls the backend smoke endpoint via request()", async () => {
     window.history.replaceState({}, "", "/planner?observability-smoke=1");
-    global.fetch.mockResolvedValue({
-      ok: false,
-      status: 500,
-      json: async () => ({
-        code: "OBSERVABILITY_SMOKE_TEST",
-        eventId: "backend_event_123",
-        requestId: "req_123",
-      }),
-    });
+    const backendError = new Error("Request failed (500).");
+    backendError.status = 500;
+    backendError.responseData = {
+      code: "OBSERVABILITY_SMOKE_TEST",
+      eventId: "backend_event_123",
+      requestId: "req_123",
+    };
+    request.mockRejectedValue(backendError);
 
     const user = userEvent.setup();
     const { default: ObservabilitySmokePanel } = await import("./ObservabilitySmokePanel.jsx");
@@ -72,14 +62,14 @@ describe("ObservabilitySmokePanel", () => {
     await user.click(screen.getByRole("button", { name: "Trigger backend smoke error" }));
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(
-        "http://127.0.0.1:4000/api/observability/smoke-error",
+      expect(request).toHaveBeenCalledWith(
+        "/observability/smoke-error",
         expect.objectContaining({
           method: "POST",
-          headers: expect.objectContaining({
-            "Content-Type": "application/json",
-            "X-Axiom-Trace-Id": "axiom_trace_123",
-            "X-PostHog-Distinct-Id": "ph_user_123",
+          body: expect.objectContaining({
+            source: "observability-smoke-panel",
+            routePath: "/planner?observability-smoke=1",
+            bodyRoute: "app",
           }),
         })
       );
