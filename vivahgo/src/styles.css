@@ -649,9 +649,11 @@
   display: flex; flex-direction: column;
   align-items: center; gap: 3px;
   cursor: pointer;
-  padding: 4px 0;
+  padding: 6px 0;
   color: var(--color-light-text);
   transition: all 0.15s;
+  border-radius: 18px;
+  margin: 0 6px;
 }
 .nav-icon {
   width: 22px;
@@ -666,9 +668,13 @@
   height: 100%;
 }
 .nav-label { font-size: 10px; font-weight: 500; color: var(--color-light-text); letter-spacing: 0.3px; }
-.nav-item.active { color: var(--color-crimson); }
-.nav-item.active .nav-icon { filter: none; }
-.nav-item.active .nav-label { color: var(--color-crimson); font-weight: 600; }
+.nav-item.active {
+  color: var(--color-white);
+  background: linear-gradient(135deg, var(--color-crimson), var(--color-deep-red));
+  box-shadow: 0 8px 18px rgba(139, 26, 26, 0.22);
+}
+.nav-item.active .nav-icon { color: var(--color-white); filter: none; }
+.nav-item.active .nav-label { color: var(--color-white); font-weight: 700; }
 .nav-active-dot {
   width: 4px; height: 4px;
   background: var(--color-gold);
@@ -1425,6 +1431,290 @@
 .vendor-card-clickable { cursor: pointer; transition: box-shadow 0.15s, transform 0.1s; }
 .vendor-card-clickable:active { transform: scale(0.985); }
 .vendor-view-arrow { font-size: 12px; font-weight: 600; color: var(--color-crimson); }
+
+/* MY VENDORS */
+.my-vendors-shell {
+  padding-bottom: 24px;
+}
+
+.my-vendors-title-wrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.my-vendors-back-btn {
+  border: none;
+  background: rgba(139,26,26,0.08);
+  color: var(--color-crimson);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 18px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.my-vendors-subtitle {
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-light-text);
+  max-width: 480px;
+}
+
+.my-vendors-add-btn {
+  white-space: nowrap;
+}
+
+.my-vendors-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding: 0 16px 14px;
+}
+
+.my-vendors-summary-card {
+  background: var(--color-white);
+  border: 1px solid rgba(212,175,55,0.16);
+  border-radius: 16px;
+  padding: 14px;
+  box-shadow: 0 8px 20px rgba(139,26,26,0.04);
+}
+
+.my-vendors-summary-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-light-text);
+}
+
+.my-vendors-summary-value {
+  margin-top: 6px;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-crimson);
+}
+
+.my-vendors-section {
+  margin: 0 16px 16px;
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(255,255,255,0.92);
+  border: 1px solid rgba(212,175,55,0.14);
+}
+
+.my-vendors-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.my-vendors-section-head h3 {
+  margin: 0;
+  font-size: 16px;
+  color: var(--color-dark-text);
+}
+
+.my-vendors-section-head span {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-gold-dark);
+}
+
+.my-vendors-section-copy {
+  margin-bottom: 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-light-text);
+}
+
+.my-vendors-subsection-title {
+  margin: 14px 0 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-mid-text);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.my-vendors-list {
+  display: grid;
+  gap: 12px;
+}
+
+.my-vendors-card {
+  border-radius: 16px;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(139,26,26,0.05), rgba(212,175,55,0.09));
+  border: 1px solid rgba(139,26,26,0.08);
+}
+
+.my-vendors-card-top {
+  padding: 14px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.my-vendors-card-image {
+  width: 58px;
+  height: 58px;
+  border-radius: 16px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.my-vendors-card-icon {
+  width: 58px;
+  height: 58px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--color-gold), var(--color-gold-dark));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.my-vendors-card-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.my-vendors-card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.my-vendors-card-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-dark-text);
+}
+
+.my-vendors-card-meta {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--color-light-text);
+}
+
+.my-vendors-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.my-vendors-source-pill,
+.my-vendors-status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.my-vendors-source-pill {
+  background: rgba(139,26,26,0.08);
+  color: var(--color-crimson);
+}
+
+.my-vendors-status-pill {
+  background: rgba(212,175,55,0.16);
+  color: var(--color-gold-dark);
+  white-space: nowrap;
+}
+
+.my-vendors-status-pill.is-booked {
+  background: rgba(46,125,50,0.14);
+  color: #2E7D32;
+}
+
+.my-vendors-card-copy {
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-mid-text);
+}
+
+.my-vendors-card-notes {
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--color-mid-text);
+}
+
+.my-vendors-card-foot {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--color-light-text);
+}
+
+.my-vendors-empty {
+  margin: 0 16px 16px;
+  padding: 22px 18px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(139,26,26,0.05), rgba(212,175,55,0.08));
+  border: 1px dashed rgba(139,26,26,0.16);
+  color: var(--color-mid-text);
+}
+
+.my-vendors-empty-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-dark-text);
+  margin-bottom: 8px;
+}
+
+.my-vendor-form-shell {
+  padding-bottom: 24px;
+}
+
+.my-vendor-form-intro {
+  margin: 10px 16px 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--color-light-text);
+}
+
+.my-vendor-form-card {
+  margin: 14px 16px 0;
+  padding: 18px 16px;
+  border-radius: 18px;
+  background: var(--color-white);
+  border: 1px solid rgba(212,175,55,0.14);
+  box-shadow: 0 10px 28px rgba(139,26,26,0.06);
+}
+
+.my-vendor-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.my-vendor-form-textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+.my-vendor-form-error {
+  margin-bottom: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-crimson);
+}
 
 /* VENDOR DETAIL */
 .vendor-detail-screen { padding-bottom: 24px; }
@@ -3757,6 +4047,7 @@
     min-height: 86px;
     padding: 10px 8px;
     justify-content: center;
+    margin: 0 8px;
   }
 
   .nav-label {
@@ -3801,6 +4092,19 @@
 
   .vendor-detail-stat-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .my-vendors-summary-grid {
+    padding-left: 28px;
+    padding-right: 28px;
+  }
+
+  .my-vendors-section,
+  .my-vendor-form-card,
+  .my-vendor-form-intro,
+  .my-vendors-empty {
+    margin-left: 28px;
+    margin-right: 28px;
   }
 
   .event-grid {
@@ -4086,5 +4390,25 @@
 
   .email-otp-captcha-shell {
     min-height: 80px;
+  }
+}
+
+@media (max-width: 767px) {
+  .my-vendors-summary-grid,
+  .my-vendor-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .my-vendors-card-head,
+  .my-vendors-section-head {
+    align-items: flex-start;
+  }
+
+  .my-vendors-card-head {
+    flex-direction: column;
+  }
+
+  .my-vendors-add-btn {
+    align-self: center;
   }
 }

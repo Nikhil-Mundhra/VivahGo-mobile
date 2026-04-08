@@ -795,7 +795,7 @@ function buildPublicChoiceDirectoryEntry(choiceProfile, vendorsForType) {
   const visibleMedia = sortChoiceMedia(resolved.media).filter(item => item?.isVisible !== false);
   const coverMedia = visibleMedia.find(item => item?.isCover) || visibleMedia[0] || null;
 
-  if (!resolved.type || (resolved.sourceVendorCount === 0 && visibleMedia.length === 0 && !resolved.phone && !resolved.description)) {
+  if (!resolved.type) {
     return null;
   }
 
@@ -806,7 +806,7 @@ function buildPublicChoiceDirectoryEntry(choiceProfile, vendorsForType) {
     subType: resolved.subType,
     bundledServices: resolved.bundledServices,
     services: resolved.services,
-    description: resolved.description,
+    description: resolved.description || `Curated by VivahGo for ${String(resolved.type || 'wedding vendors').toLowerCase()}.`,
     country: resolved.country,
     state: resolved.state,
     city: resolved.city,
