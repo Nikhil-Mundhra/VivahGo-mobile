@@ -169,7 +169,7 @@ describe('api/system.js -> feedback route', function () {
       const req = {
         method: 'POST',
         query: { route: 'feedback' },
-        headers: csrfHeaders({ 'x-forwarded-for': '198.51.100.25' }),
+        headers: csrfHeaders({ 'x-real-ip': '198.51.100.25' }),
         body: { message: `Feedback ${attempt}` },
       };
       const res = createRes();
@@ -182,7 +182,7 @@ describe('api/system.js -> feedback route', function () {
     const limitedReq = {
       method: 'POST',
       query: { route: 'feedback' },
-      headers: csrfHeaders({ 'x-forwarded-for': '198.51.100.25' }),
+      headers: csrfHeaders({ 'x-real-ip': '198.51.100.25' }),
       body: { message: 'One more' },
     };
     const limitedRes = createRes();

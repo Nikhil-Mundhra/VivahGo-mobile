@@ -808,9 +808,10 @@ async function bootstrapChoiceProfiles(ChoiceProfile) {
 
   const query = ChoiceProfile.find({ type: { $in: DEFAULT_VCA_TYPES } });
   if (query && typeof query.select === 'function') {
-    return typeof query.lean === 'function'
-      ? query.select('-__v').lean()
-      : query.select('-__v');
+    const selectedQuery = query.select('-__v');
+    return typeof selectedQuery?.lean === 'function'
+      ? selectedQuery.lean()
+      : selectedQuery;
   }
 
   return query;
@@ -958,9 +959,17 @@ async function handleVendorList(req, res) {
       const resolvedChoiceProfiles = DEFAULT_VCA_TYPES
         .map((type) => {
           const savedProfile = choiceProfilesByType.get(type);
+          const vendorsForType = freeVendorsByType.get(type) || [];
+          if (!savedProfile && vendorsForType.length === 0) {
+            return null;
+          }
+          const publicChoiceProfile = savedProfile || {
+            ...buildDefaultChoiceProfileSeed(type),
+            budgetRangeMode: 'merged',
+          };
           return buildPublicChoiceDirectoryEntry(
-            savedProfile || buildDefaultChoiceProfileSeed(type),
-            freeVendorsByType.get(type) || []
+            publicChoiceProfile,
+            vendorsForType
           );
         })
         .filter(Boolean);

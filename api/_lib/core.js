@@ -550,15 +550,17 @@ async function withRequestMetrics(name, operation) {
 }
 
 function getClientIp(req) {
-  const forwardedFor = typeof req?.headers?.['x-forwarded-for'] === 'string'
-    ? req.headers['x-forwarded-for'].split(',')[0].trim()
+  const vercelForwardedFor = typeof req?.headers?.['x-vercel-forwarded-for'] === 'string'
+    ? req.headers['x-vercel-forwarded-for'].split(',')[0].trim()
     : '';
   const realIp = typeof req?.headers?.['x-real-ip'] === 'string'
     ? req.headers['x-real-ip'].trim()
     : '';
   const socketIp = req?.socket?.remoteAddress || req?.connection?.remoteAddress || '';
 
-  return forwardedFor || realIp || socketIp || 'unknown';
+  // Only trust proxy-populated headers that our runtime is expected to set.
+  // A raw x-forwarded-for header is client-spoofable and should not drive throttling.
+  return vercelForwardedFor || realIp || socketIp || 'unknown';
 }
 
 function sweepRateLimitBuckets(now = Date.now()) {
