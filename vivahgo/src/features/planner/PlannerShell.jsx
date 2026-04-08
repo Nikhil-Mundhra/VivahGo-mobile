@@ -47,6 +47,7 @@ import { getBrowserNotificationSupport, removeBrowserPushToken, requestBrowserPu
 import { ackMutation, createPlannerMutationJournal, enqueueMutation, failMutation, maybeRollback } from "./lib/plannerMutationManager.js";
 
 const DEMO_PLANNER_STORAGE_KEY = "vivahgo.demoPlanner";
+const VENDORS_VIEW_SESSION_KEY = "vivahgo.vendorsView";
 const PRICING_URL = getMarketingUrl("/pricing");
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const YEARS = Array.from({ length: 8 }, (_, i) => 2025 + i);
@@ -93,7 +94,14 @@ export default function PlannerShell() {
   const marketingHomeUrl = getMarketingUrl("/");
   const [screen, setScreen] = useState("login");
   const [tab, setTab] = useState("home");
-  const [vendorsView, setVendorsView] = useState("directory");
+  const [vendorsView, setVendorsView] = useState(() => {
+    if (typeof window === "undefined") {
+      return "directory";
+    }
+
+    const storedView = window.sessionStorage.getItem(VENDORS_VIEW_SESSION_KEY);
+    return storedView === "my-vendors" ? "my-vendors" : "directory";
+  });
   const [user, setUser] = useState(null);
   const [authMode, setAuthMode] = useState(null);
   const [authToken, setAuthToken] = useState("");
@@ -249,13 +257,10 @@ export default function PlannerShell() {
   function handlePlannerTabChange(nextTab) {
     if (nextTab === "vendors") {
       if (tab === "vendors") {
-        if (vendorsView === "directory") {
-          setVendorsView("my-vendors");
-        }
+        setVendorsView(current => current === "directory" ? "my-vendors" : "directory");
         return;
       }
 
-      setVendorsView("directory");
       setTab("vendors");
       return;
     }
@@ -583,6 +588,14 @@ export default function PlannerShell() {
   useEffect(() => {
     currentPlannerRef.current = normalizePlanner(buildPlannerSnapshotFromState());
   }, [buildPlannerSnapshotFromState]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.sessionStorage.setItem(VENDORS_VIEW_SESSION_KEY, vendorsView);
+  }, [vendorsView]);
 
   useEffect(() => {
     if (!(authMode === "google" || authMode === "clerk") || !authToken) {
@@ -1772,7 +1785,11 @@ export default function PlannerShell() {
           {/* Bottom Nav */}
           <div className="bottom-nav">
             {NAV_ITEMS.map(n=>(
-              <div key={n.id} className={`nav-item${tab===n.id?" active":""}`} onClick={()=>handlePlannerTabChange(n.id)}>
+              <div
+                key={n.id}
+                className={`nav-item${tab===n.id?" active":""}${n.id === "vendors" && tab === "vendors" && vendorsView === "my-vendors" ? " nav-item-vendors-alt" : ""}`}
+                onClick={()=>handlePlannerTabChange(n.id)}
+              >
                 <div className="nav-icon"><NavIcon name={n.icon} /></div>
                 <div className="nav-label">{n.label}</div>
                 {tab===n.id && <div className="nav-active-dot"/>}

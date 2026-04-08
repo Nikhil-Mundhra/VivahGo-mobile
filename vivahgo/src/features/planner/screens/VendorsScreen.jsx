@@ -435,10 +435,14 @@ function VendorsScreen({ vendors, setVendors, view = "directory", onBackToDirect
   }, [view]);
 
   useBackButtonClose(showMobileFilters, () => setShowMobileFilters(false));
-  useBackButtonClose(view === "my-vendors" && !showPrivateVendorForm, () => onBackToDirectory?.());
-  useBackButtonClose(showPrivateVendorForm, () => {
-    setShowPrivateVendorForm(false);
-    setPrivateVendorError("");
+  useBackButtonClose(view === "my-vendors", () => {
+    if (showPrivateVendorForm) {
+      setShowPrivateVendorForm(false);
+      setPrivateVendorError("");
+      return;
+    }
+
+    onBackToDirectory?.();
   });
 
   useEffect(() => {
