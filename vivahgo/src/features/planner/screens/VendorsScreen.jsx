@@ -314,6 +314,7 @@ function VendorsScreen({
   const [showVendorEditor, setShowVendorEditor] = useState(false);
   const [editingVendorId, setEditingVendorId] = useState(null);
   const [vendorForm, setVendorForm] = useState(() => createVendorForm(events));
+  const [myVendorStatusFilter, setMyVendorStatusFilter] = useState("all");
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -369,7 +370,6 @@ function VendorsScreen({
 
   useBackButtonClose(showMobileFilters, () => setShowMobileFilters(false));
   useBackButtonClose(showVendorEditor, closeVendorEditor);
-  useBackButtonClose(view === "my-vendors" && !showVendorEditor, () => onBackToDirectory?.());
 
   const directoryVendorById = useMemo(() => new Map(dbVendors.map(vendor => [String(vendor.id), vendor])), [dbVendors]);
 
@@ -415,6 +415,11 @@ function VendorsScreen({
     pending: myVendors.filter(vendor => vendor.status === "pending").length,
     cancelled: myVendors.filter(vendor => vendor.status === "cancelled").length,
   }), [myVendors]);
+  const visibleMyVendors = useMemo(() => (
+    myVendorStatusFilter === "all"
+      ? myVendors
+      : myVendors.filter(vendor => vendor.status === myVendorStatusFilter)
+  ), [myVendorStatusFilter, myVendors]);
 
   const universalVendors = useMemo(() => {
     return dbVendors.map(vendor => {
@@ -738,52 +743,242 @@ function VendorsScreen({
 
   if (view === "my-vendors") {
     return (
-      <div className="my-vendors-shell">
-        <div className="section-head">
-          <div className="my-vendors-title-wrap">
-            <button type="button" className="my-vendors-back-btn" onClick={() => onBackToDirectory?.()}>←</button>
-            <div>
-              <div className="section-title">My Vendors</div>
-              <div className="my-vendors-subtitle">
-                Manage wishlisted, booked, pending, cancelled, and private vendors tied to this wedding plan.
+      <>
+        <div className="my-vendors-shell">
+          <div className="section-head">
+            <div className="my-vendors-title-wrap">
+              <button type="button" className="my-vendors-back-btn" onClick={() => onBackToDirectory?.()}>←</button>
+              <div>
+                <div className="section-title">My Vendors</div>
+                <div className="my-vendors-subtitle">
+                  Manage wishlisted, booked, pending, cancelled, and private vendors tied to this wedding plan.
+                </div>
+              </div>
+            </div>
+            <button type="button" className="section-action my-vendors-add-btn" onClick={openAddVendor}>
+              Add Private Vendor
+            </button>
+          </div>
+
+          <div className="vendor-status-overview">
+            {VENDOR_STATUSES.map(status => (
+              <button
+                key={status.id}
+                type="button"
+                className={`vendor-status-pill${myVendorStatusFilter === status.id ? " active" : ""}`}
+                onClick={() => setMyVendorStatusFilter(current => current === status.id ? "all" : status.id)}
+                aria-pressed={myVendorStatusFilter === status.id}
+              >
+                <strong>{myVendorCounts[status.id]}</strong>
+                <span>{status.label}</span>
+              </button>
+            ))}
+          </div>
+
+          {myVendors.length === 0 ? (
+            <EmptyMyVendorsState />
+          ) : visibleMyVendors.length === 0 ? (
+            <div className="card" style={{ textAlign: "center", padding: "24px 20px", margin: "0 16px 16px" }}>
+              <div className="card-title" style={{ marginBottom: 8 }}>No {getStatusLabel(myVendorStatusFilter).toLowerCase()} vendors yet</div>
+              <div className="card-sub">
+                Try a different status filter or add a new private vendor.
+              </div>
+            </div>
+          ) : (
+            <div className="vendor-managed-grid">
+              {visibleMyVendors.map(vendor => (
+                <MyVendorCard
+                  key={vendor.id}
+                  vendor={vendor}
+                  events={events}
+                  onClick={() => openEditVendor(vendor)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {showVendorEditor && (
+          <div className="modal-overlay" onClick={closeVendorEditor}>
+            <div className="modal vendor-editor-modal" onClick={event => event.stopPropagation()}>
+              <div className="modal-handle" />
+              <div className="modal-title">{editingVendor ? "Update Vendor" : "Add Private Vendor"}</div>
+
+              <div className="vendor-editor-grid">
+                <input
+                  className="input-field"
+                  placeholder="Vendor name"
+                  value={vendorForm.name}
+                  onChange={event => handleVendorFormChange("name", event.target.value)}
+                />
+                <select className="select-field" value={vendorForm.type} onChange={event => handleVendorFormChange("type", event.target.value)}>
+                  <option value="">Vendor category</option>
+                  {VENDOR_TYPES.filter(type => type !== "All").map(type => <option key={type} value={type}>{type}</option>)}
+                </select>
+                <select className="select-field" value={vendorForm.subType} onChange={event => handleVendorFormChange("subType", event.target.value)}>
+                  <option value="">Subcategory</option>
+                  {(VENDOR_SUBTYPE_OPTIONS[vendorForm.type] || []).map(type => <option key={type} value={type}>{type}</option>)}
+                </select>
+                <input
+                  className="input-field"
+                  placeholder="City"
+                  value={vendorForm.city}
+                  onChange={event => handleVendorFormChange("city", event.target.value)}
+                />
+              </div>
+
+              <div className="vendor-editor-status-row">
+                {VENDOR_STATUSES.map(status => (
+                  <button
+                    key={status.id}
+                    type="button"
+                    className={`vendor-editor-status-btn${vendorForm.status === status.id ? " active" : ""}`}
+                    onClick={() => handleVendorFormChange("status", status.id)}
+                  >
+                    {status.label}
+                  </button>
+                ))}
+              </div>
+
+              {vendorForm.status === "booked" ? (
+                <div className="vendor-editor-section">
+                  <div className="vendor-editor-section-title">Contract Details</div>
+                  <input
+                    className="input-field"
+                    inputMode="numeric"
+                    placeholder="Total contract amount"
+                    value={vendorForm.contractTotal}
+                    onChange={event => handleVendorFormChange("contractTotal", event.target.value)}
+                  />
+
+                  <div className="vendor-linked-spend-card">
+                    <div className="vendor-editor-section-title" style={{ marginBottom: 8 }}>Linked Spend</div>
+                    <div className="vendor-editor-grid vendor-editor-grid-tight">
+                      <input
+                        className="input-field"
+                        placeholder="Line item"
+                        value={vendorForm.linkedSpendDraft.label}
+                        onChange={event => setVendorForm(current => ({
+                          ...current,
+                          linkedSpendDraft: { ...current.linkedSpendDraft, label: event.target.value },
+                        }))}
+                      />
+                      <input
+                        className="input-field"
+                        inputMode="numeric"
+                        placeholder="Amount"
+                        value={vendorForm.linkedSpendDraft.amount}
+                        onChange={event => setVendorForm(current => ({
+                          ...current,
+                          linkedSpendDraft: { ...current.linkedSpendDraft, amount: event.target.value },
+                        }))}
+                      />
+                      <select
+                        className="select-field"
+                        value={vendorForm.linkedSpendDraft.eventId}
+                        onChange={event => setVendorForm(current => ({
+                          ...current,
+                          linkedSpendDraft: { ...current.linkedSpendDraft, eventId: event.target.value },
+                        }))}
+                      >
+                        <option value="">General</option>
+                        {events.map(event => <option key={event.id} value={event.id}>{event.name}</option>)}
+                      </select>
+                    </div>
+                    <button type="button" className="btn-secondary vendor-linked-spend-add" onClick={addLinkedSpendItem}>
+                      Add
+                    </button>
+
+                    {vendorForm.contractLineItems.length > 0 && (
+                      <div className="vendor-linked-spend-list">
+                        {vendorForm.contractLineItems.map(item => {
+                          const ceremony = events.find(event => String(event.id) === String(item.eventId));
+                          return (
+                            <div key={item.id} className="vendor-linked-spend-item">
+                              <div>
+                                <div className="vendor-linked-spend-name">{item.label}</div>
+                                <div className="vendor-linked-spend-meta">{fmt(item.amount)}{ceremony ? ` · ${ceremony.name}` : " · General"}</div>
+                              </div>
+                              <button type="button" className="vendor-linked-spend-delete" onClick={() => removeLinkedSpendItem(item.id)}>
+                                Delete
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    <div className="vendor-linked-spend-summary">
+                      <span>Linked total</span>
+                      <strong>{fmt(linkedSpendTotal)}</strong>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="vendor-editor-section">
+                  <div className="vendor-editor-section-title">Price Range</div>
+                  <div className="vendor-editor-grid vendor-editor-grid-tight">
+                    <input
+                      className="input-field"
+                      inputMode="numeric"
+                      placeholder="Minimum"
+                      value={vendorForm.priceRangeMin}
+                      onChange={event => handleVendorFormChange("priceRangeMin", event.target.value)}
+                    />
+                    <input
+                      className="input-field"
+                      inputMode="numeric"
+                      placeholder="Maximum"
+                      value={vendorForm.priceRangeMax}
+                      onChange={event => handleVendorFormChange("priceRangeMax", event.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="vendor-editor-section">
+                <div className="vendor-editor-section-title">Contact & Notes</div>
+                <div className="vendor-editor-grid vendor-editor-grid-tight">
+                  <input
+                    className="input-field"
+                    placeholder="Contact name"
+                    value={vendorForm.contactName}
+                    onChange={event => handleVendorFormChange("contactName", event.target.value)}
+                  />
+                  <input
+                    className="input-field"
+                    placeholder="Phone"
+                    value={vendorForm.phone}
+                    onChange={event => handleVendorFormChange("phone", event.target.value)}
+                  />
+                </div>
+                <textarea
+                  className="textarea-field"
+                  placeholder="Notes"
+                  value={vendorForm.notes}
+                  onChange={event => handleVendorFormChange("notes", event.target.value)}
+                  rows={4}
+                  style={{ marginTop: 10 }}
+                />
+              </div>
+
+              <div className="vendor-editor-actions">
+                {editingVendor && (
+                  <button type="button" className="btn-ghost vendor-editor-delete-btn" onClick={() => deleteVendor(editingVendor.id)}>
+                    Delete Vendor
+                  </button>
+                )}
+                <button type="button" className="btn-secondary" onClick={closeVendorEditor}>
+                  Cancel
+                </button>
+                <button type="button" className="btn-primary" onClick={saveVendor} disabled={!canSaveVendor}>
+                  {editingVendor ? "Save Changes" : "Add Vendor"}
+                </button>
               </div>
             </div>
           </div>
-          <button type="button" className="section-action my-vendors-add-btn" onClick={openAddVendor}>
-            Add Private Vendor
-          </button>
-        </div>
-
-        <div className="vendor-status-overview">
-          <div className="vendor-status-pill">
-            <strong>{myVendorCounts.booked}</strong>
-            <span>Booked</span>
-          </div>
-          <div className="vendor-status-pill">
-            <strong>{myVendorCounts.pending}</strong>
-            <span>Pending</span>
-          </div>
-          <div className="vendor-status-pill">
-            <strong>{myVendorCounts.cancelled}</strong>
-            <span>Cancelled</span>
-          </div>
-        </div>
-
-        {myVendors.length === 0 ? (
-          <EmptyMyVendorsState />
-        ) : (
-          <div className="vendor-managed-grid">
-            {myVendors.map(vendor => (
-              <MyVendorCard
-                key={vendor.id}
-                vendor={vendor}
-                events={events}
-                onClick={() => openEditVendor(vendor)}
-              />
-            ))}
-          </div>
         )}
-      </div>
+      </>
     );
   }
 

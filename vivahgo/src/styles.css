@@ -4377,7 +4377,6 @@
 }
 
 @media (max-width: 767px) {
-  .vendor-status-overview,
   .vendor-editor-grid,
   .vendor-editor-status-row {
     grid-template-columns: 1fr;

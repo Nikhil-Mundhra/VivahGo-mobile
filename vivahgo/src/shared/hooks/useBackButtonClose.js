@@ -40,8 +40,11 @@ export function useBackButtonClose(isOpen, onClose) {
       // back button), so we need to pop the history entry we pushed to keep
       // back-button behaviour intuitive.
       const hadToken = !!tokenRef.current;
+      const ownsCurrentHistoryEntry =
+        window.history.state &&
+        window.history.state[BACK_STATE_KEY] === tokenRef.current;
       tokenRef.current = null;
-      if (hadToken) {
+      if (hadToken && ownsCurrentHistoryEntry) {
         window.history.back();
       }
     };
