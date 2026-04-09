@@ -1552,6 +1552,7 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   flex-shrink: 0;
+}
 .vendor-managed-status-pending,
 .vendor-directory-status-pending {
   background: rgba(201, 134, 33, 0.14);
