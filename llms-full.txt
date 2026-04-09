@@ -1,0 +1,1075 @@
+# VivahGo LLM Full Context
+
+Repo-backed knowledge snapshot date: 2026-04-09
+Scope: this file is derived from the local codebase and config, not from live production fetches. Use it as a high-confidence map of product intent, public routes, data shapes, and verified URLs. Do not treat dynamic inventories, vendor availability, or live billing amounts as guaranteed current unless re-fetched from live endpoints.
+
+## 1. Canonical Identity
+
+Brand
+- VivahGo
+- Legal/operating name used in legal pages: VivahGo Planners (operating as VivahGo)
+
+Primary domains
+- Marketing site: https://vivahgo.com
+- Planner workspace domain: https://planner.vivahgo.com
+
+Core description
+- VivahGo is a wedding planning platform built for Indian weddings.
+- It combines a shared planner workspace with public wedding websites, RSVP flows, vendor onboarding, subscriptions, careers, and admin operations.
+- It is explicitly positioned for couples, families, and wedding planners/studios.
+
+Primary market and locale
+- Language/locale in SEO and feeds: en-IN
+- Core positioning: Indian weddings
+- Structured-data area served: India, UAE, USA, UK, Canada, Australia, Singapore
+
+Official contact and grievance details
+- Support email: support@vivahgo.com
+- Grievance email: grievance@vivahgo.com
+- Grievance Officer: Nikhil Mundhra
+- Postal address: 79, West Mukherjee Nagar, Kingsway Camp, New Delhi - 110009
+- Privacy-page grievance SLA: acknowledge within 48 hours and endeavor to resolve within 30 days
+- WhatsApp support number in code: 918383874103
+
+Official social links
+- Instagram: https://www.instagram.com/vivah.go/
+- LinkedIn: https://www.linkedin.com/company/vivahgo/
+- YouTube: https://www.youtube.com/
+
+Useful brand/media URLs
+- Logo: https://vivahgo.com/logo.svg
+- Social preview image: https://vivahgo.com/social-preview.jpg
+- Sitemap: https://vivahgo.com/sitemap.xml
+- Robots: https://vivahgo.com/robots.txt
+- Guides RSS feed: https://vivahgo.com/guides/feed.xml
+
+## 2. What VivahGo Actually Does
+
+High-confidence product areas
+- Shared wedding planner workspace
+- Event planning across multiple ceremonies
+- Budget tracking and expense management
+- Guest list management and RSVP tracking
+- Vendor directory, vendor coordination, and vendor portal
+- Public wedding website publishing
+- Collaborator sharing with roles
+- Multi-plan and multi-workspace management
+- Subscription checkout and billing
+- Careers page and application intake
+- Feedback, privacy, terms, and data deletion flows
+
+Strongest product narrative
+- VivahGo is meant to replace fragmented wedding planning across WhatsApp, spreadsheets, memory, and repeated family calls.
+- The core promise is "one shared source of truth" across tasks, budgets, guests, vendors, timelines, and guest-facing pages.
+- The product repeatedly emphasizes Indian-wedding complexity: multiple ceremonies, many stakeholders, family-heavy approvals, hospitality logistics, and ceremony-level planning.
+
+Primary audiences
+- Couples planning Indian weddings
+- Families coordinating across branches, functions, and guest lists
+- Wedding planners and studios managing client weddings
+- Teams handling multi-event, destination, or hospitality-heavy weddings
+
+## 3. Verified Public Route Surface
+
+Top-level public routes
+- https://vivahgo.com
+- https://vivahgo.com/home
+- https://vivahgo.com/pricing
+- https://vivahgo.com/guides
+- https://vivahgo.com/careers
+- https://vivahgo.com/vendor
+- https://vivahgo.com/wedding
+- https://planner.vivahgo.com
+
+Legal/support public routes handled by the frontend router
+- https://vivahgo.com/terms
+- https://vivahgo.com/privacy-policy
+- https://vivahgo.com/data-deletion-instructions
+
+Dynamic public routes
+- Public wedding website pattern: https://vivahgo.com/{slug}
+- RSVP page pattern: https://vivahgo.com/rsvp/{token}
+- Guide pattern: https://vivahgo.com/guides/{slug}
+
+Important route safety rule
+- Verified public URLs above are safe to use.
+- Internal product sections like Home, Events, Budget, Guests, Vendors, Tasks, Account Settings, and Plan Switcher should be described as in-app navigation when a direct route is not explicitly verified.
+- Do not fabricate routes like `/budget`, `/guests`, or `/tasks`.
+
+Robots behavior
+- `robots.txt` allows `/`
+- `robots.txt` disallows `/admin`
+- `robots.txt` disallows `/vendor`
+- `robots.txt` disallows `/rsvp/`
+- Sitemap declared at https://vivahgo.com/sitemap.xml
+
+Indexed sitemap URLs currently present in repo
+- https://vivahgo.com/
+- https://vivahgo.com/pricing
+- https://vivahgo.com/guides
+- https://vivahgo.com/wedding-planner-app
+- https://vivahgo.com/wedding-checklist-app
+- https://vivahgo.com/wedding-budget-planner-app
+- https://vivahgo.com/guest-list-rsvp-app
+- https://vivahgo.com/wedding-vendor-manager-app
+- https://vivahgo.com/indian-wedding-budget-template
+- https://vivahgo.com/wedding-guest-list-template
+- https://vivahgo.com/for-wedding-planners
+- https://vivahgo.com/guides/indian-wedding-checklist
+- https://vivahgo.com/guides/punjabi-wedding-timeline
+- https://vivahgo.com/guides/wedding-budget-planner
+- https://vivahgo.com/guides/guest-list-rsvp
+- https://vivahgo.com/guides/vendor-coordination
+- https://vivahgo.com/guides/destination-weddings
+- https://vivahgo.com/careers
+
+## 4. Planner Workspace: Core Product
+
+Bottom-navigation planner sections
+- Home
+- Events
+- Budget
+- Guests
+- Vendors
+- Tasks
+
+Top-bar / account surfaces
+- Marriage plan selector
+- Wedding date quick edit
+- Wedding venue quick edit
+- Account settings
+
+Authentication modes
+- Google-authenticated mode with persistence
+- Demo mode with local sample data only
+- Clerk token sign-in support exists on the backend
+
+Planner capabilities
+- Wedding dashboard with summary cards and countdown
+- Events with create/update/delete
+- Budget with expenses, category tracking, event linking, and charts
+- Guests with names, side, phone, RSVP, count, and filtering
+- Vendor browsing and vendor booking state inside the planner
+- Tasks with groups, linked events, priorities, and completion tracking
+- Multi-plan management for more than one wedding
+- Workspace switching for multiple accessible planners
+- Collaborator management and role-based access
+
+Supported collaborator roles
+- owner
+- editor
+- viewer
+
+Role behavior
+- Owner: full control, including sharing
+- Editor: can modify planner data; some sharing operations are restricted
+- Viewer: read-only
+
+Planner data collections in the stored model
+- marriages
+- activePlanId
+- customTemplates
+- legacy wedding object
+- events
+- expenses
+- guests
+- vendors
+- tasks
+
+Multi-plan behavior and plan limits
+- Starter tier is limited to 1 wedding plan
+- Premium unlocks unlimited wedding workspaces
+- Studio also includes unlimited planner-oriented workspace usage
+
+Onboarding prompt areas
+- bride name
+- groom name
+- wedding date
+- city or venue
+- guest count
+- budget
+
+Budget categories defined in code
+- Venue
+- Catering
+- Decor & Flowers
+- Photography & Video
+- Attire & Jewelry
+- Beauty & Grooming
+- Music & DJ
+- Invitations
+- Transport
+- Stay & Travel
+- Pandit & Rituals
+- Vendor Payments
+- Miscellaneous
+
+Expense areas defined in code
+- Ceremony
+- Guests
+- Bride
+- Groom
+- Vendors
+- General
+
+Default core ceremony/event coverage
+- Roka
+- Sagai
+- Ganesh Puja
+- Haldi
+- Mehndi
+- Sangeet
+- Baraat
+- Jaimala
+- Pheras
+- Kanyadaan
+- Saptapadi
+- Sindoor Daan
+- Reception
+- Vidaai
+- Griha Pravesh
+
+Indian wedding plan templates
+- Start Fresh
+- Punjabi Wedding
+- Gujarati Wedding
+- Marwari Wedding
+- Bengali Wedding
+- South Indian Wedding
+
+Template cultures
+- Custom
+- Punjabi
+- Gujarati
+- Marwari
+- Bengali
+- South Indian
+
+Legacy template aliases still mapped in code
+- traditional -> punjabi
+- modern -> gujarati
+- minimalist -> marwari
+- adventure -> south-indian
+
+Template-specific cultural examples
+- Punjabi: Jaggo, Anand Karaj, Milni
+- Gujarati: Gol Dhana, Mameru, Hasta Milap
+- Marwari: Baan, Pithi Dastoor, Toran
+- Bengali: Gaye Holud, Shubho Drishti, Bou Bhaat
+- South Indian: Vratham, Kashi Yatra, Saptapadi
+
+## 5. Wedding Websites and RSVP
+
+Public wedding website routes
+- Preview route: https://vivahgo.com/wedding
+- Public route pattern: https://vivahgo.com/{slug}
+
+How a public wedding website is resolved
+- The public website uses a `websiteSlug` stored on a marriage plan.
+- If `websiteSettings.isActive === false`, the public website resolves as not found.
+- Public wedding data is read from the planner and filtered to the active public plan.
+
+Public wedding website payload shape
+- `wedding`
+  Fields include bride, groom, date, venue, guests, budget
+- `plan`
+  Fields include id, bride, groom, date, venue, websiteSlug, websiteSettings
+- `events`
+  Only events for that plan
+  Only events with `isPublicWebsiteVisible !== false`
+
+What the public wedding website displays
+- Couple names
+- Wedding date
+- Wedding venue
+- Optional welcome message
+- Optional countdown
+- Optional event calendar
+- Public events sorted by date
+
+Wedding website themes
+- royal-maroon
+- garden-sage
+- midnight-navy
+
+Default wedding website settings
+- isActive: true
+- showCountdown: true
+- showCalendar: true
+- default theme: royal-maroon
+- default hero tagline: "You are invited to celebrate"
+- default schedule title: "Wedding Calendar"
+
+Public wedding website SEO behavior
+- Public wedding website metadata is generated server-side
+- Public wedding websites use `robots: noindex, nofollow`
+- Not-found public wedding pages also use `noindex, nofollow`
+
+RSVP route
+- https://vivahgo.com/rsvp/{token}
+
+RSVP flow summary
+- A session-authenticated editor/owner can create a guest RSVP link
+- The link contains a signed token
+- A guest can open the tokenized page and see invitation details
+- The guest can confirm or decline
+- If confirming, the guest can submit attending guest count
+- Group member names can also be submitted
+- After a successful submission, the RSVP token version is incremented
+- That means the original RSVP link expires after use
+
+Public RSVP payload includes
+- Public wedding data
+- Guest object with:
+  - id
+  - name
+  - side
+  - phone
+  - invitedGuestCount
+  - attendingGuestCount
+  - groupMembers
+  - rsvp
+
+RSVP behavior and cautions
+- RSVP pages use `robots: noindex, nofollow`
+- `robots.txt` disallows `/rsvp/`
+- A valid token is required
+- Expired or invalid tokens return an error
+- RSVP configuration depends on JWT/RSVP secrets being configured
+
+## 6. Notifications and Reminder Features
+
+Account-level notification features
+- Browser notifications can be connected for planner reminders
+- Event reminders toggle
+- Payment reminders toggle
+
+Paid reminder gating
+- Real scheduled reminders are part of Premium and Studio
+- Starter users are prompted to upgrade for paid reminders
+- Editors and owners can configure paid reminder schedules; viewers cannot
+
+Per-plan scheduled reminder settings
+- Enable scheduled reminders for this plan
+- Event reminder: 1 day before
+- Event reminder: 3 hours before
+- Payment reminder: 3 days before
+- Payment reminder: day of due date
+
+Reminder infrastructure
+- Internal dispatch endpoint exists
+- Dispatch authorization uses a secret header or bearer token
+- Reminder tier gate disables real reminders for non-paid tiers
+
+## 7. Vendor Ecosystem
+
+Vendor-facing product areas
+- Vendor registration
+- Vendor business profile editing
+- Media/portfolio management
+- Verification document uploads
+- Availability management
+- Vendor dashboard
+- Vendor support modal
+
+Public vendor directory route
+- Public UI/API surface: https://vivahgo.com/api/vendors
+
+How the public vendor directory is built
+- Only approved vendors are included
+- The public directory payload combines:
+  - Choice profiles curated by VivahGo
+  - Plus-tier approved vendors
+- Choice profiles are aggregated from approved vendor data by type
+
+Public directory entry types
+- Choice profile entries
+- Direct vendor entries
+
+Public vendor directory fields
+- id
+- name
+- type
+- subType
+- bundledServices
+- description
+- country
+- state
+- city
+- googleMapsLink
+- phone
+- website
+- whatsappNumber
+- availabilitySettings
+- budgetRange
+- locations
+- media
+- coverMediaUrl
+- coverMediaType
+- coverImageUrl
+- tier
+- isChoiceProfile
+
+Vendor profile model fields
+- googleId
+- businessName
+- type
+- subType
+- bundledServices
+- country
+- state
+- city
+- description
+- googleMapsLink
+- coverageAreas
+- budgetRange
+- phone
+- website
+- isApproved
+- tier
+- media
+- verificationStatus
+- verificationNotes
+- verificationReviewedAt
+- verificationReviewedBy
+- verificationDocuments
+- availabilitySettings
+
+Vendor approval and verification states
+- `isApproved` boolean controls public listing eligibility
+- `verificationStatus` enum:
+  - not_submitted
+  - submitted
+  - approved
+  - rejected
+
+Vendor tier states
+- Free
+- Plus
+- Choice (public directory generated/curated layer)
+
+Vendor availability settings
+- hasDefaultCapacity
+- defaultMaxCapacity
+- dateOverrides with:
+  - date
+  - maxCapacity
+  - bookingsCount
+
+Vendor document types accepted for verification
+- AADHAAR
+- PAN
+- PASSPORT
+- DRIVING_LICENSE
+- OTHER
+
+Supported vendor types
+- Venue
+- Photography
+- Catering
+- Wedding Invitations
+- Wedding Gifts
+- Music
+- Wedding Transportation
+- Tent House
+- Wedding Entertainment
+- Florists
+- Wedding Planners
+- Wedding Videography
+- Honeymoon
+- Wedding Decorators
+- Wedding Cakes
+- Wedding DJ
+- Pandit
+- Photobooth
+- Astrologers
+- Party Places
+- Choreographer
+- Bridal & Pre-Bridal
+- Groom Services
+
+Representative vendor subtypes
+- Venue: Wedding Lawns, Farmhouses, Hotels, Banquet Halls, Marriage Garden, Kalyana Mandapams, Wedding Resorts
+- Wedding Transportation: Guest Transport, Airport Transfers, Luxury Cars, Baraat Entry Vehicles
+- Wedding Entertainment: Live Performers, Celebrity Acts, Anchors / MC, Baraat Entertainment
+- Music: Live Band, Dhol, Sufi Night, Instrumental Ensemble
+- Wedding Invitations: Luxury Box Invitations, Digital E-Invites, Traditional Cards, Invitation Hampers
+- Wedding Gifts: Guest Hampers, Shagun Gifts, Bridesmaid Gifts, Corporate Gifting
+- Florists: Varmala Florals, Fresh Venue Florals, Car Florals, Table Arrangements
+- Wedding Planners: Full Planning, Partial Planning, Wedding Coordination, Destination Wedding Planning
+- Wedding Videography: Cinematic Wedding Films, Teaser Reels, Documentary Coverage, Drone Videography
+- Wedding Decorators: Mandap Decor, Floral Decor, Stage Decor, Theme Decor
+- Wedding Cakes: Tiered Wedding Cakes, Dessert Tables, Fondant Cakes, Eggless Cakes
+- Wedding DJ: Sangeet DJ, Cocktail DJ, After Party DJ, Sound & Lights
+- Pandit: Wedding Pandit, Phera Specialist, South Indian Priest, Samagri Guidance
+- Photobooth: Instant Print Booth, GIF Booth, Mirror Booth, 360 Video Booth
+- Astrologers: Kundli Matching, Muhurat Consultation, Remedy Guidance, Online Consultation
+- Party Places: Cocktail Venues, Rooftop Venues, Private Dining, After Party Spaces
+- Choreographer: Couple Choreography, Family Performances, Sangeet Concepts, At-Home Rehearsals
+- Bridal & Pre-Bridal: Bridal Jewellery, Bridal Makeup Artists, Bridal Lehenga, Mehndi Artists, Makeup Salon, Trousseau Packing
+- Groom Services: Sherwani, Salon
+
+Vendor support flow
+- Vendor support launches via WhatsApp
+- Support number: 918383874103
+- Common concern labels:
+  - Profile update issue
+  - Availability / calendar help
+  - Media upload problem
+  - Approval status question
+  - Account access / login issue
+  - Billing or subscription question
+  - Other
+
+Example coverage locations present in the sample vendor catalog
+- Delhi
+- Gurgaon
+- Jaipur
+- Noida
+- Faridabad
+- Ghaziabad
+- Mumbai
+- Udaipur
+- Goa
+- Varanasi
+- Chandni Chowk
+- Karol Bagh
+- Online nationwide
+
+## 8. Pricing, Subscription, and Billing
+
+Plans
+- Starter
+- Premium
+- Studio
+
+Plan pricing shown in frontend code
+- Starter: free
+- Premium: INR 2,000 monthly; INR 1,600 yearly price shown in code
+- Studio: INR 5,000 monthly; INR 4,000 yearly price shown in code
+
+Starter plan positioning
+- Best for getting a wedding out of chats and into one clear workspace
+- Includes one unified wedding workspace
+- Includes events, guests, budgets, vendors, checklist/progress, WhatsApp guest reminders, culture-specific templates, collaborators
+
+Premium plan positioning
+- Best for active planning with more family involvement and tighter coordination
+- Includes everything in Starter
+- Includes unlimited wedding workspaces
+- Includes personalized wedding website
+- Includes real scheduled reminders
+- Includes advanced workspace management
+
+Studio plan positioning
+- Best for planners and studios running multiple client weddings
+- Includes everything in Premium
+- Includes client-ready workspaces
+- Includes custom templates
+- Includes requests for up to 2 custom features
+
+Billing behavior
+- Currency: INR
+- Billing cycles: monthly and yearly
+- Coupons supported
+- Quote endpoint returns base amount, final amount, currency, applied coupon, plan, billing cycle, requiresPayment
+- Payment processor: Razorpay
+- Zero-amount flows can confirm internally without Razorpay
+- Receipts/bills are generated and persisted
+
+Billing receipt data model
+- googleId
+- email
+- receiptNumber
+- plan
+- billingCycle
+- currency
+- baseAmount
+- amount
+- couponCode
+- discountPercent
+- paymentProvider (`razorpay` or `internal`)
+- paymentReference
+- status (`paid`, `issued`, `payment_due`, `failed`)
+- emailDeliveryStatus (`pending`, `sent`, `failed`, `skipped`)
+- issuedAt
+- currentPeriodEnd
+- meta
+
+Subscription API notes
+- Status endpoint returns starter/active if no paid subscription is found
+- Portal endpoint currently returns placeholder behavior (`501`)
+- Webhook endpoint expects Razorpay webhook signature verification
+
+## 9. Careers
+
+Public careers page
+- https://vivahgo.com/careers
+
+Public careers API
+- https://vivahgo.com/api/careers
+
+Careers page positioning
+- "Build calmer wedding planning tools with a small team that ships."
+- Emphasizes software for Indian weddings, family alignment, and better vendor operations
+
+Resume rules enforced by code
+- PDF only
+- Maximum size: 2 MB
+- LinkedIn and portfolio URLs must start with `http://` or `https://`
+
+Career application fields
+- jobId
+- fullName
+- email
+- phone
+- location
+- linkedInUrl
+- portfolioUrl
+- coverLetter
+- resumeFilename
+- resumeMimeType
+- resumeBase64
+
+Career application source
+- `source: careers-page`
+
+Career application rate limit
+- 5 submissions per hour per network
+
+Roles currently in `config/careers.json`
+- Founding Product Designer
+  Team: Design
+  Location: Remote / India
+  Type: Full-time
+  Summary: Shape the end-to-end VivahGo experience across marketing, couple workflows, and internal tools.
+- Full Stack Engineer
+  Team: Engineering
+  Location: Remote / India
+  Type: Full-time
+  Summary: Build product features across the React frontend, APIs, admin tooling, and infrastructure integrations.
+- Vendor Growth & Operations
+  Team: Operations
+  Location: Jaipur / Hybrid
+  Type: Full-time
+  Summary: Help onboard, support, and grow the vendor side of the VivahGo marketplace.
+
+## 10. Query / SEO Landing Pages
+
+These pages are significant because they are public, indexable, and structured for marketing/SEO. They are good first-pass crawl targets for an external model.
+
+1. `/wedding-planner-app`
+- Title: Wedding Planner App
+- Purpose: explain the full shared wedding workspace
+- Hero summary: tasks, budgets, guests, vendors, RSVPs, timelines, and wedding websites in one place
+- Main use cases:
+  - active family involvement
+  - fewer follow-up calls
+  - planners coordinating many stakeholders
+  - large or destination weddings
+- Related guides: indian-wedding-checklist, wedding-budget-planner, vendor-coordination
+
+2. `/wedding-checklist-app`
+- Title: Wedding Checklist App
+- Purpose: ceremony-level tasks, owners, deadlines, approvals, execution
+- Main use cases:
+  - couples managing from memory today
+  - family work split across multiple people
+  - planner review workflows
+  - multi-function dependency-heavy weddings
+- Related guides: indian-wedding-checklist, punjabi-wedding-timeline, vendor-coordination
+
+3. `/wedding-budget-planner-app`
+- Title: Wedding Budget Planner App
+- Purpose: planned spend, actual spend, vendor balances, due dates, ceremony-wise costs
+- Main use cases:
+  - real family budgets
+  - several ceremonies with shared costs
+  - planner vendor-balance tracking
+  - destination/hospitality-heavy weddings
+- Related guides: wedding-budget-planner, vendor-coordination, guest-list-rsvp
+
+4. `/guest-list-rsvp-app`
+- Title: Guest List and RSVP App
+- Purpose: invitations, confirmations, family sides, follow-ups, headcount integrity
+- Main use cases:
+  - families collecting names from multiple branches
+  - hospitality and rooming planning
+  - planners locking final headcount
+  - destination/travel-heavy weddings
+- Related guides: guest-list-rsvp, wedding-budget-planner, indian-wedding-checklist
+
+5. `/wedding-vendor-manager-app`
+- Title: Wedding Vendor Manager App
+- Purpose: bookings, deliverables, payment checkpoints, timelines, event-day coordination
+- Main use cases:
+  - couples locking vendors
+  - planners managing many vendor teams
+  - families approving quotes and balances
+  - multi-venue or multi-function weddings
+- Related guides: vendor-coordination, wedding-budget-planner, punjabi-wedding-timeline
+
+6. `/indian-wedding-budget-template`
+- Title: Indian Wedding Budget Template
+- Purpose: free budget template plus benchmark/cost content
+- Contains data/benchmark sections in code for sample budget split, regional budget ranges, catering spend by guest count, and priorities
+- Has 11 FAQs, more than the other landing pages
+- Related guides: wedding-budget-planner, vendor-coordination, guest-list-rsvp
+
+7. `/wedding-guest-list-template`
+- Title: Wedding Guest List Template
+- Purpose: organize family sides, invitation status, RSVPs, plus-ones, rooming, transport, headcounts
+- Related guides: guest-list-rsvp, indian-wedding-checklist, wedding-budget-planner
+
+8. `/for-wedding-planners`
+- Title: Wedding Planning Software for Wedding Planners
+- Purpose: planner/studio-facing product narrative
+- Main use cases:
+  - solo wedding planners
+  - boutique studios
+  - planners handling family-heavy Indian weddings
+  - teams wanting fewer manual status updates
+- Related guides: vendor-coordination, punjabi-wedding-timeline, guest-list-rsvp
+
+## 11. Guide Library
+
+Guide index
+- https://vivahgo.com/guides
+- RSS feed: https://vivahgo.com/guides/feed.xml
+
+Guide inventory
+
+1. `indian-wedding-checklist`
+- URL: https://vivahgo.com/guides/indian-wedding-checklist
+- Summary: practical checklist for ceremonies, budgets, family decisions, and vendors
+- Sections:
+  - Start with one master planning system
+  - Break the wedding into ceremony-level workflows
+  - Turn the checklist into execution
+
+2. `punjabi-wedding-timeline`
+- URL: https://vivahgo.com/guides/punjabi-wedding-timeline
+- Summary: roka, mehndi, sangeet, baraat, anand karaj, reception
+- Sections:
+  - Plan the full sequence before refining details
+  - Keep celebration energy and logistics aligned
+  - Use the timeline to reduce repeated follow-up
+
+3. `wedding-budget-planner`
+- URL: https://vivahgo.com/guides/wedding-budget-planner
+- Summary: venue, decor, catering, rituals, travel, vendor payments
+- Sections:
+  - Budget by category and by ceremony
+  - Track advances and pending balances early
+  - Connect the budget to planning decisions
+
+4. `guest-list-rsvp`
+- URL: https://vivahgo.com/guides/guest-list-rsvp
+- Summary: family sides, follow-ups, guest counts, invitation responses
+- Sections:
+  - Keep one master guest list from the start
+  - Treat RSVP tracking as operations, not admin
+  - Connect guests to the wider wedding plan
+
+5. `vendor-coordination`
+- URL: https://vivahgo.com/guides/vendor-coordination
+- Summary: photographers, decorators, venues, pandits, choreographers, transport, entertainment
+- Sections:
+  - Coordinate vendors from one source of truth
+  - Track bookings beyond the vendor name
+  - Make the event-day version simple
+
+6. `destination-weddings`
+- URL: https://vivahgo.com/guides/destination-weddings
+- Summary: destination planning across Jaipur, Udaipur, Goa, Delhi NCR, Mumbai, and other wedding cities
+- Sections:
+  - Plan the destination as a system
+  - Use ceremony planning to control complexity
+  - Build city and venue visibility over time
+
+## 12. Static Downloads and Utility URLs
+
+Template downloads from `/public`
+- Budget CSV template: https://vivahgo.com/templates/wedding-budget-template.csv
+- Guest list CSV template: https://vivahgo.com/templates/wedding-guest-list-template.csv
+
+Other useful static URLs
+- Sitemap: https://vivahgo.com/sitemap.xml
+- Robots: https://vivahgo.com/robots.txt
+- Guides RSS feed: https://vivahgo.com/guides/feed.xml
+- Logo: https://vivahgo.com/logo.svg
+- Icons: https://vivahgo.com/icons.svg
+- Social preview: https://vivahgo.com/social-preview.jpg
+- Thumbnail: https://vivahgo.com/Thumbnail.png
+
+## 13. Public and Authenticated API Surface
+
+Public endpoints
+- `GET /api/health`
+  Purpose: health check
+- `GET /api/auth/csrf`
+  Purpose: issue/refresh CSRF token
+- `POST /api/auth/google`
+  Purpose: sign in with Google credential
+- `POST /api/auth/clerk`
+  Purpose: sign in with Clerk token
+- `GET /api/planner/public?slug={slug}`
+  Purpose: read public wedding website data
+- `GET /api/planner/rsvp?token={token}`
+  Purpose: resolve RSVP token to invitation data
+- `POST /api/planner/rsvp`
+  Purpose: submit RSVP response
+- `GET /api/vendors`
+  Purpose: public vendor listing
+- `GET /api/careers`
+  Purpose: public job catalog
+
+Session-authenticated planner endpoints
+- `GET /api/planner/me`
+- `PUT /api/planner/me`
+- `GET /api/planner/access`
+- `POST /api/planner/me/rsvp-link`
+- `GET /api/planner/me/collaborators`
+- `POST /api/planner/me/collaborators`
+- `PUT /api/planner/me/collaborators`
+- `DELETE /api/planner/me/collaborators`
+- `GET /api/planner/me/notifications`
+- `PUT /api/planner/me/notifications`
+- `POST /api/planner/me/notifications`
+- `DELETE /api/planner/me/notifications`
+
+Session-authenticated vendor endpoints
+- `GET /api/vendor/me`
+- `POST /api/vendor/me`
+- `PATCH /api/vendor/me`
+- `POST /api/media/presigned-url`
+- `POST /api/vendor/media`
+- `PUT /api/vendor/media`
+- `DELETE /api/vendor/media`
+- `POST /api/media/verification-presigned-url`
+- `POST /api/vendor/verification`
+- `DELETE /api/vendor/verification`
+
+Session-authenticated subscription endpoints
+- `GET /api/subscription/status`
+- `POST /api/subscription/quote`
+- `POST /api/subscription/checkout`
+- `POST /api/subscription/confirm`
+- `POST /api/subscription/portal`
+
+Admin/staff endpoints
+- `GET /api/admin/me`
+- `GET /api/admin/vendors`
+- `PATCH /api/admin/vendors`
+- `GET /api/admin/choice`
+- `PATCH /api/admin/choice`
+- `POST /api/admin/choice-media-upload`
+- `GET /api/admin/staff`
+- `POST /api/admin/staff`
+- `PUT /api/admin/staff`
+- `DELETE /api/admin/staff`
+- `GET /api/admin/applications`
+- `PATCH /api/admin/applications`
+- `GET /api/admin/resume-download`
+- `GET /api/admin/subscribers`
+
+Webhook/internal endpoints
+- `POST /api/subscription/webhook`
+- `POST /api/planner/internal/reminder-dispatch`
+
+Endpoint auth notes
+- Planner and vendor mutation routes use cookie sessions plus CSRF protection
+- Public wrapper routes for vendor list and planner public data set CORS headers
+- Internal reminder dispatch uses a secret header or bearer token
+
+## 14. SEO, Metadata, and Crawl Signals
+
+Default SEO values in code
+- Default site URL: https://vivahgo.com
+- Default image path: /social-preview.jpg
+- Theme color default: #6b0f0f
+- Default locale: en_IN
+
+Metadata behavior
+- Marketing and query/guide pages are rendered with server metadata and structured data
+- Query pages and guides have JSON-LD
+- Public wedding website pages and RSVP pages are intentionally `noindex, nofollow`
+
+Structured-data types used in the codebase
+- Organization
+- WebSite
+- SoftwareApplication
+- Offer
+- OfferCatalog
+- WebPage
+- FAQPage
+- ItemList
+- BreadcrumbList
+- Article
+- CollectionPage
+
+## 15. Tech Stack and Infrastructure
+
+Frontend
+- React 19
+- Vite
+- CSS and Tailwind tooling
+
+Backend
+- Vercel serverless functions under `api/`
+- Local Express development server under `vivahgo/server/index.js`
+
+Data and auth
+- MongoDB with Mongoose
+- Google OAuth verification
+- JWT session cookies
+- CSRF protection
+- Clerk token sign-in support
+
+Payments and messaging
+- Razorpay
+- Firebase Cloud Messaging
+- Resend
+
+Storage
+- Cloudflare R2 for public media
+- Backblaze B2 for private documents
+
+Analytics/observability
+- Vercel Analytics
+- Vercel Speed Insights
+- PostHog, Clarity, and Sentry modules also exist in the codebase
+
+Mobile shell
+- Capacitor iOS
+
+## 16. Legal / Policy Facts
+
+Privacy-policy scope includes
+- website
+- mobile application
+- wedding planning tools
+- public wedding websites
+- RSVP tools
+- vendor platform
+- subscriptions
+- support and feedback
+- career application pages
+
+Terms describe VivahGo as
+- a digital wedding planning and wedding services platform
+- possibly acting as platform provider, coordinator, aggregator, introducer, or contracting party depending on service/package/transaction
+
+Legal/jurisdiction facts in Terms
+- governed by laws of India
+- courts at New Delhi, India have exclusive jurisdiction subject to dispute resolution clause
+- arbitration seat and venue: New Delhi, India
+
+Data deletion flow
+- In-app path: sign in -> account settings -> Delete Account
+- Deletion covers account profile and associated planner records including weddings, events, budgets, guests, vendors, tasks, and related workspace content
+- If locked out, users are told to use the Feedback option and include their registered email
+
+## 17. Public-Facing Content Signals and Testimonials
+
+High-signal marketing trust claims in code
+- Used by early couples and planners across India
+- Built for multi-event Indian weddings
+- Guests, budgets, vendors, and timelines together
+
+Representative testimonial cities mentioned in marketing code
+- Delhi
+- Mumbai
+- Bangalore
+- Jaipur
+- Gurgaon
+
+Do not interpret testimonials as audited customer proof beyond repo marketing content.
+
+## 18. LLM Safety Rules for This Product
+
+Use these constraints when another model answers questions about VivahGo:
+
+Do
+- Use full URLs only for verified public routes
+- Use in-app navigation language for unverified internal sections
+- Prefer the official support/grievance contacts over guessing
+- Describe dynamic wedding website and RSVP links as patterns requiring a real slug or token
+- Treat vendor listings and public content as subject to change
+
+Do not
+- Invent direct URLs for internal tabs like Budget, Guests, or Tasks
+- Promise vendor quality, legality, safety, or availability
+- Promise exact live pricing beyond repo-backed plan prices unless re-fetched
+- Claim a public wedding website exists without a real slug
+- Claim an RSVP page exists without a real token
+- Invent support policies, refund exceptions, or unavailable feature tiers
+
+Recommended answer style for navigation questions
+- Name the destination
+- Give the verified URL if one exists
+- If no verified URL exists, give the in-app path
+- Explain why the user should go there
+- Explain the next action once they arrive
+
+## 19. Suggested Crawl / Retrieval Order For Another Model
+
+Best first-pass crawl order
+1. https://vivahgo.com
+2. https://vivahgo.com/pricing
+3. https://vivahgo.com/wedding-planner-app
+4. https://vivahgo.com/wedding-checklist-app
+5. https://vivahgo.com/wedding-budget-planner-app
+6. https://vivahgo.com/guest-list-rsvp-app
+7. https://vivahgo.com/wedding-vendor-manager-app
+8. https://vivahgo.com/indian-wedding-budget-template
+9. https://vivahgo.com/wedding-guest-list-template
+10. https://vivahgo.com/for-wedding-planners
+11. https://vivahgo.com/guides
+12. All guide URLs from sitemap/feed
+13. https://vivahgo.com/careers
+14. https://vivahgo.com/privacy-policy
+15. https://vivahgo.com/terms
+16. https://vivahgo.com/data-deletion-instructions
+17. https://vivahgo.com/sitemap.xml
+18. https://vivahgo.com/guides/feed.xml
+19. Public APIs such as `/api/vendors`, `/api/careers`, `/api/health`
+
+Only fetch when you have a real identifier
+- https://vivahgo.com/{slug}
+- https://vivahgo.com/rsvp/{token}
+- https://vivahgo.com/api/planner/public?slug={slug}
+- https://vivahgo.com/api/planner/rsvp?token={token}
+
+## 20. Repo Provenance
+
+High-value source files for this document
+- `/Users/nikhil/Documents/VivahGo-mobile/README.md`
+- `/Users/nikhil/Documents/VivahGo-mobile/vercel.json`
+- `/Users/nikhil/Documents/VivahGo-mobile/vivahgo/src/siteUrls.js`
+- `/Users/nikhil/Documents/VivahGo-mobile/vivahgo/src/app/routes/appRoutes.js`
+- `/Users/nikhil/Documents/VivahGo-mobile/vivahgo/src/features/marketing/pages/MarketingHomePage.jsx`
+- `/Users/nikhil/Documents/VivahGo-mobile/vivahgo/src/shared/content/query-pages.json`
+- `/Users/nikhil/Documents/VivahGo-mobile/vivahgo/src/shared/content/guides.json`
+- `/Users/nikhil/Documents/VivahGo-mobile/vivahgo/public/sitemap.xml`
+- `/Users/nikhil/Documents/VivahGo-mobile/vivahgo/public/robots.txt`
+- `/Users/nikhil/Documents/VivahGo-mobile/vivahgo/public/guides/feed.xml`
+- `/Users/nikhil/Documents/VivahGo-mobile/FEATURE_GUIDE.md`
+- `/Users/nikhil/Documents/VivahGo-mobile/chatbot-trainer.txt`
+- `/Users/nikhil/Documents/VivahGo-mobile/docs/api-architecture.md`
+- `/Users/nikhil/Documents/VivahGo-mobile/vivahgo/src/constants.js`
+- `/Users/nikhil/Documents/VivahGo-mobile/vivahgo/src/data.js`
+- `/Users/nikhil/Documents/VivahGo-mobile/vivahgo/src/plannerDefaults.js`
+- `/Users/nikhil/Documents/VivahGo-mobile/vivahgo/src/features/wedding-website/pages/WeddingWebsitePage.jsx`
+- `/Users/nikhil/Documents/VivahGo-mobile/vivahgo/src/features/guest-rsvp/pages/GuestRsvpPage.jsx`
+- `/Users/nikhil/Documents/VivahGo-mobile/vivahgo/src/features/planner/components/AccountScreen.jsx`
+- `/Users/nikhil/Documents/VivahGo-mobile/vivahgo/src/features/vendor/components/VendorSupportModal.jsx`
+- `/Users/nikhil/Documents/VivahGo-mobile/config/careers.json`
+- `/Users/nikhil/Documents/VivahGo-mobile/api/page.js`
+- `/Users/nikhil/Documents/VivahGo-mobile/api/planner.js`
+- `/Users/nikhil/Documents/VivahGo-mobile/api/vendor.js`
+- `/Users/nikhil/Documents/VivahGo-mobile/api/careers.js`
+- `/Users/nikhil/Documents/VivahGo-mobile/api/subscription.js`
+- `/Users/nikhil/Documents/VivahGo-mobile/vivahgo/server/models/Planner.js`
+- `/Users/nikhil/Documents/VivahGo-mobile/vivahgo/server/models/Vendor.js`
+- `/Users/nikhil/Documents/VivahGo-mobile/vivahgo/server/models/BillingReceipt.js`
