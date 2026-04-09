@@ -24,33 +24,33 @@ import seoKeywordLibrary from "../../../generated/seo-keywords.json";
 const DEMO_PLANNER = createDemoPlanner();
 
 const trustSignals = [
-  "Used by early couples, families, and planners across India",
-  "Stronger family coordination than bride-and-groom-only planner apps",
-  "Guests, budgets, vendors, and timelines together in one workspace",
+  "Used by early couples and planners across India",
+  "Built for multi-event Indian weddings",
+  "Guests, budgets, vendors, and timelines together",
 ];
 
 const painPoints = [
-  "Guest decisions keep getting buried in WhatsApp",
-  "Checklist and budget updates live in separate tools",
-  "Families stay involved, but no one stays aligned",
+  "Decisions get lost in chats",
+  "No single source of truth",
+  "Constant follow-ups waste time",
 ];
 
 const benefitCards = [
   {
     title: "Everyone sees the same plan",
-    description: "Couples, parents, siblings, and planners see the same plan without repeated updates or side versions.",
+    description: "Couples, parents, and planners see the same plan without repeated updates.",
   },
   {
-    title: "Guest management stops feeling chaotic",
-    description: "Track guest lists, RSVPs, reminders, and family-side ownership in one place instead of scattered chats.",
+    title: "Nothing important slips through",
+    description: "Track tasks, payments, guest details, and event timelines together.",
   },
   {
-    title: "Checklist and budget stay connected",
-    description: "Track tasks, payments, and spend together so planning decisions do not drift away from the numbers.",
+    title: "Budget stress shows up earlier",
+    description: "Spot pending payments and overspending before they snowball.",
   },
   {
-    title: "Family help becomes useful",
-    description: "Invite the right people with workspace roles like editor or viewer so more people can help without everyone changing everything.",
+    title: "Planning feels calmer",
+    description: "Fewer surprises. More headspace for the wedding itself.",
   },
 ];
 
@@ -108,16 +108,16 @@ const plannerAppCapabilityBuckets = [
       },
       {
         title: "Keep everyone on the same page",
-        description: "Give couples, families, and planners one shared workspace with clear editor and viewer roles instead of parallel versions.",
+        description: "Give couples, families, and planners one shared workspace instead of parallel versions.",
       },
     ],
   },
 ];
 
 const differentiators = [
-  "VivahGo gives you stronger WhatsApp guest management because the guest list, reminders, RSVPs, and family ownership stay inside the same live workspace.",
-  "VivahGo gives you stronger checklist and budgeting because tasks, spend, payments, guests, and vendors stay connected instead of split apart.",
-  "Most planner apps are built for a bride and groom. VivahGo is built so the whole family can stay aligned without creating a thousand messy WhatsApp groups.",
+  "WhatsApp is for talking. It is terrible at keeping a wedding on track.",
+  "Excel can store a plan. It cannot keep a family coordinated.",
+  "VivahGo keeps the latest plan live, shared, and visible to the people who matter.",
 ];
 
 const plans = [
@@ -125,14 +125,14 @@ const plans = [
     name: "Starter",
     monthlyPrice: 0,
     yearlyPrice: 0,
-    description: "Best for replacing guest-only and checklist-only tools with one real wedding workspace for free.",
+    description: "Best for getting your wedding out of chats and into one clear workspace.",
     features: ["1 Unified Wedding Workspace", "Track and manage events, guest lists, budgets, and vendors", "Checklist & Progress Tracking", "WhatsApp Guest Reminders", "Culture-Specific Wedding Templates", "Invite Collaborators"],
   },
   {
     name: "Premium",
     monthlyPrice: 2000,
     yearlyPrice: 1600,
-    description: "Best for active planning with more family involvement, more automation, and tighter coordination.",
+    description: "Best for active planning with more family involvement and tighter coordination.",
     features: ["Everything in Starter", "Unlimited Wedding Workspaces", "Personalized Wedding Website", "Real Scheduled Reminders", "Advanced workspace management"],
     featured: true,
   },
@@ -152,7 +152,7 @@ const faqs = [
   },
   {
     question: "Can family members be involved without creating more confusion?",
-    answer: "Yes. VivahGo is built for shared visibility and workspace roles, so family members can stay involved with the right level of access instead of relying on scattered chats and repeated updates.",
+    answer: "Yes. VivahGo is built for shared visibility, so people can stay involved without relying on scattered chats and repeated updates.",
   },
   {
     question: "When should we start using it?",
@@ -568,7 +568,7 @@ export default function MarketingHomePage({ page = "home" }) {
 
   function renderPricingSection() {
     return (
-        <section className="marketing-section" id="pricing">
+      <section className="marketing-section" id="pricing">
         <div className="marketing-section-heading">
           <p className="marketing-section-kicker">Pricing</p>
           <p>Costs less than 0.1% of a typical Indian wedding but prevents expensive mistakes.</p>
@@ -588,8 +588,8 @@ export default function MarketingHomePage({ page = "home" }) {
               Yearly <span>Save 20%</span>
             </button>
           </div>
-          <h2>Start free with real planning value. Upgrade when coordination gets heavier.</h2>
-          <p>Starter gives you one strong wedding workspace for guests, WhatsApp reminders, checklists, budgets, vendors, and collaborators. Upgrade when you need unlimited workspaces or more advanced coordination.</p>
+          <h2>Start simple. Upgrade when the wedding gets bigger.</h2>
+          <p>Start free, set up your workspace, and move up only when planning gets more collaborative.</p>
         </div>
 
         <div className="marketing-pricing-grid">
@@ -756,7 +756,7 @@ export default function MarketingHomePage({ page = "home" }) {
             <div className="marketing-section-heading">
               <p className="marketing-section-kicker">Pricing</p>
               <h1>Choose the workspace that fits your wedding.</h1>
-              <p>Start free with one real wedding workspace, then upgrade when your family coordination, automation, or planner workload grows.</p>
+              <p>Start free, upgrade when you need more coordination, and keep billing simple as your Indian wedding planning grows.</p>
             </div>
           </section>
 
@@ -948,7 +948,7 @@ export default function MarketingHomePage({ page = "home" }) {
       <main className="marketing-main">
         <section className="marketing-hero">
           <div className="marketing-hero-copy">
-            <p className="marketing-kicker">Wedding planner app for Indian weddings with too many chats, spreadsheets, and opinions</p>
+            <p className="marketing-kicker">Wedding planner app for Indian weddings with too many chats, lists, and opinions</p>
             <figure className="marketing-hero-visual marketing-hero-visual-inline">
               <img
                 src={resolvePublicAssetUrl("/MainHero.png")}
@@ -959,12 +959,12 @@ export default function MarketingHomePage({ page = "home" }) {
               <div className="marketing-hero-visual-badge marketing-hero-visual-badge-left">Before: scattered planning</div>
               <div className="marketing-hero-visual-badge marketing-hero-visual-badge-right">After: one shared workspace</div>
             </figure>
-            <h1>The wedding planner app that keeps your whole family on the same page.</h1>
+            <h1>The wedding planner app that keeps your entire wedding in one place.</h1>
             <p className="marketing-summary">
               VivahGo helps couples, families, and planners manage guests, budgets, vendors, RSVPs, timelines, and family coordination together in a single shared workspace.
             </p>
             <p className="marketing-summary">
-              It gives you stronger WhatsApp guest management, stronger checklist and budgeting, and better whole-family coordination than planner apps built mainly for just the bride and groom.
+              Use it as your wedding checklist app, budget planner, guest list manager, RSVP tracker, and vendor coordination system across every ceremony.
             </p>
 
             <div className="marketing-hero-actions">
@@ -986,21 +986,21 @@ export default function MarketingHomePage({ page = "home" }) {
           <div className="marketing-hero-panel" aria-label="VivahGo overview">
             <div className="marketing-panel-card marketing-panel-primary">
               <span className="marketing-panel-label">What it replaces</span>
-              <h2>One shared wedding workspace instead of guest-only tools, checklist-only tools, and scattered updates</h2>
+              <h2>One shared wedding workspace instead of scattered updates</h2>
               <ul>
-                <li><span>Beat WhatsApp guest chaos with one live guest workflow</span></li>
-                <li><span>Beat checklist-only planning with budget, guest, and vendor context together</span></li>
-                <li><span>Beat constant family follow-ups with shared editor and viewer access</span></li>
+                <li><span>Replace WhatsApp chaos</span></li>
+                <li><span>Replace messy spreadsheets</span></li>
+                <li><span>Replace constant follow-ups</span></li>
               </ul>
             </div>
             <div className="marketing-panel-stack">
               <article className="marketing-panel-card">
                 <span className="marketing-panel-metric">For couples and families</span>
-                <p>Keep siblings, parents, and key relatives aligned without repeating the same update ten times.</p>
+                <p>Keep everyone in sync without repeating the same update ten times.</p>
               </article>
               <article className="marketing-panel-card">
                 <span className="marketing-panel-metric">For planners and studios</span>
-                <p>Run client weddings with role-based collaboration, clearer visibility, and fewer follow-ups.</p>
+                <p>Run client weddings with clearer visibility and fewer follow-ups.</p>
               </article>
             </div>
           </div>
@@ -1055,12 +1055,12 @@ export default function MarketingHomePage({ page = "home" }) {
                 <span>From roka to reception, keep dates, owners, and next steps visible.</span>
               </div>
               <div>
-                <strong>Keep guest, budget, and checklist decisions connected</strong>
-                <span>Know what changed, what is pending, and what needs action without hopping across tools.</span>
+                <strong>Keep budgets and guest lists live</strong>
+                <span>Know what changed, what is pending, and what needs action.</span>
               </div>
               <div>
                 <strong>Plan together without the back-and-forth</strong>
-                <span>Couples, parents, relatives, and planners can work from the same source of truth with editor or viewer access.</span>
+                <span>Couples, parents, and planners can work from the same source of truth.</span>
               </div>
             </div>
             <a className="marketing-primary-action" href={PLANNER_HOME_URL}>
@@ -1208,7 +1208,7 @@ export default function MarketingHomePage({ page = "home" }) {
         <section className="marketing-section marketing-section-contrast">
           <div className="marketing-section-heading">
             <p className="marketing-section-kicker">Why VivahGo Wins</p>
-            <h2>Better than guest-only tools, checklist-only tools, and WhatsApp chaos because it was <span className="marketing-inline-highlight">built for real Indian wedding coordination</span>.</h2>
+            <h2>Better than WhatsApp and Excel because it was <span className="marketing-inline-highlight">built for weddings</span>.</h2>
           </div>
 
           <div className="marketing-differentiator-list">
