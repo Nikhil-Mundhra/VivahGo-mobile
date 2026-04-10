@@ -16,7 +16,7 @@
     "@axiomhq/js": "^1.6.0",
     "@capacitor/core": "^8.3.0",
     "@capacitor/ios": "^8.2.0",
-    "@clerk/nextjs": "^7.0.8",
+    "@clerk/nextjs": "^7.0.12",
     "@sentry/react": "^10.47.0",
     "@vercel/blob": "^2.3.3",
     "google-auth-library": "^10.6.2",
