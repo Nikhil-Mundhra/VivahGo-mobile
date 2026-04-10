@@ -17,7 +17,7 @@
     "@capacitor/core": "^8.3.0",
     "@capacitor/ios": "^8.2.0",
     "@clerk/nextjs": "^7.0.8",
-    "@sentry/react": "^10.47.0",
+    "@sentry/react": "^10.48.0",
     "@vercel/blob": "^2.3.3",
     "google-auth-library": "^10.6.2",
     "jsonwebtoken": "^9.0.2",
