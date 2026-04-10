@@ -20,7 +20,7 @@
     "zod": "4.3.6"
   },
   "devDependencies": {
-    "@elevenlabs/elevenlabs-js": "^2.20.0",
+    "@elevenlabs/elevenlabs-js": "^2.42.0",
     "@remotion/eslint-config-flat": "^4.0.445",
     "@types/prompts": "^2.4.9",
     "@types/react": "19.2.7",
