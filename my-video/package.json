@@ -11,7 +11,7 @@
     "@remotion/google-fonts": "^4.0.445",
     "@remotion/layout-utils": "^4.0.445",
     "@remotion/media": "^4.0.445",
-    "@remotion/tailwind-v4": "^4.0.445",
+    "@remotion/tailwind-v4": "^4.0.447",
     "@remotion/zod-types": "^4.0.445",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
