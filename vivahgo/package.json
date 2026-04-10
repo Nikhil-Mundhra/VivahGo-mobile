@@ -18,7 +18,7 @@
     "start:server": "node --import ./server/sentry-init.js server/index.js"
   },
   "dependencies": {
-    "@axiomhq/js": "^1.4.0",
+    "@axiomhq/js": "^1.6.0",
     "@axiomhq/logging": "^0.2.0",
     "@capacitor/core": "^8.3.0",
     "@capacitor/ios": "^8.3.0",
